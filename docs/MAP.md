@@ -1,7 +1,7 @@
 ---
 status: active
 tags: [index]
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 ---
 
 # Map
@@ -14,6 +14,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 |---|---|---|---|
 | coach-api | api | [../apps/coach-api](../apps/coach-api/README.md) | Finance engine, benchmarks and the chat agent for the S-Bank money coach |
 | coach-web | web | [../apps/coach-web](../apps/coach-web/README.md) | Mobile-first chat app for the S-Bank money coach |
+| glasses-api | api | [../apps/glasses-api](../apps/glasses-api/README.md) | Automatic calorie tracker for camera glasses: frames in, a food log and a spoken sentence out |
 
 ## Agent tooling
 
