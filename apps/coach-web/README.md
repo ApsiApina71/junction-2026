@@ -4,7 +4,7 @@ tags: [app, web, coach]
 last-updated: 2026-11-13
 ---
 
-# coach-web
+# coach-web (Kolme koria)
 
 The mobile-first web app of the S-Bank money coach (Junction 2026, S-Pankki challenge). Linear project: [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606).
 

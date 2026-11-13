@@ -20,13 +20,14 @@ const STARTERS: { key: Key; intent?: Intent }[] = [
   { key: 'q_taxis' },
 ]
 
+/** The logo: three baskets as three bars, in the same colours as every chart. */
 function Mark() {
   return (
     <svg className="mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="9" fill="var(--brand)" />
-      <path d="M9 12.5c0-2 1.6-3.5 3.6-3.5h6.8c2 0 3.6 1.500 3.600 3.500v1.500H9z" fill="var(--brand-ink)" opacity=".55" />
-      <rect x="7" y="13" width="18" height="11" rx="3.500" fill="var(--brand-ink)" />
-      <circle cx="16" cy="18.500" r="2.200" fill="var(--brand)" />
+      <rect width="32" height="32" rx="9" fill="var(--tile)" />
+      <rect x="7" y="7.500" width="18" height="4.400" rx="2.200" fill="var(--b-regular)" />
+      <rect x="7" y="13.800" width="8" height="4.400" rx="2.200" fill="var(--b-irregular)" />
+      <rect x="7" y="20.100" width="13" height="4.400" rx="2.200" fill="var(--b-everyday)" />
     </svg>
   )
 }

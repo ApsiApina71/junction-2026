@@ -1,11 +1,11 @@
 import type { Basket, Lang } from './types'
 
-/** Working product name. The brand is decided separately; change it here only. */
-export const BRAND = 'Kukkaro'
+/** Kolme koria is Finnish for "three baskets". */
+export const BRAND = 'Kolme koria'
 
 const en = {
-  tagline: 'Talk with your own money.',
-  welcomeLead: 'An AI money coach that knows your account, shows its working and never guesses a number.',
+  tagline: 'Know your three baskets.',
+  welcomeLead: 'Talk with your own money. An AI coach that knows your account, shows its working and never guesses a number.',
   pickPersona: 'Choose a demo customer',
   personaNote: 'Synthetic customers from the Junction 2026 S-Bank dataset. First names are made up.',
   yearsOld: '{age} years',
@@ -185,8 +185,8 @@ const en = {
 }
 
 const fi: typeof en = {
-  tagline: 'Juttele omien rahojesi kanssa.',
-  welcomeLead: 'Tekoälyvalmentaja, joka tuntee tilisi, näyttää laskelmansa eikä koskaan arvaa lukuja.',
+  tagline: 'Tunne kolme koriasi.',
+  welcomeLead: 'Juttele omien rahojesi kanssa. Tekoälyvalmentaja, joka tuntee tilisi, näyttää laskelmansa eikä koskaan arvaa lukuja.',
   pickPersona: 'Valitse demoasiakas',
   personaNote: 'Synteettisiä asiakkaita Junction 2026 -tapahtuman S-Pankin aineistosta. Etunimet ovat keksittyjä.',
   yearsOld: '{age} v',
