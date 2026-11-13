@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from . import vision
@@ -91,6 +91,29 @@ def health() -> dict:
 @app.get("/")
 def page() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/display/")
+def display_page() -> FileResponse:
+    """The screen for Meta Ray-Ban Display glasses. Add this address, with its trailing slash, as a Web App."""
+    return FileResponse(STATIC / "display" / "index.html")
+
+
+@app.get("/display/.well-known/meta-wearables-manifest.json")
+def display_manifest() -> JSONResponse:
+    # The glasses look for the manifest in .well-known beside the launch directory, and resolve the icon from there.
+    manifest = {
+        "version": 1,
+        "name": "Calorie tracker",
+        "description": "Logs what you eat by watching it.",
+        "appearance": {"theme_color": "#1F6F4A", "icon": {"src": "../icon.svg"}},
+    }
+    return JSONResponse(manifest, media_type="application/json; charset=utf-8")
+
+
+@app.get("/display/icon.svg")
+def display_icon() -> FileResponse:
+    return FileResponse(STATIC / "display" / "icon.svg", media_type="image/svg+xml")
 
 
 @app.post("/frames", dependencies=[Depends(check_token)])

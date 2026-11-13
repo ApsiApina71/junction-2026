@@ -117,3 +117,31 @@ def test_token_is_required_when_set(client, monkeypatch):
     # The page and the health check carry no data and stay open.
     assert client.get("/").status_code == 200
     assert client.get("/health").status_code == 200
+
+
+def test_the_glasses_screen_is_served_as_a_web_app(client):
+    page = client.get("/display/")
+    assert page.status_code == 200
+    assert 'name="mrbd-web-app-capable"' in page.text
+    # Without the trailing slash the request is redirected to the directory-style address the glasses need.
+    assert client.get("/display?hold").url.path == "/display/"
+
+    manifest = client.get("/display/.well-known/meta-wearables-manifest.json")
+    assert manifest.headers["content-type"] == "application/json; charset=utf-8"
+    body = manifest.json()
+    assert body["version"] == 1
+    assert body["name"] == "Calorie tracker"
+    # "../icon.svg" is resolved against the manifest address, which gives /display/icon.svg.
+    assert body["appearance"]["icon"]["src"] == "../icon.svg"
+    icon = client.get("/display/icon.svg")
+    assert icon.status_code == 200
+    assert icon.headers["content-type"].startswith("image/svg+xml")
+
+
+def test_today_carries_the_last_event_for_the_glasses_screen(client, fake):
+    assert client.get("/today").json()["last_event"] is None
+    fake.queue = [soup(), soup()]
+    post(client, jpeg())
+    post(client, jpeg())
+    event = client.get("/today").json()["last_event"]
+    assert (event["kind"], event["kcal"]) == ("logged", 460)

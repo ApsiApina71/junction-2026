@@ -72,6 +72,8 @@ class Tracker:
         self._language = language
         self._pending: list[datetime] = []
         self._queued_say: str | None = None
+        # The latest thing worth showing on a display: a logged meal or a leftover correction. Not kept across restarts.
+        self._last_event: dict | None = None
 
     # Reading
 
@@ -88,6 +90,7 @@ class Tracker:
         with self._lock:
             self._close_if_stale(now)
             rows = self._db.execute("SELECT * FROM entries WHERE day = ? ORDER BY id DESC", (now.date().isoformat(),)).fetchall()
+            last_event = self._last_event
         entries = []
         totals = {"kcal": 0.0, "protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0}
         for row in rows:
@@ -115,6 +118,7 @@ class Tracker:
             "goal_kcal": DAILY_KCAL_GOAL or None,
             "summary": self._summary(result["kcal"], len(entries)),
             "lang": "fi-FI" if self._language == "fi" else "en-US",
+            "last_event": last_event,
             "entries": entries,
         }
 
@@ -149,7 +153,7 @@ class Tracker:
 
             parts = [queued] if queued else []
             if open_row is not None:
-                closing = self._close(open_row)
+                closing = self._close(open_row, now)
                 if closing:
                     parts.append(closing)
             items = [i.model_dump() for i in sighting.items]
@@ -158,7 +162,9 @@ class Tracker:
                 (now.date().isoformat(), now.isoformat(), now.isoformat(), sighting.title, json.dumps(items), frame),
             )
             self._db.commit()
-            parts.append(self._say_logged(sighting.title, _kcal(items), self._total_kcal(now)))
+            say = self._say_logged(sighting.title, _kcal(items), self._total_kcal(now))
+            self._last_event = {"at": now.isoformat(), "kind": "logged", "title": sighting.title, "kcal": round(_kcal(items)), "say": say}
+            parts.append(say)
             return Outcome("logged", " ".join(parts))
 
     def delete(self, entry_id: int) -> bool:
@@ -175,21 +181,24 @@ class Tracker:
     def _close_if_stale(self, now: datetime) -> None:
         row = self._open_row()
         if row is not None and now - datetime.fromisoformat(row["last_seen_at"]) > MEAL_GAP:
-            say = self._close(row)
+            say = self._close(row, now)
             if say:
                 self._queued_say = say
 
-    def _close(self, row: sqlite3.Row) -> str | None:
+    def _close(self, row: sqlite3.Row, now: datetime) -> str | None:
         """Close a meal. Returns a sentence to speak if leftovers changed what was logged."""
         share = eaten_share(row["portion_left"])
         self._db.execute("UPDATE entries SET is_open = 0, eaten_share = ? WHERE id = ?", (share, row["id"]))
         self._db.commit()
         if share >= 1.0:
             return None
-        kcal = _round10(_kcal(json.loads(row["items"])) * share)
+        eaten = _kcal(json.loads(row["items"])) * share
         if self._language == "fi":
-            return f"{row['title']}: osa jäi syömättä. Korjattu {kcal} kilokaloriin."
-        return f"You left part of the {row['title']}. Adjusted to {kcal} calories."
+            say = f"{row['title']}: osa jäi syömättä. Korjattu {_round10(eaten)} kilokaloriin."
+        else:
+            say = f"You left part of the {row['title']}. Adjusted to {_round10(eaten)} calories."
+        self._last_event = {"at": now.isoformat(), "kind": "adjusted", "title": row["title"], "kcal": round(eaten), "say": say}
+        return say
 
     def _total_kcal(self, now: datetime) -> float:
         rows = self._db.execute("SELECT items, eaten_share FROM entries WHERE day = ?", (now.date().isoformat(),)).fetchall()

@@ -128,3 +128,17 @@ def test_finnish_sentences():
     outcome = tracker.observe(soup(), FRAME, at(3))
     assert outcome.say == "Kirjattu: salmon soup and rye bread, noin 460 kilokaloria. Tänään yhteensä 460."
     assert tracker.today(at(4))["lang"] == "fi-FI"
+
+
+def test_the_latest_event_is_kept_for_a_display(tracker):
+    assert tracker.today(at(0))["last_event"] is None
+    tracker.observe(soup(), FRAME, at(0))
+    tracker.observe(soup(), FRAME, at(3))
+    event = tracker.today(at(4))["last_event"]
+    assert (event["kind"], event["title"], event["kcal"]) == ("logged", "salmon soup and rye bread", 460)
+    assert event["say"] == "Logged salmon soup and rye bread, about 460 calories. 460 today."
+
+    tracker.observe(soup(same=True, left=0.5), FRAME, at(300))
+    later = at(300) + MEAL_GAP + timedelta(seconds=1)
+    event = tracker.today(later)["last_event"]
+    assert (event["kind"], event["title"], event["kcal"]) == ("adjusted", "salmon soup and rye bread", 230)

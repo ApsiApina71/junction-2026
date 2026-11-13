@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="mrbd-web-app-capable" content="yes">
+<title>Calorie tracker</title>
+<style>
+/* The glasses display adds light to the real world: black is see-through, so the page stays black
+   and only the card is lit. Sizes are in vmin so the layout follows the real viewport (600 x 600 on the glasses). */
+:root { --ink: #ffffff; --muted: #c9d3cd; --accent: #6ee7a8; --surface: #0f1512; --track: #2c3530; --danger: #ff8a80; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+#stage {
+  position: fixed; inset: 0; width: 100%; height: 100%; margin: 0; padding: 6vmin; border: 0; outline: none;
+  background: #000; color: var(--ink); font: 5vmin/1.25 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: left;
+  display: flex; flex-direction: column; justify-content: flex-end; cursor: default;
+}
+#card {
+  display: block; padding: 5vmin; border-radius: 5vmin; background: var(--surface); border: 0.5vmin solid var(--accent);
+  opacity: 0; transform: translateY(2vmin); transition: opacity 0.3s ease, transform 0.3s ease;
+}
+#card.on { opacity: 1; transform: none; }
+#card.error { border-color: var(--danger); }
+#card.error #overline { color: var(--danger); }
+#overline { display: block; font-size: 4vmin; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+#title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 1.5vmin; font-size: 6.5vmin; font-weight: 600; line-height: 1.15; }
+#title:empty { display: none; }
+#big { display: block; margin-top: 2vmin; font-size: 17vmin; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#big small { font-size: 6vmin; font-weight: 500; color: var(--muted); margin-left: 1.5vmin; }
+#big:empty { display: none; }
+#foot { display: block; margin-top: 3vmin; font-size: 5vmin; color: var(--muted); font-variant-numeric: tabular-nums; }
+#foot:empty { display: none; }
+#bar { display: block; height: 1.6vmin; margin-top: 2vmin; border-radius: 1vmin; background: var(--track); overflow: hidden; }
+#bar[hidden] { display: none; }
+#fill { display: block; height: 100%; width: 0; background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { #card { transition: none; transform: none; } }
+</style>
+</head>
+<body>
+<!-- One native button fills the screen, so a pinch or tap (Enter) always lands on it and shows today's total. -->
+<button id="stage" autofocus aria-label="Show today's total">
+  <span id="card" role="status">
+    <span id="overline"></span>
+    <span id="title"></span>
+    <span id="big"></span>
+    <span id="foot"></span>
+    <span id="bar" hidden><span id="fill"></span></span>
+  </span>
+</button>
+
+<script>
+const POLL_MS = 1500, SHOW_MS = 6000;
+const params = new URLSearchParams(location.search);
+const token = params.get("token") || "";
+const hold = params.has("hold");    // keep the card on screen, and show the last event again when the page opens
+const speakOn = params.has("speak"); // let the glasses read the sentence aloud; leave off if the phone app already speaks
+
+const TEXT = {
+  "en-US": { logged: "Logged", adjusted: "Leftovers", today: "Today", watching: "Watching", goal: "goal", meals: (n) => n + (n === 1 ? " meal" : " meals"), offline: "No connection", offlineDetail: "Cannot reach the tracker." },
+  "fi-FI": { logged: "Kirjattu", adjusted: "Jäi syömättä", today: "Tänään", watching: "Seuranta päällä", goal: "tavoite", meals: (n) => "aterioita " + n, offline: "Ei yhteyttä", offlineDetail: "Seurantaan ei saada yhteyttä." },
+};
+
+const $ = (id) => document.getElementById(id);
+const card = $("card");
+let today = null, seen = null, hideTimer = null, failing = false;
+
+const number = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+const text = () => TEXT[(today && today.lang) || "en-US"] || TEXT["en-US"];
+
+function paint({ overline, title, kcal, foot, error }) {
+  $("overline").textContent = overline;
+  $("title").textContent = title || "";
+  const big = $("big");
+  big.replaceChildren();
+  if (kcal !== undefined) {
+    const unit = document.createElement("small");
+    unit.textContent = "kcal";
+    big.append(number(kcal), unit);
+  }
+  $("foot").textContent = foot || "";
+  const goal = today && today.goal_kcal;
+  $("bar").hidden = !goal || error;
+  if (goal) $("fill").style.width = Math.min(100, (today.kcal / goal) * 100) + "%";
+  card.classList.toggle("error", Boolean(error));
+  card.classList.add("on");
+  clearTimeout(hideTimer);
+  if (!hold && !error) hideTimer = setTimeout(() => card.classList.remove("on"), SHOW_MS);
+}
+
+function totalLine() {
+  const t = text();
+  return t.today + " " + number(today.kcal) + (today.goal_kcal ? " / " + number(today.goal_kcal) : "");
+}
+
+function showEvent(event) {
+  paint({ overline: text()[event.kind] || text().logged, title: event.title, kcal: event.kcal, foot: totalLine() });
+  if (speakOn && event.say && "speechSynthesis" in window) {
+    try { speechSynthesis.speak(new SpeechSynthesisUtterance(event.say)); } catch { /* speech is optional */ }
+  }
+}
+
+function showToday(overline) {
+  if (!today) return;
+  paint({ overline: overline || text().today, kcal: today.kcal, foot: text().meals(today.entries.length) + (today.goal_kcal ? " · " + text().goal + " " + number(today.goal_kcal) : "") });
+}
+
+async function poll() {
+  try {
+    const response = await fetch("/today", { headers: token ? { "X-Api-Token": token } : {}, cache: "no-store" });
+    if (!response.ok) throw new Error("status " + response.status);
+    today = await response.json();
+    const event = today.last_event;
+    if (seen === null) {
+      // First answer after opening: show that the tracker is reachable, and do not replay old events unless asked to.
+      seen = event ? event.at : "";
+      if (hold && event) showEvent(event); else showToday(text().watching);
+    } else if (event && event.at !== seen) {
+      seen = event.at;
+      showEvent(event);
+    } else if (failing) {
+      showToday(text().watching);
+    }
+    failing = false;
+  } catch {
+    failing = true;
+    paint({ overline: text().offline, title: text().offlineDetail, error: true });
+  }
+  setTimeout(poll, POLL_MS);
+}
+
+$("stage").addEventListener("click", () => showToday());
+$("stage").focus();
+poll();
+</script>
+</body>
+</html>

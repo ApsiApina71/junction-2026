@@ -19,6 +19,8 @@ The glasses app sends what the wearer sees, one frame every few seconds. This AP
 
 The tracker logic and the API are covered by tests that use a stand-in for the model. The request the code sends to the model was checked against a local stand-in for the Messages API. **The live model call has not been run yet**, because the machine it was written on had no API key. The first run with a key is the first real test.
 
+The glasses screen has been checked in a 600 x 600 browser window, not on glasses.
+
 ## Try it
 
 ```sh
@@ -83,16 +85,36 @@ fun send(frame: Bitmap): String? {
 
 Phones refuse plain `http` to another machine by default, so give the app the https tunnel address.
 
+## The screen on Meta Ray-Ban Display glasses
+
+`/display/` is a Web App for the display glasses (`app/static/display/index.html`). The screen is empty most of the time. When a meal is logged or corrected for leftovers, a card appears for six seconds with the meal, its calories and the day's total, then fades. A pinch or tap shows today's total. If the page cannot reach this API, it shows a red "No connection" card until it can.
+
+The page only shows what the tracker has logged. The frames still come from the phone app or the test page: Meta's Web App documentation lists no camera access for pages on the glasses.
+
+To put it on the glasses (steps from Meta's documentation, read on 2026-11-14; see <https://wearables.developer.meta.com/docs/develop/webapps/>):
+
+1. The API has to be on a public `https` address. The glasses do not load `http` pages. Set `API_TOKEN` first.
+2. Turn on Developer Mode in the Meta AI app: Settings > App Info, tap the app version five times.
+3. In the Meta AI app, connect a Web App (App Settings > Apps > Web Apps > Connect Web App) with the address `https://<address>/display/?token=<API_TOKEN>`. Keep the slash after `display`: the glasses find the app's name and icon from it.
+4. Open "Calorie tracker" from the app grid on the glasses.
+
+Two switches can be added to the address:
+
+- `&hold` keeps the card on screen and shows the last event again when the page opens. Use it to check the layout and to record the demo video.
+- `&speak` makes the glasses read the sentence aloud. Leave it off if the phone app already speaks. The glasses' built-in voice is English only.
+
+Without glasses, open `http://localhost:8000/display/?hold` in a 600 x 600 browser window, or use Meta's Chrome extension "Meta Ray-Ban Display Simulator".
+
 ## Other endpoints
 
 | Endpoint | What it does |
 |---|---|
-| `GET /today` | Today's totals, a one-sentence `summary` to speak, and the entries |
+| `GET /today` | Today's totals, a one-sentence `summary` to speak, the entries, and `last_event` (the latest logged meal or leftover correction, which the glasses screen shows) |
 | `GET /entries/{id}/image` | The picture of a logged meal |
 | `DELETE /entries/{id}` | Remove a wrong entry. Returns the new totals |
 | `GET /health` | `{"status": "ok", "model_id": ...}` |
 
-When `API_TOKEN` is set, every endpoint except `/` and `/health` needs it, as the `X-Api-Token` header or a `?token=` query.
+When `API_TOKEN` is set, every endpoint except the two pages (`/`, `/display/`) and `/health` needs it, as the `X-Api-Token` header or a `?token=` query.
 
 ## Settings
 
