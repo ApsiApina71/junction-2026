@@ -209,7 +209,7 @@ export function WhatIfCard({ data }: { data: WhatIf }) {
       {n >= 0.1 && (
         <p className="muted">
           {tr(w.fewerPurchases >= 0 ? 'fewerPurchases' : 'morePurchases', { n: num(n, lang, 1), avg: eur(data.average_purchase, lang) })}{' '}
-          {tr('extraPerWeek', { delta: eur(w.extraPerWeek, lang, { sign: true }) })}.
+          <span className="nowrap">{tr('extraPerWeek', { delta: eur(w.extraPerWeek, lang, { sign: true }) })}.</span>
         </p>
       )}
       {change < 0 && (

@@ -278,3 +278,4 @@ small { font-size: .8125rem; }
 
 /* Room below the last answer so a new question can scroll to the top. */
 .tail { min-height: 55vh; flex: none; }
+.nowrap { white-space: nowrap; }

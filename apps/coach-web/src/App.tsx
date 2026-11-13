@@ -281,6 +281,25 @@ export default function App() {
     [tr, meta, answerLocally, ask],
   )
 
+  // The marketing page embeds this app and can ask it questions or switch customer (same origin only).
+  const remote = useRef({ start, pick, setLang })
+  useEffect(() => {
+    remote.current = { start, pick, setLang }
+  })
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.origin !== window.location.origin || typeof ev.data !== 'object' || !ev.data) return
+      const d = ev.data as { kk?: string; key?: string; id?: string; lang?: string }
+      if (d.kk === 'ask') {
+        const s = STARTERS.find((x) => x.key === d.key)
+        if (s) remote.current.start(s)
+      } else if (d.kk === 'persona' && typeof d.id === 'string' && /^CUST\d{5}$/.test(d.id)) remote.current.pick(d.id)
+      else if (d.kk === 'lang' && (d.lang === 'fi' || d.lang === 'en')) remote.current.setLang(d.lang)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
   const coach: Coach = useMemo(
     () => ({ lang, tr, label, ask, overrides, setOverride, challenges, acceptChallenge, explore: (preset) => setExploring(preset ?? {}) }),
     [lang, tr, label, ask, overrides, setOverride, challenges, acceptChallenge],

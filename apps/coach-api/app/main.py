@@ -215,6 +215,9 @@ if (_WEB / "index.html").exists():
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str) -> FileResponse:
         f = (_WEB / path).resolve()
-        if path and f.is_file() and f.is_relative_to(_WEB.resolve()):
-            return FileResponse(f)
+        if path and f.is_relative_to(_WEB.resolve()):
+            if f.is_file():
+                return FileResponse(f)
+            if (f / "index.html").is_file():  # /app/ is the coach itself; / is the marketing page
+                return FileResponse(f / "index.html")
         return FileResponse(_WEB / "index.html")
