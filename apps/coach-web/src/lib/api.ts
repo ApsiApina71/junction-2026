@@ -1,4 +1,4 @@
-import type { Benchmark, Challenge, ExploreResult, Home, Lang, Meta, Overrides, StreamEvent, WhatIf } from './types'
+import type { Benchmark, Challenge, ExploreResult, Home, Lang, Meta, Mortgage, Overrides, StreamEvent, WhatIf } from './types'
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -11,6 +11,7 @@ async function json<T>(path: string, body?: unknown): Promise<T> {
 export const getMeta = () => json<Meta>('/api/meta')
 export const getHome = (id: string, overrides: Overrides) => json<Home>(`/api/customers/${id}/home`, { overrides })
 export const getBenchmark = (id: string) => json<Benchmark>(`/api/customers/${id}/benchmark`)
+export const getMortgage = (id: string) => json<Mortgage>(`/api/customers/${id}/mortgage`)
 export const postWhatIf = (id: string, target: string, change_pct: number, overrides: Overrides) =>
   json<WhatIf>(`/api/customers/${id}/what-if`, { target, change_pct, overrides })
 

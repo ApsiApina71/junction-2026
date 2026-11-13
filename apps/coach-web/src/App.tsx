@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BasketsCard, CardView, SafeToSpendCard } from './cards/cards'
 import { Explore, type ExplorePreset } from './Explore'
-import { getBenchmark, getHome, getMeta, postChallenge, postWhatIf, streamChat } from './lib/api'
+import { getBenchmark, getHome, getMeta, getMortgage, postChallenge, postExplore, postWhatIf, streamChat } from './lib/api'
 import { CoachContext, type Coach } from './lib/ctx'
-import { eur, shortDate } from './lib/format'
+import { eur, monthLabel, shortDate } from './lib/format'
 import { BRAND, hasKey, t, type Key } from './lib/i18n'
 import { Markdown } from './lib/md'
 import { load, save } from './lib/store'
 import type { Basket, Card, Challenge, Home, Insight, Lang, Message, Meta, Overrides, Part, Persona, StreamEvent } from './lib/types'
 
-type Intent = 'safe' | 'where' | 'spender' | 'dining' | 'save' | 'compare'
+type Intent = 'safe' | 'where' | 'spender' | 'dining' | 'save' | 'compare' | 'taxis' | 'mortgage'
 const STARTERS: { key: Key; intent?: Intent }[] = [
   { key: 'q_safe', intent: 'safe' },
   { key: 'q_where', intent: 'where' },
@@ -17,7 +17,7 @@ const STARTERS: { key: Key; intent?: Intent }[] = [
   { key: 'q_dining', intent: 'dining' },
   { key: 'q_save', intent: 'save' },
   { key: 'q_compare', intent: 'compare' },
-  { key: 'q_taxis' },
+  { key: 'q_taxis', intent: 'taxis' },
 ]
 
 /** The logo: three baskets as three bars, in the same colours as every chart. */
@@ -205,6 +205,22 @@ export default function App() {
         } else if (intent === 'save') {
           const v = home.safe_to_save
           push('assistant', [text(v.suggested_monthly > 0 ? tr('a_save', { monthly: e(v.suggested_monthly) }) : tr('a_saveNone')), card({ card: 'safe_to_save', data: v })])
+        } else if (intent === 'taxis') {
+          // "Last month" is the last full calendar month in the data.
+          const month = home.monthly[home.monthly.length - 1].month
+          const [y, m] = month.split('-').map(Number)
+          const end = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+          const r = await postExplore(personaId, { start: `${month}-01`, end, subs: ['taxis'], group_by: ['date'] }, overrides)
+          const name = `${monthLabel(month, lang)} ${y}`
+          const parts: Part[] = [text(r.count ? tr('a_taxis', { total: eur(r.total, lang), month: name, n: r.count }) : tr('a_taxisNone', { month: name }))]
+          if (r.groups && r.groups.length > 1)
+            parts.push(card({ card: 'chart', data: { title: tr('taxisChart', { month: name }), chart_type: 'bar', labels: r.groups.map((g) => shortDate(g.key[0], lang)), values: r.groups.map((g) => g.total), unit: '€' } }))
+          push('assistant', parts)
+        } else if (intent === 'mortgage') {
+          const mort = await getMortgage(personaId)
+          const reasonKey = `reason_${mort.rejection_reason}`
+          const line = mort.decision === 'approved' ? tr('a_mortgage_approved') : tr('a_mortgage_rejected', { reason: hasKey(reasonKey) ? tr(reasonKey) : String(mort.rejection_reason) })
+          push('assistant', [text(line), card({ card: 'mortgage', data: mort })])
         } else {
           const bench = await getBenchmark(personaId)
           push('assistant', [text(tr('a_compare')), card({ card: 'benchmark', data: bench })])
@@ -347,7 +363,7 @@ export default function App() {
   if (!meta) return <main className="welcome"><Mark /></main>
   if (!persona) return <Welcome meta={meta} lang={lang} setLang={setLang} onPick={(p) => pick(p.id)} />
 
-  const starters = STARTERS.concat(home?.has_mortgage ? [{ key: 'q_mortgage' as Key }] : [])
+  const starters = STARTERS.concat(home?.has_mortgage ? [{ key: 'q_mortgage' as Key, intent: 'mortgage' as Intent }] : [])
   return (
     <CoachContext.Provider value={coach}>
       <div className="app">

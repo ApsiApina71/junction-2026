@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useCoach } from '../lib/ctx'
 import { eur, num, pct, shortDate, whatIfAt } from '../lib/format'
 import { BASKET_COLOR, hasKey, type Key } from '../lib/i18n'
-import { BASKETS, type Basket, type Baskets, type Benchmark, type Card, type Challenge, type Profile, type SafeToSave, type SafeToSpend, type WhatIf } from '../lib/types'
+import { BASKETS, type Basket, type Baskets, type Benchmark, type Card, type Challenge, type Mortgage, type Profile, type SafeToSave, type SafeToSpend, type WhatIf } from '../lib/types'
 import { BarList, Chart, MonthlyBars, StackedShare } from './charts'
 
 function Row({ label, value, strong, minus }: { label: string; value: string; strong?: boolean; minus?: boolean }) {
@@ -398,6 +398,40 @@ export function OtherBankCard({ monthly }: { monthly: number }) {
   )
 }
 
+export function MortgageCard({ data }: { data: Mortgage }) {
+  const { lang, tr } = useCoach()
+  const e = (v: number) => eur(v, lang, { cents: false })
+  const required = data.required_monthly_income ?? 0
+  const seen = data.observed_monthly_salary_on_this_account
+  return (
+    <section className="card">
+      <div className="eyebrow">{tr('mortgageTitle')}</div>
+      <div className="hero-line">
+        <span className="hero-number small">{e(data.requested_loan)}</span>
+        <span className={`pill ${data.decision === 'approved' ? 'status-comfortable' : 'status-stop'}`}>{tr(data.decision === 'approved' ? 'mort_approved' : 'mort_rejected')}</span>
+      </div>
+      <div className="calc">
+        <div className="calc-col">
+          <Row label={tr('mort_price')} value={e(data.property_price)} />
+          <Row label={tr('mort_loan')} value={e(data.requested_loan)} />
+          <Row label={tr('mort_equity')} value={e(data.own_equity)} />
+          <Row label={tr('mort_collateral')} value={e(data.collateral_value)} />
+          {data.loan_to_value !== null && <Row strong label={tr('mort_ltv')} value={pct(data.loan_to_value, lang)} />}
+        </div>
+      </div>
+      {required > 0 && (
+        <BarList
+          rows={[
+            { label: tr('mort_required'), value: required, color: 'var(--ink-3)' },
+            { label: tr('mort_seen'), value: seen, color: 'var(--s1)' },
+          ]}
+        />
+      )}
+      {data.income_gap !== null && data.income_gap > 0 && <p className="muted small">{tr('mort_gap', { amount: e(data.income_gap) })}</p>}
+    </section>
+  )
+}
+
 export function CardView({ card }: { card: Card }) {
   const { tr } = useCoach()
   switch (card.card) {
@@ -422,6 +456,8 @@ export function CardView({ card }: { card: Card }) {
       return <BenchmarkCard data={card.data} />
     case 'challenge':
       return <ChallengeCard data={card.data} />
+    case 'mortgage':
+      return <MortgageCard data={card.data} />
     case 'other_bank':
       return <OtherBankCard monthly={card.data.monthly} />
     case 'chart':

@@ -139,6 +139,21 @@ export interface Benchmark {
   your_area_source: string
 }
 
+export interface Mortgage {
+  has_mortgage_application?: false
+  decision: 'approved' | 'rejected'
+  rejection_reason: string | null
+  property_price: number
+  requested_loan: number
+  own_equity: number
+  collateral_value: number
+  loan_to_value: number | null
+  required_monthly_income: number | null
+  observed_monthly_salary_on_this_account: number
+  income_gap: number | null
+  current_monthly_housing_cost: number
+}
+
 export interface ChartSpec {
   title: string
   chart_type: 'bar' | 'line' | 'donut'
@@ -200,6 +215,7 @@ export type Card =
   | { card: 'chart'; data: ChartSpec }
   | { card: 'challenge'; data: Challenge }
   | { card: 'other_bank'; data: { monthly: number } }
+  | { card: 'mortgage'; data: Mortgage }
 
 export type Part = { kind: 'text'; text: string } | ({ kind: 'card' } & Card)
 

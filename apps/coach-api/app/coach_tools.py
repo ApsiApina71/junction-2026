@@ -180,8 +180,12 @@ def build_tools(s: Session) -> list:
     @tool
     def get_mortgage_story() -> dict:
         """The customer's mortgage application, if they have one: decision, reason, loan, equity, collateral, loan-to-value,
-        income required versus income seen on this account, and the timeline of the process."""
-        return s.seen(mortgage.mortgage_story(c, today) or {"has_mortgage_application": False})
+        income required versus income seen on this account, and the timeline of the process. Shows a mortgage card."""
+        out = mortgage.mortgage_story(c, today)
+        if out is None:
+            return {"has_mortgage_application": False}
+        s.card("mortgage", {k: v for k, v in out.items() if k != "timeline"})
+        return s.seen(out)
 
     @tool
     def show_chart(title: str, chart_type: str, labels: list[str], values: list[float], unit: str = "€") -> dict:
