@@ -43,6 +43,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [runbooks/agent-onboarding.md](runbooks/agent-onboarding.md) | How agents and humans get productive |
 | [runbooks/local-dev.md](runbooks/local-dev.md) | Local tooling and running apps |
 | [runbooks/demo-day.md](runbooks/demo-day.md) | Demo and submission checklist |
+| [runbooks/pitch.md](runbooks/pitch.md) | Video script, stage pitch, submission copy, judge questions |
 | [../infra/README.md](../infra/README.md) | Hosting and CD (undecided) |
 | [../design/README.md](../design/README.md) | Claude Design workflow and prototypes |
 
