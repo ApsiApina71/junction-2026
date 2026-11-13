@@ -279,3 +279,6 @@ small { font-size: .8125rem; }
 /* Room below the last answer so a new question can scroll to the top. */
 .tail { min-height: 55vh; flex: none; }
 .nowrap { white-space: nowrap; }
+.check { display: flex; align-items: center; gap: 6px; font-size: .8125rem; color: var(--good); padding: 0 2px; }
+.check svg { width: 14px; height: 14px; flex: none; }
+.check.warn { color: var(--warn); }

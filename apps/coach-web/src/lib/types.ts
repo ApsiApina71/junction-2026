@@ -210,6 +210,8 @@ export interface Message {
   activity?: string | null
   error?: string
   done?: boolean
+  /** Euro amounts in the text, checked against the engine's figures. */
+  verified?: { checked: number; unverified: string[] }
 }
 
 export type StreamEvent =
@@ -217,5 +219,6 @@ export type StreamEvent =
   | { type: 'tool'; name: string }
   | ({ type: 'card' } & Card)
   | { type: 'override'; target: string; basket: Basket }
+  | { type: 'verified'; checked: number; unverified: string[] }
   | { type: 'error'; message: string }
   | { type: 'done' }

@@ -6,7 +6,7 @@ from typing import Any
 
 from strands import tool
 
-from . import benchmarks, engine, mortgage
+from . import benchmarks, engine, mortgage, verify
 from .db import Customer
 from .taxonomy import BASKETS
 
@@ -19,8 +19,15 @@ class Session:
     # UI events produced by tools (cards, actions). The API streams them to the app.
     outbox: list[dict[str, Any]] = field(default_factory=list)
 
+    # Every number a tool has returned in this turn; the answer's euro amounts are checked against these.
+    figures: set[float] = field(default_factory=set)
+
     def card(self, kind: str, data: Any) -> None:
         self.outbox.append({"type": "card", "card": kind, "data": data})
+
+    def seen(self, result: Any) -> Any:
+        verify.collect_numbers(result, self.figures)
+        return result
 
 
 def _date(s: str | None, default: date) -> date:
@@ -40,7 +47,7 @@ def build_tools(s: Session) -> list:
         Shows a safe-to-spend card in the app."""
         out = engine.safe_to_spend(c, today, s.overrides)
         s.card("safe_to_spend", out)
-        return out
+        return s.seen(out)
 
     @tool
     def get_safe_to_save() -> dict:
@@ -49,7 +56,7 @@ def build_tools(s: Session) -> list:
         Shows a safe-to-save card."""
         out = engine.safe_to_save(c, today, s.overrides)
         s.card("safe_to_save", out)
-        return out
+        return s.seen(out)
 
     @tool
     def get_baskets(days: int = 180) -> dict:
@@ -63,7 +70,7 @@ def build_tools(s: Session) -> list:
         """
         out = engine.baskets_summary(c, today, max(30, min(days, 730)), s.overrides)
         s.card("baskets", out)
-        return out
+        return s.seen(out)
 
     @tool
     def get_overview(start_date: str = "", end_date: str = "") -> dict:
@@ -75,7 +82,7 @@ def build_tools(s: Session) -> list:
         """
         end = _date(end_date, today)
         start = _date(start_date, date.fromordinal(end.toordinal() - 29))
-        return engine.overview(c, start, end, s.overrides)
+        return s.seen(engine.overview(c, start, end, s.overrides))
 
     @tool
     def get_monthly_history(months: int = 12) -> dict:
@@ -86,7 +93,7 @@ def build_tools(s: Session) -> list:
         """
         rows = engine.monthly_series(c, today, max(2, min(months, 24)), s.overrides)
         s.card("monthly", {"months": rows})
-        return {"months": rows}
+        return s.seen({"months": rows})
 
     @tool
     def get_spender_profile() -> dict:
@@ -94,7 +101,7 @@ def build_tools(s: Session) -> list:
         payday effect, small purchases, eating out share, volatility). Shows a profile card."""
         out = engine.spender_profile(c, today, s.overrides)
         s.card("profile", out)
-        return out
+        return s.seen(out)
 
     @tool
     def simulate_what_if(target: str, change_pct: float, horizon_months: int = 12, annual_return_pct: float = 0.0) -> dict:
@@ -111,7 +118,7 @@ def build_tools(s: Session) -> list:
         out = engine.what_if(c, today, target, change_pct, max(1, min(horizon_months, 480)), annual_return_pct, s.overrides)
         if out["matched_transactions"]:
             s.card("what_if", out)
-        return out
+        return s.seen(out)
 
     @tool
     def explore_transactions(
@@ -141,7 +148,7 @@ def build_tools(s: Session) -> list:
         """
         end = _date(end_date, today)
         start = _date(start_date, date.fromordinal(end.toordinal() - 29))
-        return engine.explore(c, start, end, group_by, categories, subcategories, baskets, kinds, min_amount, max_amount, s.overrides)
+        return s.seen(engine.explore(c, start, end, group_by, categories, subcategories, baskets, kinds, min_amount, max_amount, s.overrides))
 
     @tool
     def run_sql(query: str) -> dict:
@@ -153,7 +160,7 @@ def build_tools(s: Session) -> list:
         Args:
             query: A single SELECT statement.
         """
-        return engine.run_sql(c, query, s.overrides)
+        return s.seen(engine.run_sql(c, query, s.overrides))
 
     @tool
     def compare_with_others() -> dict:
@@ -162,19 +169,19 @@ def build_tools(s: Session) -> list:
         of their postal code area (Statistics Finland Paavo). Shows a benchmark card."""
         out = benchmarks.benchmark(c, today)
         s.card("benchmark", out)
-        return out
+        return s.seen(out)
 
     @tool
     def get_recurring() -> dict:
         """Detected regular money movements: salary (amount, day, next date), housing payment, bills per month,
         saving habit, and regular transfers to another bank."""
-        return engine.recurring(c, today)
+        return s.seen(engine.recurring(c, today))
 
     @tool
     def get_mortgage_story() -> dict:
         """The customer's mortgage application, if they have one: decision, reason, loan, equity, collateral, loan-to-value,
         income required versus income seen on this account, and the timeline of the process."""
-        return mortgage.mortgage_story(c, today) or {"has_mortgage_application": False}
+        return s.seen(mortgage.mortgage_story(c, today) or {"has_mortgage_application": False})
 
     @tool
     def show_chart(title: str, chart_type: str, labels: list[str], values: list[float], unit: str = "€") -> dict:
@@ -189,10 +196,10 @@ def build_tools(s: Session) -> list:
         """
         n = min(len(labels), len(values), 40)
         if n == 0:
-            return {"shown": False, "reason": "no data"}
+            return s.seen({"shown": False, "reason": "no data"})
         kind = chart_type if chart_type in ("bar", "line", "donut") else "bar"
         s.card("chart", {"title": title[:80], "chart_type": kind, "labels": [str(x)[:40] for x in labels[:n]], "values": values[:n], "unit": unit[:8]})
-        return {"shown": True}
+        return s.seen({"shown": True})
 
     @tool
     def move_to_basket(target: str, basket: str) -> dict:
@@ -204,10 +211,10 @@ def build_tools(s: Session) -> list:
             basket: "regular", "irregular" or "everyday".
         """
         if basket not in BASKETS:
-            return {"ok": False, "reason": "unknown basket"}
+            return s.seen({"ok": False, "reason": "unknown basket"})
         s.overrides[target] = basket
         s.outbox.append({"type": "override", "target": target, "basket": basket})
-        return {"ok": True, "note": "Applied. Figures from now on use the new label."}
+        return s.seen({"ok": True, "note": "Applied. Figures from now on use the new label."})
 
     @tool
     def propose_challenge(title: str, target: str, change_pct: float, weeks: int = 4) -> dict:
@@ -222,10 +229,10 @@ def build_tools(s: Session) -> list:
         """
         plan = engine.challenge(c, today, target, change_pct, weeks, s.overrides)
         if plan is None:
-            return {"ok": False, "reason": "no spending found for that target"}
+            return s.seen({"ok": False, "reason": "no spending found for that target"})
         data = {"title": title[:80], **plan}
         s.card("challenge", data)
-        return {"ok": True, **data}
+        return s.seen({"ok": True, **data})
 
     return [
         get_safe_to_spend,

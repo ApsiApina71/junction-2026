@@ -14,7 +14,8 @@ from .conftest import TODAY, build_customer
 class ScriptedModel(Model):
     """Asks for safe-to-spend first, then answers in words once the tool result is in the conversation."""
 
-    def __init__(self) -> None:
+    def __init__(self, words: tuple[str, ...] = ("You can ", "spend safely.")) -> None:
+        self.words = words
         self.seen_tools: list[str] = []
         self.seen_system = ""
 
@@ -39,7 +40,7 @@ class ScriptedModel(Model):
             yield {"messageStop": {"stopReason": "tool_use"}}
         else:
             yield {"contentBlockStart": {"contentBlockIndex": 0, "start": {}}}
-            for word in ("You can ", "spend safely."):
+            for word in self.words:
                 yield {"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": word}}}
             yield {"contentBlockStop": {"contentBlockIndex": 0}}
             yield {"messageStop": {"stopReason": "end_turn"}}
@@ -88,3 +89,31 @@ def test_chat_needs_a_model_and_a_known_customer(monkeypatch):
     assert client.post("/api/chat", json={"customer_id": "CUST99999", "messages": msg}).status_code == 503
     assert client.post("/api/chat", json={"customer_id": "CUST00000", "messages": msg}).status_code == 404
     assert client.post("/api/chat", json={"customer_id": "CUST99999", "messages": []}).status_code == 422
+
+
+def _ask(monkeypatch, words: tuple[str, ...], question: str = "What can I spend?") -> dict:
+    monkeypatch.setattr(agent, "build_model", lambda: ScriptedModel(words))
+    monkeypatch.setattr(agent, "llm_configured", lambda: True)
+    monkeypatch.setattr(db, "load_customer", lambda cid: build_customer() if cid == "CUST99999" else None)
+    monkeypatch.setattr(db, "today", lambda: TODAY)
+    r = TestClient(main.app).post("/api/chat", json={"customer_id": "CUST99999", "messages": [{"role": "user", "content": question}]})
+    event = next(e for e in _events(r.text) if e["type"] == "verified")
+    return {k: v for k, v in event.items() if k != "type"}
+
+
+def test_figures_from_the_engine_are_verified(monkeypatch):
+    from app import engine
+
+    s = engine.safe_to_spend(build_customer(), TODAY)
+    week = f"{s['safe_this_week']:.2f}".replace(".", ",")
+    words = (f"Voit käyttää {week} € tällä viikolla, ", f"eli noin €{round(s['safe_per_day'])} päivässä. Saldosi on {s['balance']:,.0f} euroa.")
+    assert _ask(monkeypatch, words) == {"checked": 3, "unverified": []}
+
+
+def test_an_invented_figure_is_flagged(monkeypatch):
+    out = _ask(monkeypatch, ("You could save €987,654 a year.",))
+    assert out == {"checked": 1, "unverified": ["€987,654"]}
+
+
+def test_a_figure_the_customer_typed_may_be_repeated(monkeypatch):
+    assert _ask(monkeypatch, ("A 4321 euro holiday is a lot.",), "Can I afford a 4321 euro holiday?")["unverified"] == []

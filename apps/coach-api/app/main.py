@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import agent, benchmarks, db, engine, mortgage
+from . import agent, benchmarks, db, engine, mortgage, verify
 from .coach_tools import Session
 from .taxonomy import BASKET_LABELS, CATEGORY_FI, SUB_LABELS
 
@@ -192,10 +192,14 @@ async def _chat_events(body: ChatBody, c: db.Customer) -> AsyncIterator[str]:
         history.pop(0)
     sent = 0
     announced: set[str] = set()
+    said: list[str] = []
+    # Figures the customer typed themselves ("20 %", "50 euros") are theirs to state back.
+    verify.collect_numbers(verify.numbers_in(prompt), session.figures)
     try:
         coach = agent.build_agent(session, body.language, history)
         async for ev in coach.stream_async(prompt):
             if ev.get("data"):
+                said.append(ev["data"])
                 yield _sse({"type": "text", "text": ev["data"]})
             tool_use = ev.get("current_tool_use")
             if tool_use and tool_use.get("toolUseId") and tool_use["toolUseId"] not in announced:
@@ -210,6 +214,8 @@ async def _chat_events(body: ChatBody, c: db.Customer) -> AsyncIterator[str]:
     while sent < len(session.outbox):
         yield _sse(session.outbox[sent])
         sent += 1
+    if said:
+        yield _sse({"type": "verified", **verify.check_text("".join(said), session.figures)})
     yield _sse({"type": "done"})
 
 

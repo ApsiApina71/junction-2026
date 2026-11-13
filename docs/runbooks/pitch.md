@@ -82,7 +82,7 @@ Fallback if the network or the model fails: the question shortcuts answer withou
 
 ## Likely judge questions
 
-- **What if the model invents a number?** It is instructed to state only figures a tool returned, and the cards beside the text are rendered straight from the engine, so the customer always sees the computed figure. Honest limit: the instruction is a prompt rule, not a hard guarantee; a production version would verify figures in the text against tool results before showing them.
+- **What if the model invents a number?** Three layers. The prompt allows only figures a tool returned. The cards beside the text are rendered straight from the engine. And after every answer the server checks each euro amount in the text against the figures the tools produced in that turn (`apps/coach-api/app/verify.py`): the app shows "n figures checked against your account", or names the amount it could not check. Honest limit: it checks euro amounts, not percentages or dates, and it allows whole-euro rounding.
 - **How do you classify the baskets?** Rules on category and merchant code: housing, bills, groceries and commuting are regular; health and large home purchases are unexpected necessities; the rest is everyday. It is deliberately simple and the customer can override it.
 - **Is safe-to-spend advice?** It is guidance with its assumptions shown. It keeps a cushion, reserves for the unexpected, and never recommends products.
 - **Privacy?** Each request is bound to one customer. Free-form queries run on a private in-memory copy of that customer's rows with a read-only authorizer. The model can be hosted in Europe.

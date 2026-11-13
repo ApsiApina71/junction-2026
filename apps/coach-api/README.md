@@ -15,6 +15,7 @@ It turns a customer's transactions into guidance and lets them talk with their o
 - `app/benchmarks.py`: peers of the same age group in the dataset, plus Statistics Finland open data (Household Budget Survey 2022, consumer price index, Paavo postal code area incomes 2024) in `app/data/`.
 - `app/mortgage.py`: the mortgage application story for customers who have one.
 - `app/coach_tools.py` and `app/agent.py`: a Strands agent whose tools are bound to one customer. `run_sql` works on a private in-memory copy of that customer's rows with a SELECT-only authorizer.
+- `app/verify.py`: after each answer, every euro amount in the model's text is checked against the figures the tools returned in that turn.
 - `app/main.py`: FastAPI. JSON endpoints for the app, and `POST /api/chat` streaming server-sent events (text, tool activity, UI cards).
 
 The model is swappable with env vars (`LLM_PROVIDER`, `LLM_BASE_URL`, `MODEL_ID`): Anthropic by default, or any OpenAI-compatible endpoint such as an open-weight model hosted in Europe.

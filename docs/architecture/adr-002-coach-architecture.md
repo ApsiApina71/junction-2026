@@ -26,6 +26,7 @@ Option 3.
 
 - `apps/coach-api/app/engine.py` holds pure, unit-tested functions for the three baskets, safe-to-spend, safe-to-save, what-if, spender profile, exploration and insights. The model may state only figures a tool returned.
 - Tools are created per request and bound to one customer. Free exploration (`run_sql`) runs on a private in-memory copy of that customer's rows with a SELECT-only authorizer, so a prompt cannot reach other customers or change data.
+- After each answer the server checks every euro amount in the model's text against the numbers tools returned in that turn (`app/verify.py`) and streams the result, so the app can say "3 figures checked against your account" or name an amount it could not check.
 - Tools also emit UI cards, streamed to the app next to the text, so answers are visual and interactive without the model drawing anything.
 - The model is swappable with env vars: Anthropic by default, or any OpenAI-compatible endpoint. Because the model does no maths, a smaller open-weight model hosted in Europe (for example on Verda) can run the same coach. That is our route into the Verda side challenge without a separate build.
 - Basket labels are a starting point. The customer can move any category to another basket, and every figure follows.

@@ -254,6 +254,8 @@ export default function App() {
           patchLast((m) => ({ ...m, parts: [...m.parts, { kind: 'card', ...card } as Part] }))
         } else if (ev.type === 'override') {
           setOverride(ev.target, ev.basket)
+        } else if (ev.type === 'verified') {
+          patchLast((m) => ({ ...m, verified: { checked: ev.checked, unverified: ev.unverified } }))
         } else if (ev.type === 'error') {
           patchLast((m) => ({ ...m, error: tr('errorGeneric'), activity: null }))
         }
@@ -412,6 +414,15 @@ export default function App() {
                     <span className="pulse" />
                     {m.activity}
                   </div>
+                )}
+                {m.verified && m.verified.unverified.length > 0 && <p className="check warn">{tr('unverified', { list: m.verified.unverified.join(', ') })}</p>}
+                {m.verified && m.verified.checked > 0 && m.verified.unverified.length === 0 && (
+                  <p className="check">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M3.500 8.500l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {m.verified.checked === 1 ? tr('verifiedOne') : tr('verifiedMany', { n: m.verified.checked })}
+                  </p>
                 )}
                 {m.error && <p className="error">{m.error}</p>}
               </div>
