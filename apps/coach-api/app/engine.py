@@ -277,7 +277,9 @@ def safe_to_spend(c: Customer, today: date, overrides: Overrides = None) -> dict
         status = "on_track"
     else:
         status = "tight"
-    projected = balance - committed - typical_daily * days_left
+    # Forecast at the usual pace. The reserve for the unexpected is a precaution, not a forecast, so it is left out here.
+    reserve = sum(u["amount"] for u in upcoming if u["item"] == "unexpected_reserve")
+    projected = balance - (committed - reserve) - typical_daily * days_left
     return {
         "today": today.isoformat(),
         "next_payday": payday.isoformat(),
@@ -721,7 +723,8 @@ def insights(c: Customer, today: date, overrides: Overrides = None) -> list[dict
     tickets = [-t.amount for t in prior if _basket(t, overrides) != "regular"]
     if tickets:
         typical = statistics.median(tickets)
-        big = [t for t in last30 if _basket(t, overrides) != "regular" and -t.amount >= max(200.0, 4 * typical)]
+        spiked = {i["sub"] for i in out if i["type"] == "category_spike"}
+        big = [t for t in last30 if _basket(t, overrides) != "regular" and -t.amount >= max(200.0, 4 * typical) and t.sub not in spiked]
         if big:
             t = min(big, key=lambda t: t.amount)
             out.append(
