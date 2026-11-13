@@ -30,7 +30,11 @@ app.add_middleware(
 
 # Demo personas: real rows from the synthetic dataset, with made-up first names so they are easy to talk about.
 PERSONAS = [
-    {"id": "CUST04754", "name": "Aino", "story": {"en": "Young adult, most of the pay goes to housing", "fi": "Nuori aikuinen, palkasta suurin osa menee asumiseen"}},
+    {
+        "id": "CUST04754",
+        "name": "Aino",
+        "story": {"en": "Young adult, most of the pay goes to housing", "fi": "Nuori aikuinen, palkasta suurin osa menee asumiseen"},
+    },
     {"id": "CUST00028", "name": "Mikko", "story": {"en": "Money runs fast after payday", "fi": "Rahat hupenevat heti tilipäivän jälkeen"}},
     {"id": "CUST00209", "name": "Sanna", "story": {"en": "Family budget, busy weekends", "fi": "Perheen budjetti, kiireiset viikonloput"}},
     {"id": "CUST01725", "name": "Ville", "story": {"en": "Mortgage application was turned down", "fi": "Asuntolainahakemus hylättiin"}},
