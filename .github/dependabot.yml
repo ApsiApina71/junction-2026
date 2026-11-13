@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # /new-app adds npm (web) and uv (api) entries, for example:
+  # - package-ecosystem: npm
+  #   directories: [/apps/<name>]
+  #   schedule: { interval: weekly }
+  #   groups: { npm: { patterns: ["*"] } }
