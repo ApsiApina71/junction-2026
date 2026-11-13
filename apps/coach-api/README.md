@@ -22,3 +22,5 @@ The model is swappable with env vars (`LLM_PROVIDER`, `LLM_BASE_URL`, `MODEL_ID`
 ## Data
 
 The dataset is not in git. `sh scripts/setup_data.sh` downloads it from the challenge repository and builds `data/sbank.db` (about 550 MB) and `data/peers.json`. `scripts/fetch_statfin.py` re-fetches the open data from Statistics Finland's PxWeb API.
+
+For hosting, `uv run python -m scripts.make_demo_db` writes `data/demo.db` with only the demo customers (about 1 MB). Start the API with `SBANK_DB=data/demo.db`; peer benchmarks still cover all 5,100 customers through the precomputed `data/peers.json`.

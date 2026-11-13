@@ -47,8 +47,10 @@ def _con() -> sqlite3.Connection:
 @lru_cache(maxsize=1)
 def today() -> date:
     """The demo's 'today' is the last day in the dataset."""
-    row = _con().execute("SELECT MAX(date) FROM tx").fetchone()
-    return date.fromisoformat(row[0])
+    con = _con()
+    if con.execute("SELECT 1 FROM sqlite_master WHERE name = 'meta'").fetchone():  # a trimmed demo database records it
+        return date.fromisoformat(con.execute("SELECT value FROM meta WHERE key = 'today'").fetchone()[0])
+    return date.fromisoformat(con.execute("SELECT MAX(date) FROM tx").fetchone()[0])
 
 
 def make_tx(d: str, ts: str, category: str, amount: float, balance: float, merchant: str | None, mcc: str | None) -> Tx:
