@@ -12,7 +12,8 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 
 | App | Type | Path | Purpose |
 |---|---|---|---|
-| _none yet: create one with `/new-app <name> <web\|api>`_ | | | |
+| coach-api | api | [../apps/coach-api](../apps/coach-api/README.md) | Finance engine, benchmarks and the chat agent for the S-Bank money coach |
+| coach-web | web | [../apps/coach-web](../apps/coach-web/README.md) | Mobile-first chat app for the S-Bank money coach |
 
 ## Agent tooling
 
@@ -36,6 +37,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [context/challenge.md](context/challenge.md) | Challenge brief and judging criteria |
 | [architecture/adr-000-template.md](architecture/adr-000-template.md) | ADR template |
 | [architecture/adr-001-tech-stack.md](architecture/adr-001-tech-stack.md) | Tech stack decision |
+| [architecture/adr-002-coach-architecture.md](architecture/adr-002-coach-architecture.md) | Coach architecture: engine computes, model talks, model is swappable |
 | [specs/_template.md](specs/_template.md) | Lean PRD template |
 | [security/security-rules.md](security/security-rules.md) | Security rules for code, agents and reviews |
 | [runbooks/agent-onboarding.md](runbooks/agent-onboarding.md) | How agents and humans get productive |
@@ -55,3 +57,4 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | ADR | Status |
 |---|---|
 | [ADR-001 Tech stack](architecture/adr-001-tech-stack.md) | accepted |
+| [ADR-002 Coach architecture](architecture/adr-002-coach-architecture.md) | proposed |

@@ -27,13 +27,52 @@ jobs:
           filters: |
             ci:
               - '.github/workflows/ci.yml'
+            coach-api: ['apps/coach-api/**', 'shared/**', '.github/workflows/ci.yml']
+            coach-web: ['apps/coach-web/**', 'shared/**', '.github/workflows/ci.yml']
 
   # /new-app adds one job per app here, gated on needs.changes.outputs.apps.
+
+  coach-api:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.apps), 'coach-api')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/coach-api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          working-directory: apps/coach-api
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  coach-web:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.apps), 'coach-web')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/coach-web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/coach-web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
 
   ci-ok:
     # The single required check. Passes when every app job succeeded or was skipped.
     if: always()
-    needs: [changes]
+    needs: [changes, coach-api, coach-web]
     runs-on: ubuntu-latest
     steps:
       - env:

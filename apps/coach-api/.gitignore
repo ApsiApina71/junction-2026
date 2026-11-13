@@ -1,0 +1,2 @@
+# The dataset and everything built from it stay out of git. See scripts/setup_data.sh.
+/data/

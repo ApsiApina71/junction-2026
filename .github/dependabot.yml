@@ -13,3 +13,13 @@ updates:
   #   directories: [/apps/<name>]
   #   schedule: { interval: weekly }
   #   groups: { npm: { patterns: ["*"] } }
+
+  - package-ecosystem: npm
+    directories: [/apps/coach-web]
+    schedule: { interval: weekly }
+    groups: { npm: { patterns: ["*"] } }
+
+  - package-ecosystem: uv
+    directories: [/apps/coach-api]
+    schedule: { interval: weekly }
+    groups: { uv: { patterns: ["*"] } }
