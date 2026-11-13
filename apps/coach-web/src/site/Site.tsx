@@ -234,6 +234,9 @@ export default function Site() {
             <a className="button quiet" href={REPO_URL}>
               {c('nav_code')}
             </a>
+            <a className="button quiet" href="/kolme-koria-deck.pdf">
+              {c('nav_deck')}
+            </a>
           </div>
         </div>
       </section>

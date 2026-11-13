@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kolme koria: pitch deck</title>
+    <style>
+      :root { --bg: #f4f3ee; --ink: #16201a; --ink-2: #4f5a54; --ink-3: #89928c; --line: #dedbd1; --soft: #eceae3; --b1: #2a78d6; --b2: #eb6834; --b3: #1baf7a; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: #d9d6cc; color: var(--ink); font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+      .slide { width: 1280px; height: 720px; margin: 24px auto; background: var(--bg); padding: 64px 72px; position: relative; overflow: hidden; display: flex; flex-direction: column; page-break-after: always; break-after: page; }
+      .slide.dark { background: var(--ink); color: var(--bg); }
+      .slide.dark p, .slide.dark li span { color: #b9c2bc; }
+      h1 { font-size: 104px; line-height: .95; letter-spacing: -.055em; margin: 0; font-weight: 780; }
+      h2 { font-size: 56px; line-height: 1; letter-spacing: -.045em; margin: 0 0 18px; font-weight: 760; max-width: 16em; }
+      h3 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.01em; }
+      p { font-size: 24px; line-height: 1.4; color: var(--ink-2); margin: 0; max-width: 30em; }
+      .kicker { font-size: 15px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 20px; }
+      .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; font-size: 22px; letter-spacing: -.02em; }
+      .foot { position: absolute; left: 72px; right: 72px; bottom: 36px; display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-3); }
+      .grow { flex: 1; }
+      .bars { display: flex; gap: 6px; height: 26px; margin-top: 40px; width: 760px; }
+      .bars span { border-radius: 8px; }
+      .cols { display: grid; gap: 28px; margin-top: 28px; }
+      .c3 { grid-template-columns: repeat(3, 1fr); }
+      .c4 { grid-template-columns: repeat(4, 1fr); }
+      .c2 { grid-template-columns: 1fr 1fr; gap: 64px; }
+      .tile { background: #fff; border-radius: 24px; padding: 26px; }
+      .tile i { display: block; height: 14px; border-radius: 7px; margin-bottom: 18px; }
+      .tile p, .rule p { font-size: 19px; }
+      .rule { border-top: 2px solid currentColor; padding-top: 16px; }
+      /* Everything stays inside the 720px page: anything overflowing is moved to the next page when printing. */
+      .phones { display: flex; gap: 20px; position: absolute; right: 64px; top: 40px; align-items: flex-start; }
+      .phones img { height: 616px; border-radius: 30px; border: 8px solid var(--ink); box-shadow: 0 20px 40px rgb(20 30 24 / 18%); }
+      .phones img:nth-child(2) { margin-top: 40px; }
+      .left { max-width: 480px; }
+      .left h2 { font-size: 50px; }
+      .left li { font-size: 23px; padding: 10px 0; }
+      .left li span { font-size: 16px; }
+      ul { list-style: none; margin: 24px 0 0; padding: 0; }
+      li { font-size: 26px; font-weight: 620; letter-spacing: -.02em; padding: 13px 0; border-top: 1px solid var(--line); }
+      li span { display: block; font-size: 18px; font-weight: 400; color: var(--ink-2); letter-spacing: 0; }
+      .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 30px 0 34px; }
+      .flow div { border-radius: 18px; padding: 20px; box-shadow: inset 0 0 0 1px #3a463f; font-size: 21px; font-weight: 650; }
+      .flow div small { display: block; font-size: 15px; font-weight: 400; color: #b9c2bc; margin-top: 4px; }
+      .flow div.on { background: var(--bg); color: var(--ink); box-shadow: none; }
+      .flow div.on small { color: var(--ink-2); }
+      .big { font-size: 92px; font-weight: 780; letter-spacing: -.055em; line-height: 1; }
+      .num span { display: block; font-size: 20px; color: var(--ink-2); margin-top: 10px; }
+      @page { size: 1280px 720px; margin: 0; }
+      @media print { html, body { background: none; } .slide { margin: 0; } }
+    </style>
+  </head>
+  <body>
+    <section class="slide">
+      <div class="brand"><svg width="40" height="40" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#16201a"/><rect x="7" y="7.5" width="18" height="4.4" rx="2.2" fill="#3987e5"/><rect x="7" y="13.8" width="8" height="4.4" rx="2.2" fill="#eb6834"/><rect x="7" y="20.1" width="13" height="4.4" rx="2.2" fill="#1baf7a"/></svg>Kolme koria</div>
+      <div class="grow"></div>
+      <div class="kicker">Junction 2026 · S-Bank challenge</div>
+      <h1>Know your<br />three baskets.</h1>
+      <p style="margin-top: 28px">An AI money coach that lets people talk with their own bank account, and never guesses a number.</p>
+      <div class="bars"><span style="background: var(--b1); flex: 58"></span><span style="background: var(--b2); flex: 10"></span><span style="background: var(--b3); flex: 32"></span></div>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">The problem</div>
+      <h2>Your bank knows every euro you spend. Ask where it went, and you get a list.</h2>
+      <p>Statements and transaction lists are records, not answers. They do not say what is safe to spend this week, what kind of spender you are, or what one small change would add up to.</p>
+      <div class="grow"></div>
+      <ul style="max-width: 760px">
+        <li>What can I safely spend this week?</li>
+        <li>Where did my money really go?</li>
+        <li>How much would I save if I ate out 20% less?</li>
+      </ul>
+      <div class="foot"><span>Kolme koria</span><span>2</span></div>
+    </section>
+
+    <section class="slide" style="background: var(--soft)">
+      <div class="kicker">The idea</div>
+      <h2>Three baskets. That is the whole lesson.</h2>
+      <p>Kolme koria is Finnish for three baskets. Everyone’s spending falls into them, and seeing your own split is where understanding starts.</p>
+      <div class="cols c3">
+        <div class="tile"><i style="background: var(--b1); width: 100%"></i><h3>Regular essentials</h3><p>Mandatory and regular. Rent, bills, groceries, the commute.</p></div>
+        <div class="tile"><i style="background: var(--b2); width: 34%"></i><h3>Unexpected necessities</h3><p>Mandatory but irregular. The dentist, a repair, the washing machine that gave up.</p></div>
+        <div class="tile"><i style="background: var(--b3); width: 62%"></i><h3>Everyday spending</h3><p>What slips through your fingers. Coffees, eating out, taxis, small treats.</p></div>
+      </div>
+      <p style="margin-top: 26px; color: var(--ink); font-weight: 600">Your data, your labels. Move anything to the basket where it belongs for you, and every figure follows.</p>
+      <div class="foot"><span>Kolme koria</span><span>3</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="left">
+        <div class="kicker">The product</div>
+        <h2>One number for the week. And the sum behind it.</h2>
+        <p>Safe to spend has two limits: what the balance allows and what this pay cycle allows. The lower one wins, and every line is there to check.</p>
+      </div>
+      <div class="phones"><img src="/shots/home.png" alt="Safe to spend this week" /><img src="/shots/calc.png" alt="How it is calculated" /></div>
+      <div class="foot"><span>Kolme koria</span><span>4</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="left">
+        <div class="kicker">Talk with your money</div>
+        <h2>Every answer is a card you can open, drag and question.</h2>
+        <p>Where it goes in three baskets. A what-if slider that becomes a four-week challenge. Spender types from measurable habits. In Finnish and English.</p>
+      </div>
+      <div class="phones"><img src="/shots/baskets.png" alt="Three baskets" /><img src="/shots/whatif.png" alt="What if" /></div>
+      <div class="foot"><span>Kolme koria</span><span>5</span></div>
+    </section>
+
+    <section class="slide dark">
+      <div class="kicker">Why a bank can trust it</div>
+      <h2>The engine computes. The model talks.</h2>
+      <p>A chatbot that states one wrong euro amount loses a customer’s trust for good. So the language model never does the maths.</p>
+      <div class="flow"><div>Your transactions</div><div class="on">Finance engine<small>tested functions</small></div><div>Language model<small>chooses and explains</small></div><div>Answer and live card</div></div>
+      <div class="cols c4" style="margin-top: 0">
+        <div class="rule"><h3>Every number is computed</h3><p>Unit-tested functions, checked on every push.</p></div>
+        <div class="rule"><h3>One customer, sealed</h3><p>Tools bound per request. Free queries run read-only on a private copy.</p></div>
+        <div class="rule"><h3>Shows its working</h3><p>Sums open up. Benchmarks name source and year.</p></div>
+        <div class="rule"><h3>Model of your choice</h3><p>Swappable by one setting, down to open models hosted in Europe.</p></div>
+      </div>
+      <div class="foot"><span>Kolme koria</span><span>6</span></div>
+    </section>
+
+    <section class="slide">
+      <div class="left">
+        <div class="kicker">Open data and your own data</div>
+        <h2>Context, not a verdict.</h2>
+        <ul>
+          <li>Statistics Finland<span>Household Budget Survey 2022 at today’s prices, and median income of your postal code area (Paavo 2024)</span></li>
+          <li>Peers<span>Same age group, from 5,100 customers in the dataset</span></li>
+          <li>Explore freely<span>By basket, type, month, weekday, hour, merchant. No charts picked for you.</span></li>
+          <li>The whole picture<span>Detects salary moving to another bank and offers PSD2 linking, with consent</span></li>
+        </ul>
+      </div>
+      <div class="phones"><img src="/shots/benchmark.png" alt="Benchmarks" /><img src="/shots/profile.png" alt="Spender type" /></div>
+      <div class="foot"><span>Kolme koria</span><span>7</span></div>
+    </section>
+
+    <section class="slide" style="background: var(--soft)">
+      <div class="kicker">Why it matters, and where it stands</div>
+      <h2>Built for the app one in three Finnish adults already use.</h2>
+      <div class="cols c3" style="margin-top: 20px">
+        <div class="num"><div class="big">3.5 M</div><span>S-Bank customers</span></div>
+        <div class="num"><div class="big">1 in 3</div><span>Finnish adults use S-mobiili weekly</span></div>
+        <div class="num"><div class="big">0</div><span>numbers made up by the model</span></div>
+      </div>
+      <div class="grow"></div>
+      <div class="cols c3">
+        <div class="rule"><h3>Working today</h3><p>End to end on all 3.6 million synthetic transactions. Open source, MIT.</p></div>
+        <div class="rule"><h3>Ready to embed</h3><p>A web view for S-mobiili. The customer comes from the bank session.</p></div>
+        <div class="rule"><h3>Next</h3><p>Real PSD2 linking, challenge tracking on new transactions, proactive nudges.</p></div>
+      </div>
+      <div class="foot"><span>Customer figures: S-Bank challenge brief</span><span>8</span></div>
+    </section>
+
+    <section class="slide dark">
+      <div class="brand"><svg width="40" height="40" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#000"/><rect x="7" y="7.5" width="18" height="4.4" rx="2.2" fill="#3987e5"/><rect x="7" y="13.8" width="8" height="4.4" rx="2.2" fill="#eb6834"/><rect x="7" y="20.1" width="13" height="4.4" rx="2.2" fill="#1baf7a"/></svg>Kolme koria</div>
+      <div class="grow"></div>
+      <h1>Know your<br />three baskets.</h1>
+      <p style="margin-top: 28px">github.com/ApsiApina71/junction-2026</p>
+      <div class="bars"><span style="background: #3987e5; flex: 58"></span><span style="background: var(--b2); flex: 10"></span><span style="background: var(--b3); flex: 32"></span></div>
+      <div class="foot"><span>A Junction 2026 hackathon prototype. Not an S-Bank product. All customer data shown is synthetic.</span><span>9</span></div>
+    </section>
+  </body>
+</html>

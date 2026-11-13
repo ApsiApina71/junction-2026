@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { site: resolve(import.meta.dirname, 'index.html'), app: resolve(import.meta.dirname, 'app/index.html') },
+      input: { site: resolve(import.meta.dirname, 'index.html'), app: resolve(import.meta.dirname, 'app/index.html'), deck: resolve(import.meta.dirname, 'deck/index.html') },
     },
   },
   server: {
