@@ -160,7 +160,7 @@ export function BasketsCard({ data, compact }: { data: Baskets; compact?: boolea
 }
 
 export function WhatIfCard({ data }: { data: WhatIf }) {
-  const { lang, tr, label, ask } = useCoach()
+  const { lang, tr, label, makeChallenge } = useCoach()
   const [change, setChange] = useState(Math.round(data.change_pct))
   const w = whatIfAt(data.baseline_monthly, data.average_purchase, change, 12)
   const e = (v: number) => eur(v, lang, { cents: Math.abs(v) < 20 })
@@ -213,7 +213,7 @@ export function WhatIfCard({ data }: { data: WhatIf }) {
         </p>
       )}
       {change < 0 && (
-        <button className="btn ghost" onClick={() => ask(lang === 'fi' ? `Tee tästä haaste: ${name} ${change} % neljäksi viikoksi.` : `Make this a challenge: ${name} ${change}% for four weeks.`)}>
+        <button className="btn ghost" onClick={() => makeChallenge(data.target, change)}>
           {tr('makeChallenge')}
         </button>
       )}

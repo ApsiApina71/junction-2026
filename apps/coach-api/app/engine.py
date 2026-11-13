@@ -493,6 +493,25 @@ def what_if(
     }
 
 
+def challenge(c: Customer, today: date, target: str, change_pct: float, weeks: int = 4, overrides: Overrides = None) -> dict | None:
+    """A small habit challenge: a weekly goal for one kind of spending, and what reaching it frees up."""
+    sim = what_if(c, today, target, change_pct, 12, 0.0, overrides)
+    if not sim["matched_transactions"]:
+        return None
+    weeks = max(1, min(weeks, 12))
+    weekly_now = sim["baseline_monthly"] * 7 / MONTH_DAYS
+    return {
+        "target": target,
+        "change_pct": change_pct,
+        "weeks": weeks,
+        "weekly_now": r2(weekly_now),
+        "weekly_goal": r2(weekly_now * (1 + change_pct / 100)),
+        "frees_over_challenge": r2(sim["freed_monthly"] * 7 / MONTH_DAYS * weeks),
+        "frees_yearly": sim["freed_yearly"],
+        "start": today.isoformat(),
+    }
+
+
 # --------------------------------------------------------------------------- free exploration
 
 GROUPS = ("month", "week", "date", "weekday", "hour", "category", "sub", "basket", "merchant", "kind")

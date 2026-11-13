@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BasketsCard, CardView, SafeToSpendCard } from './cards/cards'
 import { Explore, type ExplorePreset } from './Explore'
-import { getBenchmark, getHome, getMeta, postWhatIf, streamChat } from './lib/api'
+import { getBenchmark, getHome, getMeta, postChallenge, postWhatIf, streamChat } from './lib/api'
 import { CoachContext, type Coach } from './lib/ctx'
 import { eur, shortDate } from './lib/format'
 import { BRAND, hasKey, t, type Key } from './lib/i18n'
@@ -281,6 +281,19 @@ export default function App() {
     [tr, meta, answerLocally, ask],
   )
 
+  const makeChallenge = useCallback(
+    (target: string, changePct: number) => {
+      const vars = { target: label(target), pct: String(changePct).replace('-', '−') }
+      if (meta?.llm_configured) return ask(tr('challengeAsk', vars))
+      if (!personaId) return
+      push('user', [{ kind: 'text', text: tr('challengeAsk', vars) }])
+      postChallenge(personaId, target, changePct, overrides)
+        .then((plan) => push('assistant', [{ kind: 'card', card: 'challenge', data: { title: tr('challengeName', vars), ...plan } }]))
+        .catch(() => push('assistant', [], { error: tr('errorGeneric') }))
+    },
+    [meta, personaId, overrides, ask, tr, label],
+  )
+
   // The marketing page embeds this app and can ask it questions or switch customer (same origin only).
   const remote = useRef({ start, pick, setLang })
   useEffect(() => {
@@ -301,8 +314,8 @@ export default function App() {
   }, [])
 
   const coach: Coach = useMemo(
-    () => ({ lang, tr, label, ask, overrides, setOverride, challenges, acceptChallenge, explore: (preset) => setExploring(preset ?? {}) }),
-    [lang, tr, label, ask, overrides, setOverride, challenges, acceptChallenge],
+    () => ({ lang, tr, label, ask, overrides, setOverride, challenges, acceptChallenge, makeChallenge, explore: (preset) => setExploring(preset ?? {}) }),
+    [lang, tr, label, ask, overrides, setOverride, challenges, acceptChallenge, makeChallenge],
   )
 
   const insightText = (i: Insight): string => {

@@ -128,3 +128,10 @@ def test_profile_and_save(customer):
 
 def test_empty_window_is_safe(customer):
     assert engine.overview(customer, TODAY + timedelta(days=1), TODAY + timedelta(days=5))["spending"]["total"] == 0
+
+
+def test_challenge(customer):
+    ch = engine.challenge(customer, TODAY, "Restaurants", -25, 4)
+    assert ch["weekly_goal"] == pytest.approx(ch["weekly_now"] * 0.75, abs=0.01)
+    assert ch["frees_over_challenge"] == pytest.approx((ch["weekly_now"] - ch["weekly_goal"]) * 4, abs=0.05)
+    assert engine.challenge(customer, TODAY, "nonsense", -25) is None

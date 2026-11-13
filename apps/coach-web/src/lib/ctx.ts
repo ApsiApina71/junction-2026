@@ -13,6 +13,8 @@ export interface Coach {
   challenges: Challenge[]
   acceptChallenge: (c: Challenge) => void
   explore: (preset?: { subs?: string[]; baskets?: string[] }) => void
+  /** Turn a what-if into a four-week challenge. */
+  makeChallenge: (target: string, changePct: number) => void
 }
 
 export const CoachContext = createContext<Coach | null>(null)

@@ -220,22 +220,10 @@ def build_tools(s: Session) -> list:
             change_pct: Negative percent to cut.
             weeks: Length in weeks, 1 to 12.
         """
-        sim = engine.what_if(c, today, target, change_pct, 12, 0.0, s.overrides)
-        if not sim["matched_transactions"]:
+        plan = engine.challenge(c, today, target, change_pct, weeks, s.overrides)
+        if plan is None:
             return {"ok": False, "reason": "no spending found for that target"}
-        weeks = max(1, min(weeks, 12))
-        weekly_now = sim["baseline_monthly"] * 7 / engine.MONTH_DAYS
-        data = {
-            "title": title[:80],
-            "target": target,
-            "change_pct": change_pct,
-            "weeks": weeks,
-            "weekly_now": engine.r2(weekly_now),
-            "weekly_goal": engine.r2(weekly_now * (1 + change_pct / 100)),
-            "frees_over_challenge": engine.r2(sim["freed_monthly"] * 7 / engine.MONTH_DAYS * weeks),
-            "frees_yearly": sim["freed_yearly"],
-            "start": today.isoformat(),
-        }
+        data = {"title": title[:80], **plan}
         s.card("challenge", data)
         return {"ok": True, **data}
 

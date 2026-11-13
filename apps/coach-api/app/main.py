@@ -142,6 +142,20 @@ def what_if(customer_id: str, body: WhatIfBody) -> dict:
     return engine.what_if(c, db.today(), body.target, body.change_pct, body.horizon_months, body.annual_return_pct, dict(body.overrides))
 
 
+class ChallengeBody(OverridesBody):
+    target: str = Field(max_length=60)
+    change_pct: float = Field(ge=-100, le=0)
+    weeks: int = Field(default=4, ge=1, le=12)
+
+
+@app.post("/api/customers/{customer_id}/challenge")
+def challenge(customer_id: str, body: ChallengeBody) -> dict:
+    plan = engine.challenge(_customer(customer_id), db.today(), body.target, body.change_pct, body.weeks, dict(body.overrides))
+    if plan is None:
+        raise HTTPException(404, "no spending found for that target")
+    return plan
+
+
 @app.get("/api/customers/{customer_id}/benchmark")
 def benchmark(customer_id: str) -> dict:
     return benchmarks.benchmark(_customer(customer_id), db.today())
