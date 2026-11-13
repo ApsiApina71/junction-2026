@@ -7,7 +7,7 @@ last-updated: 2026-11-13
 # Demo day
 
 Final submission closes **Sun 15.11 at 10:00** and does not accept late entries. Work backwards from that.
-Tickets live in the Linear [Submission](https://linear.app/junction-2026-bossit/project/submission-ab4d2dc38a19) project.
+Tickets live in the Linear [Submission](https://linear.app/junction-2026-bossit/project/submission-bafb47e71313) project.
 
 ## Fri 13.11 by 23:59: pre-submission
 

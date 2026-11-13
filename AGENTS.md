@@ -58,9 +58,9 @@ Team key `JUN`. States: **Backlog → Todo → In Progress → In Review → Don
 
 | Linear project | App | Path |
 |---|---|---|
-| [Research](https://linear.app/junction-2026-bossit/project/research-6f21c34da6e8) | none (docs only) | `docs/context/`, `docs/specs/` |
-| [Software](https://linear.app/junction-2026-bossit/project/software-1b3032723c71) | _none yet: `/new-app`_ | `apps/` |
-| [Brand](https://linear.app/junction-2026-bossit/project/brand-c5d477ad1dc6) | none (design only) | `design/` |
-| [Pitch Deck](https://linear.app/junction-2026-bossit/project/pitch-deck-d60e7f5d7639) | none | |
-| [Demo Video](https://linear.app/junction-2026-bossit/project/demo-video-4229af690e1a) | none | |
-| [Submission](https://linear.app/junction-2026-bossit/project/submission-ab4d2dc38a19) | none | `docs/runbooks/demo-day.md` |
+| [Research](https://linear.app/junction-2026-bossit/project/research-02b541f065e9) | none (docs only) | `docs/context/`, `docs/specs/` |
+| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | _none yet: `/new-app`_ | `apps/` |
+| [Prototyping](https://linear.app/junction-2026-bossit/project/prototyping-8076b0344cc5) | none (Claude Design) | `design/` |
+| [Pitch Deck](https://linear.app/junction-2026-bossit/project/pitch-deck-a6caa29caa5c) | none | |
+| [Demo Video](https://linear.app/junction-2026-bossit/project/demo-video-32ee7efc2fe7) | none | |
+| [Submission](https://linear.app/junction-2026-bossit/project/submission-bafb47e71313) | none | `docs/runbooks/demo-day.md` |
