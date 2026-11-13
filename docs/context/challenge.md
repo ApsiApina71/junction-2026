@@ -24,6 +24,15 @@ The challenge brief is TODO(team): fill it in after the challenge videos (Fri 19
 - **Side challenges:** "Best use of Verda" is open to any team that solves a Junction challenge using a Verda service (see [ADR-002](../architecture/adr-002-coach-architecture.md)). A Nemotron challenge was mentioned; its rules are TODO(team) from Discord or the platform.
 - **Partner workshop (time, place):** TODO(team), see the schedule below.
 
+## Second challenge: Meta, "AI Glasses for Everyone, Everyday"
+
+- **The challenge:** demonstrate how a first-person field of view enables new or better interactions in everyday scenarios, beyond mirroring a phone screen. Turn a clear everyday need into an intuitive, inclusive experience for people with all abilities.
+- **Judged on:** creativity, technical execution, real-world impact, and inclusive interaction design for people with all abilities. Display and audio-first experiences count equally, as do Web Apps and Device Access Toolkit (DAT) mobile integrations.
+- **Must show:** a clear problem and audience, a functional prototype and a deck; a clear wearable benefit; a focused, plausible path to adoption or a pilot; a prototype that handles permissions, errors, performance trade-offs, connectivity and device state changes; appropriate consent and safe data practices.
+- **Resources:** shared Meta Ray-Ban Display and Ray-Ban Meta Gen 2 glasses at the Meta booth; mentors for Web Apps and DAT (iOS, Android).
+- **Our idea:** automatic food tracking from the glasses camera: Bite with Bo the bear on Meta Ray-Ban Display (`apps/bite-ios`) on top of the `glasses-api` tracker. See ADR-003.
+- **Platform facts:** only DAT (phone app) can use the glasses camera; Web Apps get the display only. Docs: https://wearables.developer.meta.com/. Simulator: Chrome "Meta Ray-Ban Display Simulator".
+
 ## Judging criteria
 
 The challenge partner picks the challenge winners with its own criteria. The top 5 overall come from peer review, then 7 judges vote after the pitches.

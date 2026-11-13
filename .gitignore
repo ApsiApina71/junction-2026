@@ -40,3 +40,8 @@ htmlcov/
 .claude/worktrees/
 CLAUDE.local.md
 .mcp.local.json
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate

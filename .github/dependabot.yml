@@ -20,6 +20,6 @@ updates:
     groups: { npm: { patterns: ["*"] } }
 
   - package-ecosystem: uv
-    directories: [/apps/coach-api, /apps/glasses-api]
+    directories: [/apps/coach-api, /apps/glasses-api, /apps/copilot-api]
     schedule: { interval: weekly }
     groups: { uv: { patterns: ["*"] } }
