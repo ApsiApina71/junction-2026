@@ -58,6 +58,18 @@ Voice-over is about 270 words. Captions carry the same lines for viewers without
 | 1:43 | Line: model of your choice, hosted in Europe. | So the model is swappable, down to open models on European infrastructure. |
 | 1:50 | Numbers: 3.5 million customers. One in three Finnish adults. Logo and address. | Built for the app one in three Finnish adults already use. Kolme koria. Know your three baskets. |
 
+### Recording it
+
+`apps/coach-web/scripts/record-demo.mjs` drives the real site and app in Chrome and records a captioned 1920 by 1080 take of this script (about 1:57, no voice-over). It needs the API on `:8000` serving the built web app, Chrome and ffmpeg:
+
+```sh
+cd apps/coach-web
+node scripts/record-demo.mjs demo.webm
+ffmpeg -i demo.webm -vf fps=30 -c:v libx264 -pix_fmt yuv420p -crf 20 kolme-koria-demo.mp4
+```
+
+Scene timings are printed while it records. The current cut has no free-typed question because no model key was available when it was written: add that scene after "what if" once chat is connected, and trim elsewhere to stay under 2:00. The deck doubles as title and end cards (`/deck/?s=1` shows one slide full screen; arrow keys move between slides, which also works for presenting).
+
 ## Stage pitch (3:00, mic cut at 3:00)
 
 1. **0:00 Problem (25 s).** Ask the room: who knows what they spent on eating out last month? Banks hand over lists, not answers.
