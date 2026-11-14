@@ -13,6 +13,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "store", Store(data_dir=tmp_path))
     monkeypatch.setattr(main, "API_TOKEN", "")
     monkeypatch.setattr(main, "PUBLIC_BASE_URL", "")
+    monkeypatch.setattr(main, "MOCK_CHECK", True)  # the real engine is tested in test_check_engine.py
     return TestClient(main.app)
 
 

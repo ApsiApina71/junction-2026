@@ -1,19 +1,23 @@
 """HTTP API of Onboarding Owl. The contract is docs/specs/owl-contract.md.
 
-Endpoints answer from fixtures/ until the real engine replaces them one by one.
+Owl Check runs the real engine (vision + verifier). Ask and Record still answer from fixtures/.
 """
 
 import io
 import os
 import secrets
+from collections.abc import Callable
 from typing import Annotated, Any
 
+import anthropic
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 
+from . import verifier, vision
 from .models import (
     Answer,
     AskRequest,
@@ -27,10 +31,12 @@ from .models import (
     Recording,
     RecordStart,
     SayRequest,
+    Step,
 )
 from .store import Store, load_fixture, now_iso
 
-MODEL_ID = os.getenv("MODEL_ID", "claude-opus-5-5")
+MODEL_ID = vision.MODEL_ID
+MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
 API_TOKEN = os.getenv("API_TOKEN", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
@@ -44,6 +50,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 # /docs is the company-documents endpoint, so the Swagger UI moves to /swagger.
 app = FastAPI(title="owl-api", docs_url="/swagger", redoc_url=None)
 store = Store()
+tracker = verifier.Tracker()
 
 # Owl Studio runs in a browser on another port.
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
@@ -107,7 +114,7 @@ def get_process(process_id: str) -> Process:
     return process
 
 
-def get_step(process: Process, step_id: str):
+def get_step(process: Process, step_id: str) -> Step:
     for step in process.steps:
         if step.id == step_id:
             return step
@@ -159,29 +166,63 @@ def update_process(process_id: str, body: Process, request: Request):
 # Owl Check
 
 
-@app.post("/check", response_model=CheckResult, dependencies=[Auth])
-async def check(
-    request: Request,
-    image: Annotated[UploadFile, File()],
-    process_id: Annotated[str, Form()],
-    step_id: Annotated[str, Form()],
-    run_id: Annotated[str, Form(max_length=64)],
-    final: Annotated[bool, Form()] = False,
-    language: Annotated[str, Form(max_length=10)] = "",
-    # Mock only: pick a fixture (ok | warning | unsure | checking). Removed when the engine lands.
-    mock: Annotated[str, Form()] = "",
-):
-    step = get_step(get_process(process_id), step_id)
-    await read_image(image)
-    if step.check.kind == "none":
-        return out(request, CheckResult(status="ok", text="Pinch Done when you are ready.", confidence=1.0, decided_by="rules", step_done=final))
+def mock_check(step: Step, final: bool, mock: str) -> CheckResult:
+    """Fixture answers, so the apps can show every check state without a model."""
     name = {"warning": "check-warning.json", "unsure": "check-unsure.json"}.get(mock, "check-ok.json")
     result = CheckResult.model_validate(load_fixture(name))
     if mock == "checking":
         result = result.model_copy(update={"status": "checking", "problem": "wrong_item", "say": None, "text": "Checking..."})
     if step.check.kind == "visual":
         result = result.model_copy(update={"lines": None, "problem": "not_matching" if result.problem else None})
-    return out(request, result.model_copy(update={"step_done": final and result.status == "ok"}))
+    return result.model_copy(update={"step_done": final and result.status == "ok"})
+
+
+def reference_image(step: Step) -> bytes | None:
+    url = step.reference_image_url or ""
+    path = store.media_path(url.removeprefix("/media/")) if url.startswith("/media/") else None
+    return to_jpeg(path.read_bytes(), REFERENCE_SIDE) if path else None
+
+
+async def call_model[T](fn: Callable[[], T]) -> T:
+    """Runs a blocking model call off the event loop and maps its failures to HTTP errors."""
+    try:
+        return await run_in_threadpool(fn)
+    except vision.VisionError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    except anthropic.RateLimitError as e:
+        raise HTTPException(status_code=429, detail="Model rate limited, try again.") from e
+    except anthropic.APIStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Model error {e.status_code}.") from e
+    except anthropic.APIConnectionError as e:
+        raise HTTPException(status_code=503, detail="Cannot reach the model.") from e
+
+
+@app.post("/check", response_model=CheckResult, dependencies=[Auth])
+async def check(
+    request: Request,
+    image: Annotated[UploadFile, File()],
+    process_id: Annotated[str, Form()],
+    step_id: Annotated[str, Form()],
+    run_id: Annotated[str, Form(min_length=1, max_length=64)],
+    final: Annotated[bool, Form()] = False,
+    language: Annotated[str, Form(max_length=10)] = "",
+    # ok | warning | unsure | checking: a fixture answer instead of the model, for UI work. Also OWL_MOCK_CHECK=1.
+    mock: Annotated[str, Form()] = "",
+):
+    step = get_step(get_process(process_id), step_id)
+    frame = await read_image(image)
+    if mock or MOCK_CHECK:
+        return out(request, mock_check(step, final, mock))
+    language = language or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
+    if not tracker.try_begin(run_id):
+        # One check per run at a time: a frame that arrives while the last one is checked is answered at once.
+        return out(request, CheckResult(status="checking", text="Checking...", confidence=0.0, decided_by="rules"))
+    try:
+        reference = reference_image(step)
+        result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
+    finally:
+        tracker.end(run_id)
+    return out(request, result)
 
 
 # Ask

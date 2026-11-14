@@ -14,12 +14,21 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 | Endpoint | Now | Real engine |
 |---|---|---|
 | `GET/PUT /processes`, `GET /employees/{id}` | fixtures, in memory | |
-| `POST /check` | fixture picked by the `mock` form field | [JUN-30](https://linear.app/junction-2026-bossit/issue/JUN-30) vision, [JUN-37](https://linear.app/junction-2026-bossit/issue/JUN-37) verifier (Jev) |
+| `POST /check` | **real**: Claude vision → rules → Jev gate → two-frames rule. `mock` form field or `OWL_MOCK_CHECK=1` for fixtures | [JUN-30](https://linear.app/junction-2026-bossit/issue/JUN-30), [JUN-37](https://linear.app/junction-2026-bossit/issue/JUN-37) |
 | `POST /ask` | fixture answer | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |
 | `GET/POST /docs` | real: stores `.md`, `.txt`, `.pdf` text | |
 | `/record` | real upload, mock finish | [JUN-32](https://linear.app/junction-2026-bossit/issue/JUN-32) |
 | `/help` | real, in memory | |
 | `/media` | fixtures and uploads | |
+
+## Owl Check
+
+1. `app/vision.py`: Claude (`claude-opus-5-5`, low effort, structured output) describes the camera frame next to the expert's reference photo: which products and how many, or whether each visual criterion is met. It never judges.
+2. `app/verifier.py`, `compare()`: deterministic decision from that description: `ok`, `wrong_item`, `missing`, `too_many`, `not_matching` or `unsure`.
+3. **Jev** (TypeSafe's decision model, `typesafe/jev-1.13` through `JEV_URL`) answers the same question from the same description with a probability. Owl acts only when Jev agrees above `JEV_THRESHOLD`; otherwise it looks again (`unsure`). Without `JEV_API_KEY` the rules decide alone (`decided_by: "rules"`), so the demo never depends on one external API.
+4. A problem becomes a warning only when the same problem is seen in two frames in a row. The Done pinch (`final=true`) answers at once, and **a step is only done when the rules say ok**: a wrong order is never marked done.
+
+Speech is in English or Finnish (`TEXTS` in `app/verifier.py`); other languages fall back to English.
 
 ## Data
 
