@@ -19,6 +19,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | glasses-ios | ios (DAT) | [../apps/glasses-ios](../apps/glasses-ios/README.md) | iPhone app for Meta glasses: camera, speech, display |
 | owl-glasses | ios (DAT) | [../apps/owl-glasses](../apps/owl-glasses/README.md) | Onboarding Owl on Meta Ray-Ban Display glasses (display, camera, Neural Band, speech, voice invocations); was bite-ios |
 | owl-api | api | [../apps/owl-api](../apps/owl-api/README.md) | Onboarding Owl engine: processes, Owl Check, Ask, Record and Help for the glasses app and Owl Studio |
+| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | Onboarding Owl launch page: the glasses and Neural Band in 3D and a fly-into-the-lens POV view |
 
 ## Agent tooling
 

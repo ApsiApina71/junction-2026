@@ -62,6 +62,7 @@ Team key `JUN`. States: **Backlog → Todo → In Progress → In Review → Don
 | [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) coach-api, coach-web | `apps/coach-api/`, `apps/coach-web/` |
 | TBD (Meta glasses challenge) | glasses-api | `apps/glasses-api/` |
 | [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) copilot-api, glasses-ios, owl-glasses and owl-api (Onboarding Owl) | `apps/copilot-api`, `apps/glasses-ios`, `apps/owl-glasses`, `apps/owl-api` |
+| [Launch Page](https://linear.app/junction-2026-bossit/project/launch-page-5e64dd64e4ff) | owl-site | `apps/owl-site/` |
 | [Prototyping](https://linear.app/junction-2026-bossit/project/prototyping-8076b0344cc5) | none (Claude Design) | `design/` |
 | [Pitch Deck](https://linear.app/junction-2026-bossit/project/pitch-deck-a6caa29caa5c) | none | |
 | [Demo Video](https://linear.app/junction-2026-bossit/project/demo-video-32ee7efc2fe7) | none | |
