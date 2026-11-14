@@ -139,6 +139,20 @@ final class OwlCamera: @unchecked Sendable {
     return nil
   }
 
+  /// A picture taken after `date`, or nil when none arrives within `timeout`. A final check
+  /// asks for one taken after the worker's pinch, so a frame from before the fix never
+  /// decides whether the step is done (JUN-57).
+  func frame(after date: Date, timeout: Duration = .seconds(2.5)) async -> OwlFrame? {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: timeout)
+    while clock.now < deadline {
+      let arrived = lock.withLock { latestFrameAt }
+      if let arrived, arrived > date, let frame = latestJPEG(maxAge: 1.5) { return frame }
+      try? await Task.sleep(for: .milliseconds(100))
+    }
+    return nil
+  }
+
   // MARK: - Clips (Record mode)
 
   func startClip() throws {

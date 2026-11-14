@@ -28,8 +28,7 @@ enum OwlText {
 
   private static let easyEnglish: [String: String] = [
     "Owl looks only during a step, to check your work.": "Owl looks at your work only during a step.",
-    "Pictures are not saved.": "Owl does not keep pictures.",
-    "Nothing goes to Meta. Your data stays with your company.": "Nothing goes to Meta.",
+    "Each picture goes to an AI service that checks it. Owl does not save it.": "An AI service checks each picture. Owl does not keep it.",
     "You can pause the camera any time.": "You can stop the camera.",
     "Allow checks": "Yes, check",
     "No checks": "No",
@@ -50,8 +49,7 @@ enum OwlText {
 
   private static let easyFinnish: [String: String] = [
     "Owl looks only during a step, to check your work.": "Owl katsoo työtäsi vain vaiheen aikana.",
-    "Pictures are not saved.": "Owl ei säilytä kuvia.",
-    "Nothing goes to Meta. Your data stays with your company.": "Mitään ei mene Metalle.",
+    "Each picture goes to an AI service that checks it. Owl does not save it.": "Tekoälypalvelu tarkistaa jokaisen kuvan. Owl ei säilytä kuvaa.",
     "You can pause the camera any time.": "Voit sammuttaa kameran.",
     "Allow checks": "Kyllä",
     "No checks": "Ei",
@@ -59,9 +57,9 @@ enum OwlText {
     "Okay. Owl will guide you without checks.": "Selvä. Ei kameraa.",
     "Owl is watching.": "Owl katsoo.",
     "Owl is checking…": "Owl katsoo…",
-    "✓ Looks right. Pinch Done.": "✓ Hyvä. Nipistä Done.",
-    "Pinch Done when ready.": "Nipistä Done, kun olet valmis.",
-    "Camera checks are off. Pinch Done when ready.": "Kamera ei ole päällä. Nipistä Done, kun olet valmis.",
+    "✓ Looks right. Pinch Done.": "✓ Hyvä. Nipistä Valmis.",
+    "Pinch Done when ready.": "Nipistä Valmis, kun olet valmis.",
+    "Camera checks are off. Pinch Done when ready.": "Kamera ei ole päällä. Nipistä Valmis, kun olet valmis.",
     "Camera paused. Checks are off.": "Kamera on pois.",
     "Camera on. Owl is watching again.": "Kamera on päällä.",
     "Calling an expert. They will see what you see.": "Owl soittaa auttajalle. Auttaja näkee saman kuin sinä.",
@@ -124,7 +122,7 @@ enum OwlText {
   static func looksLikeStep(_ index: Int, isNext: Bool, language: String?) -> String {
     let fi = languageCode(language) == "fi"
     if isNext {
-      return fi ? "Näyttää vaiheelta \(index). Nipistä Done jatkaaksesi." : "Looks like step \(index). Pinch Done to go on."
+      return fi ? "Näyttää vaiheelta \(index). Nipistä Valmis jatkaaksesi." : "Looks like step \(index). Pinch Done to go on."
     }
     return fi ? "Näyttää vaiheelta \(index)." : "Looks like step \(index)."
   }
@@ -147,9 +145,8 @@ enum OwlText {
     // Consent (JUN-80)
     "Owl's camera": "Owlin kamera",
     "Owl looks only during a step, to check your work.": "Owl katsoo vain vaiheen aikana ja tarkistaa työsi.",
-    "Pictures are not saved.": "Kuvia ei tallenneta.",
-    "Nothing goes to Meta. Your data stays with your company.":
-      "Mitään ei lähetetä Metalle. Tietosi pysyvät yrityksellä.",
+    "Each picture goes to an AI service that checks it. Owl does not save it.":
+      "Jokainen kuva lähetetään tekoälypalvelulle, joka tarkistaa sen. Owl ei tallenna kuvaa.",
     "You can pause the camera any time.": "Voit keskeyttää kameran milloin tahansa.",
     "Allow checks": "Salli tarkistukset",
     "No checks": "Ei tarkistuksia",
@@ -157,8 +154,8 @@ enum OwlText {
     "Okay. Owl will guide you without checks.": "Selvä. Owl opastaa sinua ilman tarkistuksia.",
     "Camera paused. Checks are off.": "Kamera keskeytetty. Tarkistukset ovat pois.",
     "Camera on. Owl is watching again.": "Kamera päällä. Owl seuraa taas.",
-    "Camera paused. Pinch Done when ready.": "Kamera keskeytetty. Nipistä Done, kun olet valmis.",
-    "Camera checks are off. Pinch Done when ready.": "Kameratarkistukset ovat pois. Nipistä Done, kun olet valmis.",
+    "Camera paused. Pinch Done when ready.": "Kamera keskeytetty. Nipistä Valmis, kun olet valmis.",
+    "Camera checks are off. Pinch Done when ready.": "Kameratarkistukset ovat pois. Nipistä Valmis, kun olet valmis.",
     "Camera checks are off.": "Kameratarkistukset ovat pois.",
     "Recording": "Nauhoitus",
     "Your clips and voice are stored to teach new workers.": "Klippisi ja puheesi tallennetaan uusien työntekijöiden opetukseen.",
@@ -181,11 +178,11 @@ enum OwlText {
     // Step card status line
     "Owl is watching.": "Owl seuraa.",
     "Owl is checking…": "Owl tarkistaa…",
-    "✓ Looks right. Pinch Done.": "✓ Näyttää oikealta. Nipistä Done.",
-    "Pinch Done when ready.": "Nipistä Done, kun olet valmis.",
-    "Camera is off. Pinch Done when ready.": "Kamera ei ole käytössä. Nipistä Done, kun olet valmis.",
-    "Owl can't see now. Pinch Done when ready.": "Owl ei näe nyt. Nipistä Done, kun olet valmis.",
-    "Owl can't see right now. Pinch Done when ready.": "Owl ei näe juuri nyt. Nipistä Done, kun olet valmis.",
+    "✓ Looks right. Pinch Done.": "✓ Näyttää oikealta. Nipistä Valmis.",
+    "Pinch Done when ready.": "Nipistä Valmis, kun olet valmis.",
+    "Camera is off. Pinch Done when ready.": "Kamera ei ole käytössä. Nipistä Valmis, kun olet valmis.",
+    "Owl can't see now. Pinch Done when ready.": "Owl ei näe nyt. Nipistä Valmis, kun olet valmis.",
+    "Owl can't see right now. Pinch Done when ready.": "Owl ei näe juuri nyt. Nipistä Valmis, kun olet valmis.",
     "Owl couldn't see it.": "Owl ei nähnyt sitä.",
     "Owl couldn't see it. Try again.": "Owl ei nähnyt sitä. Yritä uudelleen.",
     "Video needs the https server.": "Video tarvitsee https-palvelimen.",

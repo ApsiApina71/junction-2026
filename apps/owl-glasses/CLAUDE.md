@@ -5,8 +5,9 @@ Onboarding Owl on Meta Ray-Ban Display glasses (DAT iOS). Requires Xcode 26.4+ a
 ## Where to put code
 
 - `DisplayAccess/Owl/` is a folder-synced Xcode group: new `.swift` files there build automatically, no project edits.
-- `DisplayAccess/Owl/Display/`: glasses screens and art (Display DSL, no SwiftUI), owned by JUN-36.
-- Everything else in `DisplayAccess/Owl/`: flow, camera, speech, voice invocations, owl-api client.
+- `DisplayAccess/Owl/Display/`: glasses screens and art (Display DSL, no SwiftUI), JUN-36. A new screen is a function in `OwlScreens.swift` built from `screen { } buttons: { }` and `header(...)`, its words go in `OwlStrings.swift` in English and Finnish, and it gets a name in `OwlScreenGallery.swift` so it can be looked at. It must fit 600×600 without scrolling and have at least one button.
+- `DisplayAccess/Owl/OwlRunLog.swift`: the rule for a verified step (JUN-57). Foundation only, so `Tests/run.sh` can test it on the Mac.
+- Everything else in `DisplayAccess/Owl/`: flow, camera, speech, voice invocations, owl-api client. In `OwlViewModel.swift` every flow starts with `newScene()` and checks `isCurrent(number)` after each wait, so late work never changes the next screen.
 
 ## Run in the simulator (no glasses)
 
@@ -28,8 +29,9 @@ SIMCTL_CHILD_OWL_AUTO_PREVIEW=inApp xcrun simctl launch "iPhone 17" fi.junction2
 | `OWL_AUTO_RECORD=1` | Records one narrated 4 s step and finishes the recording |
 | `OWL_MOCK_CHECK=ok\|warning\|unsure\|checking` | Sends `mock=` with every `/check` so the mock owl-api returns that answer |
 | `OWL_FORCE_CLIP=1` | Sends short HEVC clips (`clip`) instead of JPEGs (`image`), the fallback for when the phone cannot decode in the background |
+| `OWL_PREVIEW_SCREEN=<name>` | Shows one designed screen with sample data instead of starting Owl, e.g. `correction`, `step-fi`, `step-long`, `done-unverified` (all names in `OwlScreenGallery.names`; `-fi` for Finnish, `-long` for the longest copy) |
 | `OWL_STAGE=1` | Turns on Stage mirroring (JUN-79) without the phone toggle; watch it at `<owl-api>/stage` |
-| `OWL_AUTO_SCRIPT=<steps>` | Debug builds: runs `;`-separated steps in order, e.g. `open;run;mock:warning;wait:4;mock:ok;again;done;ask;speak:Mitä jos tuote on loppu?;help;wait:10;endhelp;record;recordstep;wait:3;endstep;finish`. Steps: `open start run process:<id> done again back watch progress recognize allow decline agreerecord camera forget resetconsent ask answer:<q> help endhelp record recordstep endstep finish mock:<answer> wait:<s> speak:<text> takeoff puton heymeta` |
+| `OWL_AUTO_SCRIPT=<steps>` | Debug builds: runs `;`-separated steps in order, e.g. `open;run;mock:warning;wait:4;mock:ok;again;done;ask;speak:Mitä jos tuote on loppu?;help;wait:10;endhelp;record;recordstep;wait:3;endstep;finish`. Steps: `open start run process:<id> done again back cancel continue step watch progress recognize allow decline agreerecord camera forget resetconsent ask answer:<q> endask help endhelp record recordstep endstep finish mock:<answer> wait:<s> speak:<text> takeoff puton heymeta`. `done` and `again` are the same final check; `back` closes a correction or a cannot-check card, `cancel` stops a final check that is running, `continue` goes on unverified, `step` returns to the step card |
 
 The glasses id is a setting: `xcrun simctl spawn "iPhone 17" defaults write fi.junction2026.bossit.owl owl.glassesID glasses-1`. With the preview on, the preview sheet also has buttons for "Hey Meta", taking the glasses off, a spoken question and the mock Check answer. Logs: `xcrun simctl spawn "iPhone 17" log stream --predicate 'eventMessage CONTAINS "[Owl]"'`. The mock camera streams `Assets.xcassets/owlDemoFeed` (falls back to `demoMeal`) as a generated HEVC clip, because MockDeviceKit streams video files only.
 
@@ -55,4 +57,5 @@ xcodebuild -project DisplayAccess.xcodeproj -scheme DisplayAccess \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 plutil -lint DisplayAccess/Info.plist
 /usr/libexec/PlistBuddy -c 'Print :MWDAT:Analytics:OptOut' -c 'Print :MWDAT:CrashReporting:OptOut' DisplayAccess/Info.plist
+./Tests/run.sh
 ```
