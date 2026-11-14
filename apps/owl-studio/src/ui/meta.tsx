@@ -4,6 +4,7 @@
 import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, ListItem, MaterialLibrary, Modal, Panel, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import type { ButtonProps } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { KeyboardEvent, ReactNode } from 'react'
 import alert from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
 import { counterText } from '../lib/steps.ts'
@@ -99,19 +100,33 @@ function useTrap(onClose: () => void) {
   return { frame, onKeyDown }
 }
 
+/**
+ * A shade over the whole window. It is put at the toolkit App's root, so a dialog opened from inside a scrolled list is
+ * still centred on the window and above the page header, and it keeps the toolkit's tokens, zoom and focus handling.
+ */
+function Shade({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const shade = (
+    <div className="dialog-shade" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      {children}
+    </div>
+  )
+  const root = typeof document === 'undefined' ? null : document.querySelector('[data-app-root]')
+  return root ? createPortal(shade, root) : shade
+}
+
 /** A short yes-or-no decision: the toolkit's Modal, shown over a shade. */
 export function Confirm({ title, text, onClose, buttons }: { title: string; text: string; onClose: () => void; buttons: ReactNode }) {
   const { frame, onKeyDown } = useTrap(onClose)
   const titleId = useId()
   return (
-    <div className="dialog-shade" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <Shade onClose={onClose}>
       <div className="dialog-frame" role="dialog" aria-modal="true" aria-label={title} aria-describedby={titleId} ref={frame} onKeyDown={onKeyDown}>
         <Modal title={title} subtitle={text} buttons={<ButtonGroup alignment={ButtonGroupAlignment.CENTER}>{buttons}</ButtonGroup>} />
         <span id={titleId} className="visually-hidden">
           {text}
         </span>
       </div>
-    </div>
+    </Shade>
   )
 }
 
@@ -120,7 +135,7 @@ export function Dialog({ title, onClose, children, actions }: { title: string; o
   const { frame, onKeyDown } = useTrap(onClose)
   const titleId = useId()
   return (
-    <div className="dialog-shade" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <Shade onClose={onClose}>
       <div className="dialog-frame" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={frame} onKeyDown={onKeyDown}>
         <Panel width="100%">
           <div className="dialog-content">
@@ -134,7 +149,7 @@ export function Dialog({ title, onClose, children, actions }: { title: string; o
           </div>
         </Panel>
       </div>
-    </div>
+    </Shade>
   )
 }
 
@@ -312,7 +327,7 @@ export function ChoiceDialog<T extends string>({ title, choices, value, onChoose
   const { frame, onKeyDown } = useTrap(onClose)
   const titleId = useId()
   return (
-    <div className="dialog-shade" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <Shade onClose={onClose}>
       <div className="dialog-frame choice-frame" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={frame} onKeyDown={onKeyDown}>
         <Panel width="100%">
           <div className="dialog-content">
@@ -334,7 +349,7 @@ export function ChoiceDialog<T extends string>({ title, choices, value, onChoose
           </div>
         </Panel>
       </div>
-    </div>
+    </Shade>
   )
 }
 

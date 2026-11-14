@@ -1234,11 +1234,14 @@ body,
 .dialog-shade {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: var(--uit-spacing-xlarge);
-  background: var(--uit-color-background-shade);
+  /* The toolkit's panels are translucent (made for see-through glasses), so the page behind is darkened almost to the
+     window colour and softened: the decision is the only thing to read. */
+  background: color-mix(in srgb, var(--uit-color-background-window) 84%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .dialog-frame {
