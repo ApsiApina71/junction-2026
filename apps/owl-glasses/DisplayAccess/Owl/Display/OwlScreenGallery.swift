@@ -287,7 +287,7 @@ private struct Sample {
       id: "step-\(index)", index: index, title: title, instruction: instruction, say: nil,
       referenceImageUrl: "/media/proc-pick-pack/step-\(index).jpg",
       clipUrl: clip ? "/media/proc-pick-pack/step-\(index).mp4" : nil,
-      check: OwlCheck(kind: kind, criteria: criteria, orderLines: kind == "order" ? orderLines : nil), source: nil)
+      check: OwlCheck(kind: kind, criteria: criteria, orderLines: kind == "order" ? orderLines : nil, doneWhen: nil), source: nil)
   }
 
   var process: OwlProcess {
@@ -353,7 +353,7 @@ private struct Sample {
     OwlStep(
       id: "step-9", index: 3, title: t("Wash your hands", "Pese kädet"),
       instruction: t("Wash your hands before you touch any food items.", "Pese kädet ennen kuin kosket elintarvikkeisiin."), say: nil,
-      referenceImageUrl: nil, clipUrl: nil, check: OwlCheck(kind: "none", criteria: [], orderLines: nil), source: nil)
+      referenceImageUrl: nil, clipUrl: nil, check: OwlCheck(kind: "none", criteria: [], orderLines: nil, doneWhen: nil), source: nil)
   }
 
   /// Four tasks, so the list shows that a newly published one is reachable.

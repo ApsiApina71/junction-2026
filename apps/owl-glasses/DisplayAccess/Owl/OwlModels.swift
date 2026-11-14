@@ -97,6 +97,8 @@ struct OwlCheck: Codable, Equatable, Sendable {
   let kind: String
   let criteria: [String]?
   let orderLines: [OwlOrderLine]?
+  /// What Owl must see to mark the step done by itself, with no Done pinch (JUN-102).
+  let doneWhen: String?
 
   var usesCamera: Bool { kind == "visual" || kind == "order" }
 }

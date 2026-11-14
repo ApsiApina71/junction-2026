@@ -24,7 +24,7 @@ func step(_ id: String, index: Int, kind: String = "order") -> OwlStep {
   OwlStep(
     id: id, index: index, title: "Step \(index)", instruction: "Do it.", say: nil,
     referenceImageUrl: nil, clipUrl: nil,
-    check: OwlCheck(kind: kind, criteria: nil, orderLines: nil), source: nil)
+    check: OwlCheck(kind: kind, criteria: nil, orderLines: nil, doneWhen: nil), source: nil)
 }
 
 func result(

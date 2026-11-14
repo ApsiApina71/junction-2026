@@ -830,7 +830,7 @@ final class OwlViewModel {
       } else {
         if !saidLooksRight {
           saidLooksRight = true
-          speaker.say(OwlStrings.liveLooksRight)
+          speaker.say(step?.check.doneWhen == nil ? OwlStrings.liveLooksRight : OwlStrings.liveLooksRightAuto)
         }
         await setLive(.looksRight, number)
       }

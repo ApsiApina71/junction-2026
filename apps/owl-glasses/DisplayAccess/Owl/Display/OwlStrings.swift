@@ -114,6 +114,9 @@ enum OwlStrings {
       "Looks right. Pinch Done and I'll check.", "Näyttää oikealta. Nipistä Valmis, niin tarkistan.",
       easy: "Good. Pinch Done. Then Owl checks.", "Hyvä. Nipistä Valmis. Sitten Owl tarkistaa.")
   }
+  /// Said on a step Owl marks done by itself (`done_when`): no "pinch Done" right before Owl
+  /// says the step is done.
+  static var liveLooksRightAuto: String { t("Looks right.", "Näyttää oikealta.", easy: "Good.", "Hyvä.") }
   static var liveCantSee: String { t(
     "Owl can't see it well", "Owl ei näe kunnolla",
     easy: "Owl cannot see your work", "Owl ei näe työtäsi") }
