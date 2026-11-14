@@ -28,6 +28,7 @@ SIMCTL_CHILD_OWL_AUTO_PREVIEW=inApp xcrun simctl launch "iPhone 17" fi.junction2
 | `OWL_AUTO_ASK=<question>` | Opens Ask and speaks the question into the mock glasses |
 | `OWL_AUTO_RECORD=1` | Records one narrated 4 s step and finishes the recording |
 | `OWL_MOCK_CHECK=ok\|warning\|unsure\|checking` | Sends `mock=` with every `/check` so the mock owl-api returns that answer |
+| `OWL_AUTOPLAY_CLIP=1` | Debug builds: every step's expert clip plays by itself when the step opens, once per run, as a task with `autoplay_clip: true` from owl-api does (JUN-102). Owl says "You are there" before it and the step after it; checks wait until it is over; a pinch skips it; Watch how still replays it |
 | `OWL_FORCE_CLIP=1` | Sends short HEVC clips (`clip`) instead of JPEGs (`image`), the fallback for when the phone cannot decode in the background |
 | `OWL_PREVIEW_SCREEN=<name>` | Shows one designed screen with sample data instead of starting Owl, e.g. `correction`, `step-fi`, `step-long`, `done-unverified` (all names in `OwlScreenGallery.names`; `-easy` for the easy-language words, `-fi` for Finnish, `-long` for the longest copy, in that order: `cannot-check-easy-fi`) |
 | `OWL_HIDE_PREVIEW=1` | Closes the preview sheet once the mock glasses run, so a screenshot shows the phone's own screen: the status line and, when something is in the way, what the employer can do about it |

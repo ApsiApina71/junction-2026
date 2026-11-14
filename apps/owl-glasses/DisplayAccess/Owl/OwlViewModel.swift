@@ -159,6 +159,10 @@ final class OwlViewModel {
   /// The attempt whose final check is running, or nil.
   @ObservationIgnored private var finishingAttempt: Int?
   @ObservationIgnored private var isPlayingClip = false
+  /// Steps whose clip already played by itself in this run (JUN-102): once per run.
+  @ObservationIgnored private var clipsPlayed: Set<String> = []
+  /// Debug builds: `OWL_AUTOPLAY_CLIP=1` plays clips by itself in every task.
+  private static let autoplayEverywhere = ProcessInfo.processInfo.environment["OWL_AUTOPLAY_CLIP"] == "1"
 
   // Help
   @ObservationIgnored private var helpID: String?
@@ -512,6 +516,7 @@ final class OwlViewModel {
     stepIndex = 0
     runID = UUID().uuidString
     log = OwlRunLog(runID: runID)
+    clipsPlayed = []
     attempt = 0
     framesSent = 0
     framesSince = .now
@@ -543,9 +548,11 @@ final class OwlViewModel {
     lastCaption = nil
     live = step.check.usesCamera ? .starting : .noCheck
     statusText = "Step \(step.index)/\(process.steps.count): \(step.title)"
-    let words = [after, speak ? step.say : nil].compactMap { $0 }.joined(separator: " ")
+    // A clip that plays by itself comes first; Owl says the step after it, not over it.
+    let playsClip = playsClipByItself(step)
+    let words = [after, speak && !playsClip ? step.say : nil].compactMap { $0 }.joined(separator: " ")
     if !words.isEmpty { speaker.say(words) }
-    if speak, access.audioFirst {
+    if speak, !playsClip, access.audioFirst {
       speaker.say(readAloud(step), interrupt: false)
       // On the first step of a task the buttons are named once.
       if stepIndex == 0 {
@@ -562,12 +569,24 @@ final class OwlViewModel {
       guard isCurrent(number) else { return }
     }
     if isLocked(step) {
+      // The clip waits for the place; the step's words are said now, as on any locked step.
+      if playsClip, speak, let say = step.say { speaker.say(say, interrupt: false) }
       card = .locked
       live = .noCheck
       statusText = "Step \(step.index) locked: go to \(step.checkpoint?.label ?? "")"
       await render(number)
       guard isCurrent(number) else { return }
       await startLocked(number)
+      return
+    }
+    if playsClip {
+      // "You are there" first, then the expert's clip, then the step's own words. Checks and
+      // recognition wait until the clip is over, so no warning can fire while it plays.
+      clipsPlayed.insert(step.id)
+      NSLog("[Owl] clip: plays by itself on \(step.id)")
+      for _ in 0..<50 where speaker.isSpeaking { try? await Task.sleep(for: .milliseconds(100)) }
+      guard isCurrent(number) else { return }
+      await watchHow(then: { await $0.openStep(speak: speak) })
       return
     }
     await render(number)
@@ -585,6 +604,12 @@ final class OwlViewModel {
 
   private func backToStep() async {
     await openStep(speak: false)
+  }
+
+  /// The step's clip plays by itself when the task asks for it, once per run.
+  private func playsClipByItself(_ step: OwlStep) -> Bool {
+    guard process?.autoplayClip == true || Self.autoplayEverywhere, step.clipUrl != nil else { return false }
+    return !clipsPlayed.contains(step.id)
   }
 
   /// Draws the card of the current step. Reads the state after every wait, so it always
@@ -1573,13 +1598,22 @@ final class OwlViewModel {
 
   /// Plays the expert's clip of this step. Afterwards the worker goes back to the step or
   /// watches it again; if the clip cannot play, the step still works without it.
-  private func watchHow() async {
-    guard let step, let clip = step.clipUrl, let url = api.resolve(clip) else { return }
+  /// `then`: the clip played by itself (JUN-102). Whatever happens to it, played, skipped with
+  /// a pinch or not there, the step goes on with `then`: no clip screen after it, no problem
+  /// screen, so the step is never stuck behind its clip.
+  private func watchHow(then: (@MainActor (OwlViewModel) async -> Void)? = nil) async {
+    guard let step, let clip = step.clipUrl, let url = api.resolve(clip) else {
+      if let then { await then(self) }
+      return
+    }
     let number = newScene()
+    func failed() async {
+      if let then { await then(self) } else { await showProblem(.video) }
+    }
     guard url.scheme == "https" else {
       // The DAT VideoPlayer plays https URLs only.
       NSLog("[Owl] clip needs https: \(url.absoluteString)")
-      await showProblem(.video)
+      await failed()
       return
     }
     // The display's player shows a dead picture for a clip it cannot fetch and reports nothing,
@@ -1588,12 +1622,14 @@ final class OwlViewModel {
     await showScreen {
       OwlScreens.status(
         OwlStrings.openingClip, detail: step.title, mood: .watching,
-        onCancel: self.waitAction { await $0.backToStep() })
+        onCancel: self.waitAction { model in
+          if let then { await then(model) } else { await model.backToStep() }
+        })
     }
     guard await api.clipIsThere(url) else {
       guard isCurrent(number) else { return }
       NSLog("[Owl] clip cannot be fetched: \(url.path)")
-      await showProblem(.video)
+      await failed()
       return
     }
     guard isCurrent(number) else { return }
@@ -1607,7 +1643,10 @@ final class OwlViewModel {
       guard self.isCurrent(number) else { return }
       self.isPlayingClip = false
       Task {
-        if played {
+        if let then {
+          NSLog("[Owl] clip: \(played ? "over or skipped" : "failed"), the step goes on")
+          await then(self)
+        } else if played {
           await self.showScreen(stage: .init(kind: "clip", title: OwlStrings.afterClip, text: step.instruction)) {
             OwlScreens.afterClip(
               step: step, onReplay: self.action { await $0.watchHow() },
@@ -1626,7 +1665,7 @@ final class OwlViewModel {
       NSLog("[Owl] clip did not start in \(Self.clipStartLimit)")
       self.isPlayingClip = false
       await self.displayViewModel.stopVideo()
-      await self.showProblem(.video)
+      if let then { await then(self) } else { await self.showProblem(.video) }
     }
   }
 

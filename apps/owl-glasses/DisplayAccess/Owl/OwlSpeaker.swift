@@ -67,6 +67,8 @@ final class OwlSpeaker {
     return AVSpeechSynthesisVoice(language: "en-US")
   }
 
+  var isSpeaking: Bool { synthesizer.isSpeaking }
+
   func stop() {
     synthesizer.stopSpeaking(at: .immediate)
   }

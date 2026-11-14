@@ -67,6 +67,8 @@ struct OwlProcess: Codable, Equatable, Sendable, Identifiable {
   let source: String?
   let expert: String?
   let steps: [OwlStep]
+  /// The expert's clip plays by itself when a step opens, once per run (JUN-102 story).
+  var autoplayClip: Bool? = nil
 
   var isPublished: Bool { status == "published" }
 }
