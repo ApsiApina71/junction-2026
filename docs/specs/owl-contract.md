@@ -28,7 +28,7 @@ The shared JSON shapes and endpoints of `apps/owl-api`. The glasses app (`apps/o
 | 429 | Model rate limited | Retry after 2 s |
 | 502 / 503 | Model or network error on the server | "Owl can't see right now" and keep going without the check |
 
-- **Languages** are BCP 47 tags (`en`, `fi`, `uk`, `ar`). `say` and `text` fields come in the employee's language.
+- **Languages** are BCP 47 tags (`en`, `fi`, `uk`, `ar`). `say` and `text` fields come in the employee's language. See [Languages](#languages).
 
 ## Display limits (from the DAT docs)
 
@@ -54,11 +54,13 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
   "role": "Warehouse picker",
   "company": "Kide Logistics",
   "welcome": "Welcome to Kide, Sami! Today you learn to pick and pack an order. I'm Owl. I'll show you each step.",
-  "process_ids": ["proc-pick-pack"]
+  "process_ids": ["proc-pick-pack"],
+  "glasses_id": "glasses-1"
 }
 ```
 
-`welcome` is the personal welcome shown and spoken on the first start (JUN-41).
+- `welcome` is the personal welcome shown and spoken on the first start (JUN-41). Owl writes it from the name, the company and the first task, in the employee's language, and rewrites it when one of those changes. A welcome written by hand in Owl Studio stays as written.
+- `glasses_id` is the pair of glasses the employee wears, or `null`. The employer names the pairs (`glasses-1`; letters, digits, `-` and `_`). A pair has one worker at a time: assigning it to someone takes it from whoever had it.
 
 ### Process
 
@@ -174,17 +176,21 @@ Answer to one camera frame during a step.
   "employee_id": "emp-sami",
   "process_id": "proc-pick-pack",
   "step_id": "step-2",
-  "latest_frame_url": "https://owl.example/media/help/help-1/latest.jpg",
-  "updated_at": "2026-11-14T10:12:03+02:00",
+  "latest_frame_url": "https://owl.example/media/help/help-1-Zk3vTq8mXw2LrN5d/latest.jpg?t=9f2c1a7b",
+  "frame_at": "2026-11-14T10:12:18+02:00",
+  "updated_at": "2026-11-14T10:12:20+02:00",
   "messages": [
-    {"id": 1, "from": "worker", "text": "Which oat drink is it?", "at": "2026-11-14T10:12:00+02:00"},
-    {"id": 2, "from": "expert", "text": "The blue carton, top shelf.", "at": "2026-11-14T10:12:20+02:00"}
+    {"id": 1, "from": "worker", "text": "Which oat drink is it?", "at": "2026-11-14T10:12:00+02:00", "image_url": null},
+    {"id": 2, "from": "expert", "text": "The blue carton, top shelf.", "at": "2026-11-14T10:12:20+02:00", "image_url": "https://owl.example/media/help/help-1-Zk3vTq8mXw2LrN5d/mark-2.jpg"}
   ]
 }
 ```
 
 - `status`: `waiting` (no expert yet), `connected` (an expert has answered), `ended`.
 - The glasses speak every `expert` message once. `id` grows, so the app remembers the last one it spoke.
+- `frame_at`: when the latest frame arrived. `updated_at` also moves when someone speaks, so the console uses `frame_at` to tell a live view from a stale one.
+- `messages[].image_url`: the worker's own view with a ring where the expert pointed, or `null`. The glasses show it with the expert's words.
+- When the session ends, its frames are deleted, and `latest_frame_url` and every `image_url` become `null`.
 
 ### Recording
 
@@ -208,14 +214,19 @@ Answer to one camera frame during a step.
 | Method and path | Body | Answer | Used by |
 |---|---|---|---|
 | `GET /health` | none | `{"status": "ok", "model_id": "..."}` | all |
-| `GET /employees/{id}` | none | `Employee` | glasses |
-| `GET /processes` | none | `{"processes": [Process]}` (published and drafts, steps included) | glasses, Studio |
-| `GET /processes/{id}` | none | `Process` | glasses, Studio |
-| `PUT /processes/{id}` | `Process` | `Process` (edit or publish) | Studio |
+| `GET /employees` | none | `{"employees": [Employee]}` | Studio |
+| `POST /employees` | JSON (below) | `Employee` | Studio |
+| `GET /employees/{id}` | none | `Employee` | glasses, Studio |
+| `PUT /employees/{id}` | JSON, any of the `POST /employees` fields | `Employee` | Studio |
+| `GET /glasses/{glasses_id}/employee` | none | `Employee`, or `404` when the pair is not assigned | glasses |
+| `GET /processes` | none; optional `?language=fi` | `{"processes": [Process]}` (published and drafts, steps included) | glasses, Studio |
+| `GET /processes/{id}` | none; optional `?language=fi` | `Process` | glasses, Studio |
+| `PUT /processes/{id}` | `Process` | `Process` (edit, reorder, publish or translate; below) | Studio |
 | `POST /check` | multipart (below) | `CheckResult` | glasses |
 | `POST /ask` | JSON (below) | `Answer` | glasses |
 | `GET /docs` | none | `{"docs": [Doc]}` | Studio |
 | `POST /docs` | multipart `file` (`.md`, `.txt`, `.pdf`, ≤ 10 MB) | `Doc` | Studio |
+| `DELETE /docs/{id}` | none | `204`, no body | Studio |
 | `POST /record` | JSON `{"title", "expert"}` | `Recording` | glasses |
 | `POST /record/{id}/steps` | multipart (below) | `Recording` | glasses |
 | `POST /record/{id}/finish` | none | `Recording` (`processing`, then `done`) | glasses |
@@ -223,11 +234,37 @@ Answer to one camera frame during a step.
 | `POST /help/frames` | multipart (below) | `HelpSession` | glasses |
 | `GET /help` | none | `{"sessions": [HelpSession]}` (open ones first) | Studio |
 | `GET /help/{id}` | none | `HelpSession` | glasses (poll every 2 s), Studio |
-| `POST /help/{id}/say` | JSON `{"from": "expert" \| "worker", "text"}` | `HelpSession` | Studio, glasses |
+| `POST /help/{id}/say` | JSON `{"from": "expert" \| "worker", "text", "mark"}` (below) | `HelpSession` | Studio, glasses |
 | `POST /help/{id}/end` | none | `HelpSession` | glasses, Studio |
 | `GET /media/{path}` | none | JPEG or MP4 | glasses display, Studio |
 
-The record and help endpoints add to the list fixed in JUN-27. Each recorded step is uploaded on its own, so a long recording never sends one huge request.
+The record and help endpoints add to the list fixed in JUN-27. Each recorded step is uploaded on its own, so a long recording never sends one huge request. The employee list, the glasses, `DELETE /docs/{id}`, `?language=` and `mark` come from Owl Studio and Help (JUN-33, JUN-38, JUN-41, JUN-60).
+
+### `POST /employees` and `PUT /employees/{id}`
+
+```json
+{"name": "Aino", "language": "fi", "role": "Packer", "process_ids": ["proc-pick-pack"], "glasses_id": "glasses-1", "welcome": null}
+```
+
+- `POST` needs `name` (1–60 characters) and `language`. `role` defaults to `""`, `process_ids` to `[]`, `glasses_id` to `null`.
+- The server makes the `id` from the name (`emp-aino`, then `emp-aino-2`) and takes `company` from the employees and processes it already has.
+- `welcome` empty or `null`: Owl writes it. English and Finnish have their own wording; other languages get the English one until someone writes theirs by hand.
+- `PUT` changes only the fields that are sent. `"glasses_id": null` takes the glasses away, and `"welcome": ""` hands the welcome back to Owl.
+- An unknown id in `process_ids` is a `422`. `PUT` on an unknown employee is a `404`.
+
+### `GET /glasses/{glasses_id}/employee`
+
+The glasses app asks this on "Hey Meta, start Owl" to learn who wears this pair. `404` with `{"detail": "These glasses are not assigned to anyone yet."}` when no one does.
+
+### `PUT /processes/{id}`
+
+- The server numbers `Step.index` 1, 2, 3… from the order of `steps` and keeps every step `id`, so Owl Studio reorders and deletes steps by sending the array as it should be. Two steps with the same `id` are a `422`.
+- A body in the process's own language replaces the process. When its words change (titles, instructions, `say`, checks, sources, the steps or their order), stored translations are dropped, because they would say what the process used to say. Publishing alone keeps them.
+- A body in another language is stored as that language's translation, and the original does not change. It must keep the original's step ids in the same order (`422` otherwise). Its `status` is ignored: publishing happens on the original.
+
+### `DELETE /docs/{id}`
+
+Ask stops using the document at once and the uploaded file is deleted. `404` for an unknown id. The handbook that ships in `fixtures/docs/` is only forgotten until the server restarts.
 
 ### `POST /check`
 
@@ -260,11 +297,27 @@ Multipart form: `narration` (text, the expert's words for this step), `photo` (J
 
 Multipart form: `image` (JPEG), `employee_id`, `process_id`, `step_id`, `help_id` (empty on the first frame; the answer's `id` is used after that). The first frame opens a session. Send about one frame every 2 s while help is on.
 
+### `POST /help/{id}/say`
+
+```json
+{"from": "expert", "text": "The blue carton, top shelf.", "mark": {"x": 0.42, "y": 0.31}}
+```
+
+`from` defaults to `expert`. `mark` is optional: the point the expert clicked in the worker's view, as a share of the frame's width and height from its top left corner (0–1). The server draws a ring there on a copy of the latest frame and puts it in the message's `image_url`. A mark from the worker, or one sent when there is no frame, is ignored and the text still arrives. `409` when the session has ended.
+
+## Languages
+
+- `GET /processes?language=fi` and `GET /processes/{id}?language=fi` answer in that language when a translation of the process is stored, and with the original otherwise. `fi-FI` finds the `fi` translation.
+- A translation is the same process: same `id`, step ids, media, check kinds, SKUs and quantities. Only the words differ, and its `status` follows the original.
+- Translations come from `fixtures/process-<name>.<lang>.json` and from `PUT /processes/{id}` with a body in another language. They are never listed as processes of their own.
+- `/check` and `/ask` take the language from the request or the employee, as before.
+
 ## Media
 
 - The API returns **absolute** URLs. It builds them from `PUBLIC_BASE_URL` when that is set (the https tunnel), otherwise from the request's own address. The fixtures store paths (`/media/...`); the API turns them into URLs.
 - The DAT `VideoPlayer` plays `https` URLs only, so clips need the tunnel. Images can also be downloaded by the phone app and drawn with `Image(image: UIImage)`.
-- Check frames are not stored. Help frames are kept only while the session is open. Faces in recorded photos and clips are blurred before they are stored (JUN-32).
+- Check frames are not stored. Faces in recorded photos and clips are blurred before they are stored (JUN-32).
+- Help frames are kept only while the session is open. `/media` needs no token, so each session's frames live in a folder with a random name that cannot be guessed. Ending the session deletes the folder and the URLs stop working. Frames left behind by an earlier run are deleted when the server starts.
 
 ## Mock data
 
@@ -272,13 +325,14 @@ Multipart form: `image` (JPEG), `employee_id`, `process_id`, `step_id`, `help_id
 
 | File | What |
 |---|---|
-| `employee.json` | Sami, a new picker |
+| `employee.json` | Sami, a new picker, wearing `glasses-1` |
 | `process-pick-pack.json` | 5 steps: box, pick, check, pack, seal |
+| `process-pick-pack.fi.json` | The same process in Finnish |
 | `check-ok.json` | Order step, everything right |
 | `check-warning.json` | Order step, 0.5 l carton instead of 1 l |
 | `check-unsure.json` | Too far away, with a hint |
 | `answer.json` | Out-of-stock answer with its source |
 | `answer-not-found.json` | Not in the instructions |
-| `help-session.json` | Help with one worker and one expert message |
+| `help-session.json` | Help with one worker message and one expert message with a marked frame |
 | `recording.json` | A recording that is done |
 | `docs/warehouse-handbook.md` | The company handbook that Ask answers from |

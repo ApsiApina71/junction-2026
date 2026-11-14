@@ -7,18 +7,19 @@ import io
 import os
 import secrets
 from collections.abc import Callable
+from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 import anthropic
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 
 from . import ask as ask_engine
-from . import verifier, vision
+from . import people, verifier, vision
 from .models import (
     Answer,
     AskRequest,
@@ -27,6 +28,7 @@ from .models import (
     Employee,
     HelpMessage,
     HelpSession,
+    Mark,
     Process,
     RecordedStep,
     Recording,
@@ -34,7 +36,7 @@ from .models import (
     SayRequest,
     Step,
 )
-from .store import Store, load_fixture, now_iso
+from .store import Store, lang_key, load_fixture, now_iso
 
 MODEL_ID = vision.MODEL_ID
 MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
@@ -49,10 +51,19 @@ MAX_SIDE = 1024  # Frames are downscaled to this before they go to a model.
 REFERENCE_SIDE = 600  # The Display glasses render at 600x600 (DAT docs).
 Image.MAX_IMAGE_PIXELS = 40_000_000
 
-# /docs is the company-documents endpoint, so the Swagger UI moves to /swagger.
-app = FastAPI(title="owl-api", docs_url="/swagger", redoc_url=None)
 store = Store()
 tracker = verifier.Tracker()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Help sessions live in memory, so frames left on disk by an earlier run belong to no one: delete them.
+    store.clear_help_media()
+    yield
+
+
+# /docs is the company-documents endpoint, so the Swagger UI moves to /swagger.
+app = FastAPI(title="owl-api", docs_url="/swagger", redoc_url=None, lifespan=lifespan)
 
 # Owl Studio runs in a browser on another port.
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
@@ -139,30 +150,55 @@ def employee(employee_id: str, request: Request):
     return out(request, found)
 
 
+# Employees (list, add, edit) and the glasses they wear live in people.py.
+app.include_router(people.router(lambda: store, Auth, out))
+
+LanguageQuery = Annotated[str, Query(max_length=10)]
+
+
 @app.get("/processes", dependencies=[Auth])
-def processes(request: Request) -> dict:
-    return {"processes": [out(request, p) for p in store.processes.values()]}
+def processes(request: Request, language: LanguageQuery = "") -> dict:
+    return {"processes": [out(request, store.translated(p, language)) for p in store.processes.values()]}
 
 
 @app.get("/processes/{process_id}", response_model=Process, dependencies=[Auth])
-def process(process_id: str, request: Request):
-    return out(request, get_process(process_id))
+def process(process_id: str, request: Request, language: LanguageQuery = ""):
+    return out(request, store.translated(get_process(process_id), language))
+
+
+def wording(process: Process) -> dict:
+    """Everything in a process that a translation repeats in its own language."""
+    return process.model_dump(include={"title": True, "summary": True, "steps": {"__all__": {"id", "title", "instruction", "say", "check", "source"}}})
 
 
 @app.put("/processes/{process_id}", response_model=Process, dependencies=[Auth])
 def update_process(process_id: str, body: Process, request: Request):
-    get_process(process_id)
+    original = get_process(process_id)
     if body.id != process_id:
         raise HTTPException(status_code=422, detail="The body's id must match the URL.")
+    step_ids = [step.id for step in body.steps]
+    if len(set(step_ids)) != len(step_ids):
+        raise HTTPException(status_code=422, detail="Two steps have the same id.")
     base = base_url(request)
-    # Owl Studio sends back the absolute URLs it got; store paths again.
     data = body.model_dump()
-    for step in data["steps"]:
+    # Owl Studio reorders and deletes steps: the order of the array is the order of the work.
+    for index, step in enumerate(data["steps"], start=1):
+        step["index"] = index
+        # Owl Studio sends back the absolute URLs it got; store paths again.
         for key in ("reference_image_url", "clip_url"):
             if step[key] and step[key].startswith(base + "/media/"):
                 step[key] = step[key][len(base) :]
-    store.processes[process_id] = Process.model_validate(data)
-    return out(request, store.processes[process_id])
+    updated = Process.model_validate(data)
+    if lang_key(updated.language) != lang_key(original.language):
+        # The same process in another language: kept beside the original, which does not change.
+        if step_ids != [step.id for step in original.steps]:
+            raise HTTPException(status_code=422, detail="A translation must keep the steps of the original, in the same order.")
+        store.translations[(process_id, lang_key(updated.language))] = updated
+        return out(request, store.translated(original, updated.language))
+    if wording(updated) != wording(original):
+        store.drop_translations(process_id)  # they would say what the process used to say
+    store.processes[process_id] = updated
+    return out(request, updated)
 
 
 # Owl Check
@@ -277,6 +313,14 @@ async def upload_doc(file: Annotated[UploadFile, File()], request: Request):
     return out(request, store.add_doc(f"{safe}.md" if ext == ".pdf" else f"{safe}{ext}", text))
 
 
+@app.delete("/docs/{doc_id}", status_code=204, dependencies=[Auth])
+def delete_doc(doc_id: str) -> Response:
+    """The company takes a document back: Ask stops using it at once, and the uploaded file is deleted."""
+    if not store.remove_doc(doc_id):
+        raise HTTPException(status_code=404, detail=f"No document {doc_id}.")
+    return Response(status_code=204)
+
+
 # Record
 
 
@@ -360,11 +404,12 @@ async def help_frame(
     else:
         session = HelpSession(id=store.next_id("help"), status="waiting", updated_at=now_iso())
         store.help[session.id] = session
-    session.latest_frame_url = store.save_media(f"help/{session.id}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
+    # The frame is the worker's live view and /media needs no token, so its folder name cannot be guessed.
+    session.latest_frame_url = store.save_media(f"{store.help_dir(session.id)}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
     session.employee_id = employee_id or session.employee_id
     session.process_id = process_id or session.process_id
     session.step_id = step_id or session.step_id
-    session.updated_at = now_iso()
+    session.frame_at = session.updated_at = now_iso()
     return out(request, session)
 
 
@@ -380,6 +425,34 @@ def help_get(help_id: str, request: Request):
     return out(request, get_help(help_id))
 
 
+MARK_COLOR = (255, 214, 10)  # bright on the additive glasses display and on a monitor
+
+
+def draw_mark(frame: bytes, mark: Mark) -> bytes:
+    """The frame with a ring where the expert pointed: bright, with a dark edge so it shows on any background."""
+    with Image.open(io.BytesIO(frame)) as img:
+        img = img.convert("RGB")
+        short = min(img.size)
+        radius, width = max(12, round(short * 0.09)), max(4, round(short * 0.016))
+        cx, cy = mark.x * img.width, mark.y * img.height
+        draw = ImageDraw.Draw(img)
+        edge = max(2, width // 2)
+        draw.ellipse((cx - radius - edge, cy - radius - edge, cx + radius + edge, cy + radius + edge), outline=(0, 0, 0), width=width + 2 * edge)
+        draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), outline=MARK_COLOR, width=width)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        return buf.getvalue()
+
+
+def marked_frame(session: HelpSession, message_id: int, mark: Mark) -> str | None:
+    """Saves the latest frame with the expert's mark and returns its /media path, or None when there is no frame."""
+    folder = store.help_dir(session.id)
+    latest = store.media_path(f"{folder}/latest.jpg")
+    if latest is None:
+        return None
+    return store.save_media(f"{folder}/mark-{message_id}.jpg", draw_mark(latest.read_bytes(), mark))
+
+
 @app.post("/help/{help_id}/say", response_model=HelpSession, dependencies=[Auth])
 def help_say(help_id: str, body: SayRequest, request: Request):
     session = get_help(help_id)
@@ -387,6 +460,9 @@ def help_say(help_id: str, body: SayRequest, request: Request):
         raise HTTPException(status_code=409, detail="This help session has ended.")
     with store.lock:
         message = HelpMessage(id=len(session.messages) + 1, from_=body.from_, text=body.text.strip(), at=now_iso())
+        if body.from_ == "expert" and body.mark:
+            # The expert can point: the glasses show the worker's own view with a ring around the spot.
+            message.image_url = marked_frame(session, message.id, body.mark)
         session.messages.append(message)
     if body.from_ == "expert":
         session.status = "connected"
@@ -398,6 +474,11 @@ def help_say(help_id: str, body: SayRequest, request: Request):
 def help_end(help_id: str, request: Request):
     session = get_help(help_id)
     session.status, session.updated_at = "ended", now_iso()
+    # Help frames are kept only while the session is open.
+    store.remove_help_media(session.id)
+    session.latest_frame_url = None
+    for message in session.messages:
+        message.image_url = None
     return out(request, session)
 
 

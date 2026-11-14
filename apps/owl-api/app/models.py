@@ -1,8 +1,16 @@
 """The shared JSON shapes of docs/specs/owl-contract.md. Keep the two in step."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
+
+# BCP 47 tags such as en, fi, uk or pt-BR.
+Language = Annotated[str, StringConstraints(min_length=2, max_length=10, pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$")]
+# A pair of glasses, named by the employer ("glasses-1"). It is part of a URL, so only letters, digits, - and _.
+GlassesId = Annotated[str, StringConstraints(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_-]+$")]
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+Role = Annotated[str, StringConstraints(strip_whitespace=True, max_length=60)]
+Welcome = Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)]
 
 
 class Employee(BaseModel):
@@ -13,6 +21,28 @@ class Employee(BaseModel):
     company: str
     welcome: str
     process_ids: list[str]
+    glasses_id: str | None = None
+
+
+class EmployeeCreate(BaseModel):
+    name: Name
+    language: Language
+    role: Role = ""
+    process_ids: list[str] = []
+    glasses_id: GlassesId | None = None
+    # Empty or left out: the server writes the welcome in the employee's language.
+    welcome: Welcome | None = None
+
+
+class EmployeeUpdate(BaseModel):
+    """Every field is optional; a field that is left out stays as it is."""
+
+    name: Name | None = None
+    language: Language | None = None
+    role: Role | None = None
+    process_ids: list[str] | None = None
+    glasses_id: GlassesId | None = None
+    welcome: Welcome | None = None
 
 
 class OrderLine(BaseModel):
@@ -109,6 +139,7 @@ class HelpMessage(BaseModel):
     from_: Literal["worker", "expert"] = Field(alias="from")
     text: str
     at: str
+    image_url: str | None = None
 
     model_config = {"populate_by_name": True, "serialize_by_alias": True}
 
@@ -120,13 +151,22 @@ class HelpSession(BaseModel):
     process_id: str | None = None
     step_id: str | None = None
     latest_frame_url: str | None = None
+    frame_at: str | None = None
     updated_at: str
     messages: list[HelpMessage] = []
+
+
+class Mark(BaseModel):
+    """A point in the worker's view, as a share of the frame's width and height from its top left corner."""
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
 
 
 class SayRequest(BaseModel):
     from_: Literal["worker", "expert"] = Field(default="expert", alias="from")
     text: str = Field(min_length=1, max_length=500)
+    mark: Mark | None = None
 
     model_config = {"populate_by_name": True}
 

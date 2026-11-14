@@ -1,0 +1,95 @@
+{
+  "id": "proc-pick-pack",
+  "title": "Kerää ja pakkaa tilaus",
+  "summary": "Ota laatikko, kerää tilauksen tuotteet, tarkista ne, pakkaa ja sulje laatikko.",
+  "company": "Kide Logistics",
+  "language": "fi",
+  "status": "published",
+  "source": "record",
+  "expert": "Laura",
+  "steps": [
+    {
+      "id": "step-1",
+      "index": 1,
+      "title": "Ota keskikokoinen laatikko",
+      "instruction": "Ota keskikokoinen laatikko (M) ja laita tilauslista sen päälle.",
+      "say": "Ota keskikokoinen laatikko ja laita tilauslista sen päälle.",
+      "reference_image_url": "/media/proc-pick-pack/step-1.jpg",
+      "clip_url": "/media/proc-pick-pack/step-1.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": ["Avoin pahvilaatikko on pöydällä", "Tilauslista on näkyvissä"],
+        "order_lines": null
+      },
+      "source": {"doc": "Lauran tallenne", "quote": "Keskikokoinen laatikko riittää viidelle tuotteelle, isot ovat vain kookkaille tavaroille."}
+    },
+    {
+      "id": "step-2",
+      "index": 2,
+      "title": "Kerää tuotteet",
+      "instruction": "Kerää jokainen tilauksen tuote hyllystä laatikkoon.",
+      "say": "Kerää tilauksen kolme tuotetta laatikkoon.",
+      "reference_image_url": "/media/proc-pick-pack/step-2.jpg",
+      "clip_url": "/media/proc-pick-pack/step-2.mp4",
+      "check": {
+        "kind": "order",
+        "criteria": ["Jokainen tilausrivi on laatikossa", "Laatikossa ei ole ylimääräisiä tuotteita"],
+        "order_lines": [
+          {"sku": "OAT-1L", "name": "Kaurajuoma 1 l", "qty": 2},
+          {"sku": "COF-500", "name": "Kahvi 500 g", "qty": 1},
+          {"sku": "RYE-CRISP", "name": "Ruisnäkkileipä", "qty": 1}
+        ]
+      },
+      "source": {"doc": "Lauran tallenne", "quote": "Tarkista aina litrakoko, puolen litran ja litran tölkit näyttävät samalta."}
+    },
+    {
+      "id": "step-3",
+      "index": 3,
+      "title": "Tarkista tilaus",
+      "instruction": "Pidä avointa laatikkoa näkyvissä. Owl vertaa tuotteita tilaukseen.",
+      "say": "Pidä avointa laatikkoa edessäsi. Minä tarkistan sen.",
+      "reference_image_url": "/media/proc-pick-pack/step-3.jpg",
+      "clip_url": null,
+      "check": {
+        "kind": "order",
+        "criteria": ["Jokainen tilausrivi on laatikossa", "Laatikossa ei ole ylimääräisiä tuotteita"],
+        "order_lines": [
+          {"sku": "OAT-1L", "name": "Kaurajuoma 1 l", "qty": 2},
+          {"sku": "COF-500", "name": "Kahvi 500 g", "qty": 1},
+          {"sku": "RYE-CRISP", "name": "Ruisnäkkileipä", "qty": 1}
+        ]
+      },
+      "source": {"doc": "Varaston käsikirja", "quote": "Tarkista jokainen tilaus tilauslistasta ennen pakkaamista."}
+    },
+    {
+      "id": "step-4",
+      "index": 4,
+      "title": "Pakkaa painavat ensin",
+      "instruction": "Painavat tuotteet pohjalle, kevyet päälle. Täytä tyhjä tila paperilla.",
+      "say": "Painavat tuotteet pohjalle ja kevyet päälle. Täytä tyhjä tila paperilla.",
+      "reference_image_url": "/media/proc-pick-pack/step-4.jpg",
+      "clip_url": "/media/proc-pick-pack/step-4.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": ["Tölkit ovat laatikon pohjalla", "Näkkileipä on päällimmäisenä", "Tyhjä tila on täytetty paperilla"],
+        "order_lines": null
+      },
+      "source": {"doc": "Varaston käsikirja", "quote": "Pakkaa painavat tuotteet pohjalle ja täytä tyhjä tila paperilla, jotta mikään ei liiku."}
+    },
+    {
+      "id": "step-5",
+      "index": 5,
+      "title": "Sulje ja kiinnitä tarra",
+      "instruction": "Teippaa laatikko kiinni ja kiinnitä lähetystarra laatikon päälle.",
+      "say": "Teippaa laatikko kiinni ja kiinnitä lähetystarra päälle. Nipistä sitten Valmis.",
+      "reference_image_url": "/media/proc-pick-pack/step-5.jpg",
+      "clip_url": "/media/proc-pick-pack/step-5.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": ["Laatikko on teipattu kiinni", "Lähetystarra on laatikon yläpinnassa"],
+        "order_lines": null
+      },
+      "source": {"doc": "Varaston käsikirja", "quote": "Tarra kiinnitetään aina laatikon yläpintaan, ei koskaan teipin päälle."}
+    }
+  ]
+}
