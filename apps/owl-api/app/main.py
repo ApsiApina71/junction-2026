@@ -24,6 +24,7 @@ from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from . import ask as ask_engine
+from . import assist as assist_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
 from . import jepa, location, people, persist, training, verifier, vision
@@ -35,6 +36,9 @@ from . import translate as translate_engine
 from .models import (
     Answer,
     AskRequest,
+    AssistAnswer,
+    AssistRequest,
+    AssistSign,
     CheckResult,
     Consent,
     Doc,
@@ -57,6 +61,8 @@ log = logging.getLogger("owl.api")
 MODEL_ID = vision.MODEL_ID
 MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
 MOCK_ASK = os.getenv("OWL_MOCK_ASK", "") == "1"
+# 1 = customer service suggestions from the local handbook search, without the model (JUN-98). Also in demo mode.
+MOCK_ASSIST = os.getenv("OWL_MOCK_ASSIST", "") == "1"
 # 1 = the demo story plays without models (JUN-69): scripted observations for /check, handbook search for /ask,
 # narration drafts for /record. Every check answers decided_by "demo".
 DEMO = os.getenv("OWL_DEMO", "") == "1"
@@ -529,14 +535,14 @@ async def ask(body: AskRequest, request: Request):
     if DEMO:
         return out(
             request,
-            stage_answer(employee, body.question, ask_engine.demo_answer(body.question, [(doc.title, text) for doc, text in store.docs.values()], language)),
+            stage_answer(employee, body.question, ask_engine.demo_answer(body.question, store.docs_for(employee), language)),
         )
     context = None
     if body.process_id in store.processes:
         process = store.processes[body.process_id]
         step = next((s for s in process.steps if s.id == body.step_id), None)
         context = f"{process.title}" + (f", step {step.index}: {step.title}" if step else "")
-    docs = [(doc.title, text) for doc, text in store.docs.values()]
+    docs = store.docs_for(employee)
     return out(request, stage_answer(employee, body.question, await call_model(lambda: ask_engine.answer(body.question, docs, language, context))))
 
 
@@ -550,6 +556,35 @@ def stage_answer(employee: Employee | None, question: str, answer: Answer) -> An
         )
         stage.event(employee.glasses_id, "ask", employee_id=employee.id, question=question, answer=answer.text, source=source)
     return answer
+
+
+# Customer service mode (JUN-98). The transcript is used for one answer: never stored, logged or staged.
+
+
+@app.post("/assist", response_model=AssistAnswer, dependencies=[Auth])
+async def assist(body: AssistRequest):
+    employee = store.employees.get(body.employee_id)
+    if employee is None:
+        raise HTTPException(status_code=404, detail=f"No employee {body.employee_id}.")
+    if not training.in_training(store, employee.id):
+        raise HTTPException(status_code=409, detail="not_in_training")
+    language = body.language or employee.language
+    docs = store.docs_for(employee)
+    if DEMO or MOCK_ASSIST:
+        return assist_engine.local_answer(body.transcript, docs, language)
+    return await call_model(lambda: assist_engine.answer(body.transcript, docs, language))
+
+
+@app.get("/assist/sign", response_model=AssistSign, dependencies=[Auth])
+def assist_sign():
+    return AssistSign(text=store.assist_sign)
+
+
+@app.put("/assist/sign", response_model=AssistSign, dependencies=[Auth])
+def set_assist_sign(body: AssistSign):
+    with store.lock:
+        store.assist_sign = body.text.strip()
+    return AssistSign(text=store.assist_sign)
 
 
 @app.post("/processes/from-docs", response_model=Process, dependencies=[Auth])

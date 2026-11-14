@@ -17,6 +17,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", APP_DIR / "data"))
 # The company for new workers without a task and for recordings. Defaults to the company of the demo worker.
 COMPANY = os.getenv("OWL_COMPANY", "")
 DEFAULT_EMPLOYEE = "emp-sami"
+DEFAULT_SIGN = "Our trainee wears Owl glasses. Owl listens to suggest answers from our handbook. Nothing is recorded."
 TIMEZONE = ZoneInfo(os.getenv("TIMEZONE", "Europe/Helsinki"))
 
 
@@ -64,6 +65,8 @@ class Store:
         self.trainings: dict[str, dict] = {}
         # JUN-97: the areas on Studio's map of the workplace.
         self.zones: dict[str, Zone] = {}
+        # JUN-98: the sign at the desk that tells customers Owl is listening. Studio edits it.
+        self.assist_sign = DEFAULT_SIGN
         self._counter = 0
 
         for path in sorted(FIXTURES.glob("employee*.json")):
@@ -118,6 +121,19 @@ class Store:
         if uploaded.is_file():
             uploaded.unlink()
         return True
+
+    def docs_for(self, employee: Employee | None) -> list[tuple[str, str]]:
+        """(title, text) of the documents this worker's answers may come from.
+
+        One server runs one company, but the demo holds three. A document titled "<another company>: ..." belongs to
+        that company, so a warehouse worker never gets the café's Wi-Fi password. Other documents are for everyone.
+        """
+        own = employee.company.strip().lower() if employee and employee.company else ""
+        companies = {e.company.strip().lower() for e in self.employees.values() if e.company} | {
+            p.company.strip().lower() for p in self.processes.values() if p.company
+        }
+        others = companies - {own} if own else set()
+        return [(doc.title, text) for doc, text in self.docs.values() if doc.title.split(":")[0].strip().lower() not in others]
 
     def translated(self, process: Process, language: str) -> Process:
         """The process in this language when a translation is stored, otherwise the process as it is."""

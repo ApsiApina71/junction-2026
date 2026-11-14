@@ -310,3 +310,30 @@ class Unlock(BaseModel):
     process_id: str
     step_id: str
     by: Literal["trainer", "help"] = "trainer"
+
+
+class AssistRequest(BaseModel):
+    """The last ~30 s of the counter conversation, as text (JUN-98). Used for one answer, never stored or logged."""
+
+    employee_id: str
+    transcript: str = Field(max_length=20000)
+    language: str | None = Field(default=None, max_length=10)
+
+
+class AssistSource(BaseModel):
+    doc: str
+    section: str | None = None
+
+
+class AssistAnswer(BaseModel):
+    bullets: list[str]
+    # The glasses do not speak a suggestion while the customer listens: bullets are for the display.
+    say: str | None = None
+    sources: list[AssistSource]
+    unsure: bool
+
+
+class AssistSign(BaseModel):
+    """The text of the sign at the desk that tells customers Owl is listening."""
+
+    text: str = Field(min_length=1, max_length=300)

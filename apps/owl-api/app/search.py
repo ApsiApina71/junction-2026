@@ -22,6 +22,9 @@ _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _FI_ENDINGS = ("ssa", "ssä", "sta", "stä", "lla", "llä", "lta", "ltä", "lle", "ksi", "na", "nä", "a", "ä", "n", "t")
 
 
+_HYPHENATED = re.compile(r"\b\w+(?:-\w+)+\b")
+
+
 def _stem(word: str) -> str:
     """Light English and Finnish suffix stripping, then a prefix cut that also catches longer inflection."""
     if len(word) > 4:
@@ -35,7 +38,9 @@ def _stem(word: str) -> str:
 
 
 def tokens(text: str) -> list[str]:
-    return [_stem(w) for w in _WORD.findall(text.lower()) if w not in STOPWORDS and (len(w) > 1 or w.isdigit())]
+    # "Wi-Fi" is also "wifi", and "e-mail" also "email": a hyphenated word counts in both spellings.
+    text = _HYPHENATED.sub(lambda m: f"{m.group(0)} {m.group(0).replace('-', '')}", text.lower())
+    return [_stem(w) for w in _WORD.findall(text) if w not in STOPWORDS and (len(w) > 1 or w.isdigit())]
 
 
 @dataclass(frozen=True)

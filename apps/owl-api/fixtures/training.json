@@ -23,6 +23,12 @@
       ]
     },
     {
+      "id": "plan-cafe-counter",
+      "role": "Café counter",
+      "days": 5,
+      "target": []
+    },
+    {
       "id": "plan-leipuriharjoittelija",
       "role": "Leipuriharjoittelija",
       "days": 10,
@@ -35,7 +41,8 @@
   ],
   "demo": {
     "trainings": {
-      "emp-sami": {"plan_id": "plan-warehouse-picker", "day": 5}
+      "emp-sami": {"plan_id": "plan-warehouse-picker", "day": 5},
+      "emp-noa": {"plan_id": "plan-cafe-counter", "day": 2}
     },
     "runs": [
       {"employee_id": "emp-sami", "process_id": "proc-pick-pack", "days_ago": 4, "seconds": 610, "helped_steps": ["step-2", "step-4"], "problems_caught": 2, "problems_fixed": 2},

@@ -325,6 +325,8 @@ Only `question` is required. The question is the final transcription from the gl
 
 When all documents together are larger than `ASK_MAX_CHARS`, only the best sections for the question go to the model, picked by a local BM25 index on this server (JUN-71). Source quotes are still checked against the whole documents.
 
+A document titled `"<company>: ..."` belongs to that company: a worker of another company never gets answers from it (`Store.docs_for`). Documents without a known company name are for everyone.
+
 ### `POST /processes/{id}/translate`
 
 "Hire anyone" (JUN-72): Owl writes the process in the worker's language and stores it, so `GET /processes?language=<lang>` returns it from then on. Everything but the words is kept: step ids and order, media, check kinds, SKUs and quantities. Order line names stay as printed on the order and the shelf labels. The same language as the process returns the process. It needs the model: in demo or mock mode it answers `503` "Translation needs the model", and a translation that does not keep the steps answers `502`.
@@ -365,6 +367,7 @@ Only the wearer sees the display, so `GET /stage` shows the audience the glasses
 | Recorded photos and clips | Faces blurred before storing; kept until the process is deleted in Studio. |
 | Learning progress | Per worker, for their own glasses; erased with `DELETE /employees/{id}/progress`. Studio sees `/stats`, and per worker only the end-of-training result and its counts (JUN-96), after the worker has seen it. |
 | Location (JUN-97) | Only during training and with `location` consent: the current area and today's areas, in memory only. Never on disk, gone on restart, dropped when training ends or consent is taken back. |
+| Customer service transcript (JUN-98) | Never stored: used for one `/assist` answer and dropped. Not on disk, not in the logs, not on the stage view. |
 | Consent | What was agreed and when. |
 | Anything to Meta | Nothing: DAT analytics and crash reporting are opted out in the glasses app. |
 
@@ -466,6 +469,31 @@ Errors: `403 consent_required`, `409 not_in_training`, `404` for text that is no
 Studio: `GET /zones` → `{"zones": [{"id", "name", "kind": "aisle" | "packing" | "loading" | "other", "x", "y", "w", "h"}]}` (x, y, w, h are shares of the map, from the top left). `PUT /zones/{id}` saves one, `DELETE /zones/{id}` removes it. Checkpoints are set on steps with `PUT /processes/{id}`. `GET /markers` → `{"markers": [{"payload", "kind": "zone" | "checkpoint", "label", "zone_id", "process_id", "step_id", "svg"}]}`, an SVG QR code per area and per checkpoint, for printing. `GET /locations` → `{"trainees": [{"employee_id", "name", "zone", "entered_at"}]}`: the live map, only workers in training who agreed.
 
 Demo: Kide Logistics has Aisles A–C, Packing and Loading. Pick and pack step 2 is at "Aisle C · Shelf 12" (zone-c), step 4 at "Packing station" (zone-pack).
+
+### Customer service mode (JUN-98)
+
+A new worker at a counter (a shop, a café, a reception). During training, and only while the worker has turned the mode on, the glasses transcribe the conversation with the DAT Speech capability. On a **Hint** pinch they send the last ~30 seconds; Owl answers with two or three bullets from the company's documents and names the source.
+
+`POST /assist` `{"employee_id": "emp-noa", "transcript": "…", "language": "en"}` (`language` optional: the worker's) →
+
+```json
+{
+  "bullets": ["Unopened beans: return within 14 days with the receipt", "Refund goes back to the card that paid"],
+  "say": null,
+  "sources": [{"doc": "Café Kide: counter handbook", "section": "Returns and refunds"}],
+  "unsure": false
+}
+```
+
+- 1–3 bullets, each at most 80 characters, for the display. `say` is always `null`: the glasses do not speak a suggestion while the customer listens.
+- `unsure: true` when the documents do not answer it: `bullets` is `["Not in the handbook, ask a colleague"]` (Finnish: "Ei käsikirjassa, kysy työkaverilta") and `sources` is empty. Owl never guesses. With the model, every bullet must rest on a quote found word for word in a document.
+- Only the last ~80 words count (`ASSIST_TAIL_WORDS`), so send at most the last half minute; the body may be up to 20 000 characters.
+- `404` unknown employee, `409 not_in_training` outside the worker's training period (JUN-96).
+- **The transcript is used for this one answer and dropped**: never written to disk, never logged, never on the stage view, never in an error message.
+
+`GET /assist/sign` → `{"text": "Our trainee wears Owl glasses. Owl listens to suggest answers from our handbook. Nothing is recorded."}`: the sign at the desk. Studio edits it with `PUT /assist/sign` `{"text"}` (≤ 300 characters).
+
+Demo mode or `OWL_MOCK_ASSIST=1`: no model. The local BM25 search picks the best section of the worker's company documents for the conversation (the last 25 words count twice, since the question is usually at the end) and shows its best sentences as they stand in the document; fewer than two shared words means `unsure`. Demo worker: Noa (`emp-noa`, Café Kide, `glasses-6`), on day 2 of 5 of training, with `fixtures/docs/cafe-handbook.md` (opening hours, prices, returns, allergens, loyalty card, payment, Wi-Fi).
 
 ### Demo mode (`OWL_DEMO=1`)
 

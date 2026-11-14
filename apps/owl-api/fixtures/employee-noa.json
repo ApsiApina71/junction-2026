@@ -1,0 +1,15 @@
+{
+  "id": "emp-noa",
+  "name": "Noa",
+  "language": "en",
+  "role": "Café counter",
+  "company": "Café Kide",
+  "welcome": "Welcome to Café Kide, Noa! I'm Owl. At the counter I can listen and suggest answers when you need one.",
+  "process_ids": [],
+  "glasses_id": "glasses-6",
+  "access": {
+    "audio_first": false,
+    "display_first": false,
+    "easy_language": false
+  }
+}

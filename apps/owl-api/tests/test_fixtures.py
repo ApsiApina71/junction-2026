@@ -11,6 +11,7 @@ SHAPES = {
     "employee-amina.json": Employee,
     "employee-leo.json": Employee,
     "employee-ville.json": Employee,
+    "employee-noa.json": Employee,
     "process-pick-pack.json": Process,
     "process-pick-pack.fi.json": Process,
     "process-bakery-rye.json": Process,
