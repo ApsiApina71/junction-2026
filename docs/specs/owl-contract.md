@@ -340,7 +340,7 @@ The third knowledge level: a written instruction becomes a guided process in one
 
 ### Step recognition (JUN-34)
 
-`POST /steps/recognize` answers which step the worker is doing, by comparing a short clip from the glasses with the expert's recorded clip of each step (cosine similarity of video embeddings; V-JEPA 2 when installed, otherwise a baseline descriptor):
+`POST /steps/recognize` answers which step the worker is doing, by comparing a short clip from the glasses with the expert's recorded clip of each step (cosine similarity of video embeddings; V-JEPA 2 when installed, otherwise a baseline descriptor). With `JEPA_BACKEND=vjepa21`, a per-task attentive probe on V-JEPA 2.1 decides instead: `backend` is `vjepa21+probe`, `similarities` are the steps' probabilities (an "other" class, trained on clips of not doing any step, is left out of them), `margin` is the best class's probability minus the second's, and `action` is `null`:
 
 ```json
 {"status": "ok", "step_id": "step-4", "similarities": {"step-1": 0.12, "step-2": 0.08, "step-4": 0.91, "step-5": 0.33}, "margin": 0.58, "backend": "vjepa2", "action": "Putting something into something"}
@@ -350,7 +350,7 @@ The third knowledge level: a written instruction becomes a guided process in one
 - `action`: what the clip shows in V-JEPA 2's own action words (its Something-Something v2 head), or `null` with the baseline. The stage timeline can show it.
 - **Learning from confirmations:** when the worker confirms "Looks like step N" with a pinch, the glasses send `POST /steps/confirm`, and the run's last look is kept as one more example of that step: an embedding only, no video, not tied to the worker (at most 8 per step). More examples is what helps most (one example 65 %, three 80 % on real clips).
 
-- `status: "unsure"` and `step_id: null` when the best step does not beat the second by `JEPA_MIN_MARGIN`, or when no step has an expert clip.
+- `status: "unsure"` and `step_id: null` when the best step does not beat the second by `JEPA_MIN_MARGIN` (with the probe: when "other" wins or the best step's probability is under `JEPA_MIN_PROB`, 0.6), or when no step has an expert clip.
 - The glasses show "Looks like step N" and move on only after a confirming pinch, never by themselves. Steps without an expert clip are not candidates.
 - In demo mode (`OWL_DEMO=1`) the mock camera shows the same picture in every step, so the answer is scripted: the first step not yet done in the worker's current run, with `backend: "demo"`. With `OWL_DEMO_LIVE` listing `recognize` (real glasses), the model answers instead.
 - Same consent rule as `/check` (`403 consent_required`). The clip is not stored. It guides; it never scores how well someone worked.

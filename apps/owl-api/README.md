@@ -71,13 +71,13 @@ VISION_BACKEND=nemotron VERDA_INFERENCE_KEY=<key> uv run --env-file .env uvicorn
 What makes it work, all measured on real video clips (see JUN-34): the SSv2 pooler instead of the plain encoder's mean; the expert's clip looked at in 2 s windows like the worker's; the last three looks of a run together; and **learning from confirmations** (`POST /steps/confirm`): every step the worker confirms adds an example, and more examples is what helps most. Prototypes and examples are embeddings only, cached in `data/jepa/`.
 
 ```sh
-JEPA_BACKEND=vjepa2 uv run --extra jepa uvicorn app.main:app --host 0.0.0.0 --port 8000   # torch + transformers; the model downloads from Hugging Face on first use, no login
+JEPA_BACKEND=vjepa21 uv run --extra jepa uvicorn app.main:app --host 0.0.0.0 --port 8000   # V-JEPA 2.1 downloads from Meta once (1.6 GB), no login
 uv run python scripts/jepa_eval.py --expert <dir> --trainee <dir> --backend vjepa2   # go/no-go on real clips
 ```
 
 Use `uv run --extra jepa` every time: a plain `uv sync` removes the extra, and step recognition then falls back to the baseline without failing (`/health` shows `step_recognition: baseline`). The model loads when the server starts.
 
-**V-JEPA 2.1 (March 2026) was tested and not adopted.** Meta's newer encoder (ViT-B and ViT-L at 384 px, loaded from Meta's checkpoints, Meta's eval preprocessing) was measured on the same Kinetics clips as above, as a mean embedding and with few-shot linear and attentive probes trained on the expert's windows (Meta's way of using a frozen encoder). None beat the SSv2 model (62 % one-shot, 70 % three-shot), and 2.1 has no published SSv2 head. Its strength is first-person hand-object video, so the comparison is repeated on our own pick-and-pack clips (JUN-66) before the decision is final.
+**V-JEPA 2.1 with an attentive probe (`JEPA_BACKEND=vjepa21`) is the one to use.** Meta's newest encoder (ViT-B, 384 px, March 2026, made for first-person video) runs frozen from `app/vjepa21` (Meta's code, MIT), and each task gets Meta's attentive probe, trained in a few seconds on the expert's clips plus the "other" clips in `DATA_DIR/jepa-other` (walking, talking at a desk, other work). On the venue footage (JUN-103), held-out windows: 28/28 right with a median confidence of 0.86-0.94; V-JEPA 2 SSv2 got 23/28 as a prototype and 27/28 with a probe. Kinetics favoured SSv2, which is why the measurement on our own clips decided. The answer is `ok` only when a step has a probability of at least `JEPA_MIN_PROB` (0.6), `similarities` are the steps' probabilities, and `backend` is `vjepa21+probe`. The probes train when the server starts and again when a clip changes. With one step and no other clips there is nothing to choose between, and the prototype answers.
 
 ## Stage view
 

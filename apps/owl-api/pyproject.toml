@@ -32,4 +32,6 @@ dev = [
 pythonpath = ["."]
 
 [tool.ruff]
+# Meta's V-JEPA 2.1 encoder, kept as Meta wrote it (MIT).
+extend-exclude = ["app/vjepa21"]
 line-length = 160

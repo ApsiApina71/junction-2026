@@ -194,3 +194,43 @@ def test_confirm_over_http(client):
     body = {"run_id": "r", "process_id": "proc-pick-pack", "step_id": "step-2"}
     assert client.post("/steps/confirm", json=body).status_code == 204
     assert client.post("/steps/confirm", json={**body, "step_id": "step-9"}).status_code == 404
+
+
+class TokenEmbedder(jepa.BaselineEmbedder):
+    """A stand-in for V-JEPA 2.1: the baseline's features, given as a few tokens, so the attentive probe can be tested
+    without the model."""
+
+    name = "tokens"
+
+    def tokens(self, frames):
+        import torch
+
+        idx = np.linspace(0, len(frames) - 1, 4).round().astype(int)
+        return torch.tensor(np.stack([self.embed([frames[i]] * 2) for i in idx]), dtype=torch.float32)
+
+
+def test_the_probe_finds_the_step_and_knows_other(tmp_path, expert_clips):
+    pytest.importorskip("torch")
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "walking.mp4").write_bytes(scene_clip("step-5", seconds=3.0, seed=4))
+    clips = {k: v for k, v in expert_clips.items() if k in ("step-1", "step-4")}
+    recognizer = jepa.Recognizer(tmp_path / "cache", TokenEmbedder(), other_dir=other)
+    probe = recognizer.probe_for(PROCESS, clips)
+    assert probe is not None and probe[1] == ["step-1", "step-4", "other"]
+    for step_id in ("step-1", "step-4"):
+        result = recognizer.recognize(PROCESS, clips, scene_clip(step_id, seconds=2.0, noise=8, shift=5, seed=3))
+        assert (result.status, result.step_id, result.backend) == ("ok", step_id, "tokens+probe")
+        assert set(result.similarities) == {"step-1", "step-4"}
+    walking = recognizer.recognize(PROCESS, clips, scene_clip("step-5", seconds=2.0, noise=8, shift=5, seed=5))
+    assert (walking.status, walking.step_id) == ("unsure", None)
+    # The same clips give the same probe; a new clip trains it again.
+    assert recognizer.probe_for(PROCESS, clips)[0] is probe[0]
+    clips["step-4"].write_bytes(scene_clip("step-4", noise=5, seed=9))
+    assert recognizer.probe_for(PROCESS, clips)[0] is not probe[0]
+
+
+def test_one_step_without_other_clips_uses_the_prototype(tmp_path, expert_clips):
+    pytest.importorskip("torch")
+    recognizer = jepa.Recognizer(tmp_path / "cache", TokenEmbedder(), other_dir=tmp_path / "none")
+    assert recognizer.probe_for(PROCESS, {"step-1": expert_clips["step-1"]}) is None

@@ -127,7 +127,7 @@ async def lifespan(_: FastAPI):
     store.clear_help_media()
     if jepa.JEPA_BACKEND != "baseline" and not scripted("recognize"):
         # The model takes a few seconds to load: load it now, not on the worker's first look.
-        threading.Thread(target=jepa.embedder, name="jepa-warmup", daemon=True).start()
+        threading.Thread(target=warm_up_recognition, name="jepa-warmup", daemon=True).start()
     yield
 
 
@@ -460,6 +460,27 @@ def with_pace(step: Step, result: CheckResult) -> CheckResult:
 # Step recognition (JUN-34): which step is the worker doing? V-JEPA 2 (or the baseline) against the expert's clips.
 
 
+def step_clips(process: Process) -> dict[str, Path]:
+    """Step id -> the expert's clip on disk, for the steps that have one."""
+    clips = {}
+    for step in process.steps:
+        url = step.clip_url or ""
+        path = store.media_path(url.removeprefix("/media/")) if url.startswith("/media/") else None
+        if path:
+            clips[step.id] = path
+    return clips
+
+
+def warm_up_recognition() -> None:
+    """Loads the model and trains each task's probe when the server starts, not on the worker's first look."""
+    jepa.embedder()
+    for process in list(store.processes.values()):
+        try:
+            recognizer.probe_for(process, step_clips(process))
+        except Exception as e:  # noqa: BLE001 - one bad clip must not stop the others
+            log.warning("No probe for %s: %s", process.id, type(e).__name__)
+
+
 @app.post("/steps/recognize", dependencies=[Auth])
 async def recognize_step(
     clip: Annotated[UploadFile, File()],
@@ -480,12 +501,7 @@ async def recognize_step(
         # the first step not yet done in their run. Honest about it: backend "demo".
         step_id = progress.next_step(worker.id, process) if worker else None
         return {"status": "ok" if step_id else "unsure", "step_id": step_id, "similarities": {}, "margin": 0.0, "backend": "demo"}
-    clips = {}
-    for step in process.steps:
-        url = step.clip_url or ""
-        path = store.media_path(url.removeprefix("/media/")) if url.startswith("/media/") else None
-        if path:
-            clips[step.id] = path
+    clips = step_clips(process)
     try:
         result = await run_in_threadpool(lambda: recognizer.recognize(process, clips, data, run_id=run_id or None))
     except jepa.ClipError as e:

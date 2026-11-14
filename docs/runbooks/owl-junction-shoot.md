@@ -30,7 +30,7 @@ OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
 - Without `ANTHROPIC_API_KEY`, set `ASSIST_BACKEND=nemotron`: Nemotron writes the Hint bullets from the handbook, and each one must quote it word for word (0.5–1.5 s; 10 of 11 info-desk questions right in the test, including both script lines). If Nemotron fails, the local search (BM25) answers. `OWL_MOCK_ASSIST=1` uses only the local search.
 - `OWL_RESET=1` only for the first start. Without it, a restart keeps what Studio changed (Laura's recording, the place photo).
 - `DATA_DIR=data/junction` keeps the story apart from the usual demo state.
-- `--extra jepa` and `JEPA_BACKEND=vjepa2` are needed for V-JEPA 2. Without them, the VO line about V-JEPA 2 is cut.
+- `--extra jepa` and `JEPA_BACKEND=vjepa21` are needed for V-JEPA. `vjepa21` is Meta's V-JEPA 2.1 (March 2026) with an attentive probe trained on Laura's clips and on clips of not doing the step (put them in `data/junction/jepa-other/`, e.g. walking or the info desk). On the venue footage it recognised "Sort the cans" on every held-out window and said "unsure" for other work. Without it, the VO line about V-JEPA is cut. VO wording that is true: "Meta's V-JEPA 2.1 recognises the step from Laura's clips".
 - `GET /health` tells which models really run (`vision_model`, `step_recognition`). Screenshot it for Lauri.
 - Tunnel and glasses: see [owl-demo.md](owl-demo.md).
 
