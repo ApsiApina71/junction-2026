@@ -69,88 +69,104 @@ struct SettingsViewModel {
 
 struct SettingsView: View {
   let viewModel: SettingsViewModel
+  private let t = PhoneText.t
 
   var body: some View {
-    List {
-      systemSection
-      devicesSection
+    ScrollView {
+      VStack(spacing: 16) {
+        HStack(spacing: 12) {
+          OwlLogo(size: 30)
+          Text(t("Settings", "Asetukset"))
+            .font(.title2.weight(.bold))
+            .foregroundStyle(OwlTheme.text)
+          Spacer()
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+        .accessibilityAddTraits(.isHeader)
+
+        if viewModel.requiresDATAppUpdate {
+          OwlProblemCard(
+            symbol: "arrow.down.app.fill", title: t("Update the Owl app on the glasses", "Päivitä Owl-sovellus laseille"),
+            detail: t(
+              "The glasses need a newer version before Owl can open. Keep their battery above 10%.",
+              "Lasit tarvitsevat uudemman version ennen kuin Owl aukeaa. Pidä lasien akku yli 10 %:ssa."),
+            tone: .attention, fix: t("Update in Meta AI", "Päivitä Meta AI:ssa"), onFix: viewModel.openDATGlassesAppUpdate)
+        }
+        if viewModel.requiresFirmwareUpdate {
+          OwlProblemCard(
+            symbol: "arrow.triangle.2.circlepath", title: t("Update the glasses", "Päivitä lasit"),
+            detail: t(
+              "The glasses' software is too old for Owl. Restart the glasses after the update.",
+              "Lasien ohjelmisto on liian vanha Owlille. Käynnistä lasit uudelleen päivityksen jälkeen."),
+            tone: .attention, fix: t("Update in Meta AI", "Päivitä Meta AI:ssa"), onFix: viewModel.openFirmwareUpdate)
+        }
+
+        OwlSectionLabel(text: "Meta AI")
+        OwlCard {
+          OwlStatusRow(
+            symbol: "link", title: t("Owl Boarding in Meta AI", "Owl Boarding Meta AI:ssa"),
+            chip: registration.text, tone: registration.tone, detail: registration.detail)
+          registrationAction
+        }
+
+        OwlSectionLabel(text: t("Glasses", "Lasit"))
+        OwlCard {
+          if viewModel.deviceItemStates.isEmpty {
+            Text(t("No glasses found. Pair them in Meta AI first.", "Laseja ei löytynyt. Yhdistä ne ensin Meta AI:ssa."))
+              .font(.subheadline)
+              .foregroundStyle(OwlTheme.textSecondary)
+          } else {
+            ForEach(Array(viewModel.deviceItemStates.enumerated()), id: \.element.id) { index, state in
+              if index > 0 { Divider().overlay(OwlTheme.border) }
+              DeviceRow(state: state)
+            }
+          }
+        }
+
+        OwlSectionLabel(text: t("About", "Tietoja"))
+        OwlCard {
+          HStack {
+            Text("Owl Boarding")
+              .font(.body.weight(.medium))
+              .foregroundStyle(OwlTheme.text)
+            Spacer()
+            Text(Self.version)
+              .font(.subheadline)
+              .foregroundStyle(OwlTheme.textSecondary)
+          }
+          Text("owlboarding.com")
+            .font(.footnote)
+            .foregroundStyle(OwlTheme.textSecondary)
+        }
+      }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 12)
     }
-    .navigationTitle("Settings")
-    .navigationBarTitleDisplayMode(.inline)
+    .scrollIndicators(.hidden)
+    .background(OwlTheme.window.ignoresSafeArea())
+    .toolbar(.hidden, for: .navigationBar)
   }
 
-  // MARK: - System
-
-  private var systemSection: some View {
-    Section("System") {
-      HStack {
-        registrationIcon
-        Text(registrationLabel)
-          .foregroundStyle(registrationColor)
-        Spacer()
-        registrationAction
-      }
-
-      if viewModel.hasCompatibilityIssue {
-        CompatibilityIssueCard(
-          showFirmwareUpdate: viewModel.requiresFirmwareUpdate,
-          showDATAppUpdate: viewModel.requiresDATAppUpdate,
-          onOpenFirmwareUpdate: viewModel.openFirmwareUpdate,
-          onOpenDATAppUpdate: viewModel.openDATGlassesAppUpdate
-        )
-      }
-    }
+  private static var version: String {
+    let info = Bundle.main.infoDictionary
+    let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
+    let build = info?["CFBundleVersion"] as? String ?? "1"
+    return "\(short) (\(build))"
   }
 
-  private var registrationIcon: some View {
-    Group {
-      switch viewModel.registrationState {
-      case .unavailable:
-        Image(systemName: "xmark.circle.fill")
-          .foregroundStyle(.red)
-      case .available:
-        Image(systemName: "xmark.circle.fill")
-          .foregroundStyle(.yellow)
-      case .registering:
-        Image(systemName: "ellipsis.circle.fill")
-          .foregroundStyle(.orange)
-      case .registered:
-        Image(systemName: "checkmark.circle.fill")
-          .foregroundStyle(.green)
-      @unknown default:
-        Image(systemName: "questionmark.circle.fill")
-          .foregroundStyle(.gray)
-      }
-    }
-  }
-
-  private var registrationLabel: String {
+  private var registration: (text: String, tone: OwlChip.Tone, detail: String) {
     switch viewModel.registrationState {
-    case .unavailable:
-      "Unavailable"
-    case .available:
-      "Available"
-    case .registering:
-      "Registering..."
     case .registered:
-      "Registered"
-    @unknown default:
-      "Unknown"
-    }
-  }
-
-  private var registrationColor: Color {
-    switch viewModel.registrationState {
-    case .registered:
-      .green
+      (t("Connected", "Yhdistetty"), .ok, t("Owl can use the glasses' display, camera and microphone.", "Owl voi käyttää lasien näyttöä, kameraa ja mikrofonia."))
     case .registering:
-      .orange
-    case .unavailable:
-      .red
+      (t("Connecting", "Yhdistetään"), .neutral, t("Finish in the Meta AI app.", "Viimeistele Meta AI -sovelluksessa."))
     case .available:
-      .yellow
+      (t("Not connected", "Ei yhdistetty"), .attention, t("Connect once, then Owl opens on the glasses.", "Yhdistä kerran, sitten Owl aukeaa laseilla."))
+    case .unavailable:
+      (t("Unavailable", "Ei käytettävissä"), .problem, t("Install the Meta AI app and pair the glasses.", "Asenna Meta AI -sovellus ja yhdistä lasit."))
     @unknown default:
-      .gray
+      (t("Unknown", "Tuntematon"), .neutral, "")
     }
   }
 
@@ -158,44 +174,25 @@ struct SettingsView: View {
   private var registrationAction: some View {
     switch viewModel.registrationState {
     case .registered:
-      SwiftUI.Button {
+      SwiftUI.Button(role: .destructive) {
         viewModel.disconnectGlasses()
       } label: {
-        Image(systemName: "trash")
-          .foregroundStyle(.red)
-      }
-      .buttonStyle(.plain)
-    case .unavailable, .available:
-      SwiftUI.Button {
-        viewModel.connectGlasses()
-      } label: {
-        Text("Register")
+        Text(t("Disconnect", "Katkaise yhteys"))
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.white)
-          .padding(.horizontal, 20)
-          .padding(.vertical, 8)
-          .background(.blue, in: Capsule())
+          .foregroundStyle(OwlTheme.negative)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 9)
+          .background(OwlTheme.raised, in: Capsule())
       }
       .buttonStyle(.plain)
+      .padding(.leading, 38)
+    case .unavailable, .available:
+      OwlFixButton(title: t("Connect in Meta AI", "Yhdistä Meta AI:ssa"), tint: OwlTheme.accent, action: viewModel.connectGlasses)
+        .padding(.leading, 38)
     case .registering:
-      ProgressView()
+      ProgressView().padding(.leading, 38)
     @unknown default:
       EmptyView()
-    }
-  }
-
-  // MARK: - Devices
-
-  private var devicesSection: some View {
-    Section("Devices") {
-      if viewModel.deviceItemStates.isEmpty {
-        Text("No devices found")
-          .foregroundStyle(.secondary)
-      } else {
-        ForEach(viewModel.deviceItemStates) { state in
-          DeviceRow(state: state)
-        }
-      }
     }
   }
 }
@@ -204,144 +201,23 @@ struct SettingsView: View {
 
 private struct DeviceRow: View {
   var state: DeviceItemState
+  private let t = PhoneText.t
 
   var body: some View {
-    HStack {
-      VStack(alignment: .leading) {
-        Text(state.deviceName)
-          .font(.headline)
-        Text(state.deviceTypeValue)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-        Text(state.identifier)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      Spacer()
-      statusLabel
-    }
+    OwlStatusRow(
+      symbol: "eyeglasses", title: state.deviceName, chip: status.text, tone: status.tone,
+      detail: state.deviceTypeValue)
   }
 
-  private var statusLabel: some View {
-    Text(statusText)
-      .font(.subheadline)
-      .fontWeight(.medium)
-      .foregroundStyle(statusColor)
-  }
-
-  private var statusText: String {
+  private var status: (text: String, tone: OwlChip.Tone) {
     if state.compatibility == .deviceUpdateRequired {
-      return "Update required"
+      return (t("Update needed", "Päivitys tarvitaan"), .attention)
     }
-
     switch state.linkState {
-    case .disconnected:
-      return "Disconnected"
-    case .connecting:
-      return "Connecting"
-    case .connected:
-      return "Connected"
-    @unknown default:
-      return "Unknown"
+    case .disconnected: return (t("Not connected", "Ei yhteyttä"), .problem)
+    case .connecting: return (t("Connecting", "Yhdistetään"), .neutral)
+    case .connected: return (t("Connected", "Yhdistetty"), .ok)
+    @unknown default: return (t("Unknown", "Tuntematon"), .neutral)
     }
-  }
-
-  private var statusColor: Color {
-    if state.compatibility == .deviceUpdateRequired {
-      return CompatibilityIssueCard.issueColor
-    }
-
-    switch state.linkState {
-    case .disconnected:
-      return .red
-    case .connecting:
-      return .yellow
-    case .connected:
-      return .green
-    @unknown default:
-      return .gray
-    }
-  }
-}
-
-// MARK: - CompatibilityIssueCard
-
-private struct CompatibilityIssueCard: View {
-  static let issueColor = Color(red: 0.54, green: 0.29, blue: 0.0)
-
-  var showFirmwareUpdate: Bool
-  var showDATAppUpdate: Bool
-  var onOpenFirmwareUpdate: () -> Void
-  var onOpenDATAppUpdate: () -> Void
-
-  private static let issueBackground = Color(red: 1.0, green: 0.96, blue: 0.84)
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      HStack(alignment: .top, spacing: 12) {
-        Image(systemName: "exclamationmark.triangle.fill")
-          .font(.title2)
-          .foregroundStyle(Self.issueColor)
-
-        VStack(alignment: .leading, spacing: 4) {
-          Text(issueTitle)
-            .font(.title3.weight(.semibold))
-            .foregroundStyle(Self.issueColor)
-          Text(issueMessage)
-            .font(.subheadline)
-            .foregroundStyle(Self.issueColor)
-        }
-      }
-
-      VStack(spacing: 12) {
-        if showFirmwareUpdate {
-          compatibilityActionButton(updateFirmwareTitle, action: onOpenFirmwareUpdate)
-        }
-
-        if showDATAppUpdate {
-          compatibilityActionButton(updateDATAppTitle, action: onOpenDATAppUpdate)
-        }
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(20)
-    .background(Self.issueBackground, in: RoundedRectangle(cornerRadius: 26))
-  }
-
-  private var issueTitle: String {
-    "Compatibility issue"
-  }
-
-  private var issueMessage: String {
-    switch (showFirmwareUpdate, showDATAppUpdate) {
-    case (true, true):
-      return "Your glasses firmware and app need updates before Display Access can start."
-    case (true, false):
-      return "Your glasses firmware needs an update before Display Access can start."
-    case (false, true):
-      return "The app on your glasses needs an update before Display Access can start."
-    case (false, false):
-      return ""
-    }
-  }
-
-  private var updateFirmwareTitle: String {
-    "Update firmware"
-  }
-
-  private var updateDATAppTitle: String {
-    "Update app on glasses"
-  }
-
-  private func compatibilityActionButton(_ title: String, action: @escaping () -> Void) -> some View {
-    SwiftUI.Button(action: action) {
-      Text(title)
-        .font(.body.weight(.semibold))
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(Self.issueColor, in: Capsule())
-    }
-    .buttonStyle(.plain)
   }
 }

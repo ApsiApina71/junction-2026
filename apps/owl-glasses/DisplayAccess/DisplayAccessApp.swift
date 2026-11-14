@@ -59,11 +59,22 @@ struct DisplayAccessApp: App {
             phonePreviewDeviceIdentifier: wearablesViewModel.phonePreviewDeviceIdentifier,
             chromePreviewURL: wearablesViewModel.chromePreviewURL,
             developerPreviewErrorMessage: wearablesViewModel.developerPreviewErrorMessage,
-            setDeveloperPreviewMode: setDeveloperPreviewMode
+            setDeveloperPreviewMode: setDeveloperPreviewMode,
+            registrationState: wearablesViewModel.registrationState,
+            deviceItemStates: wearablesViewModel.deviceItemStates,
+            requiresDATAppUpdate: displayViewModel.requiresDATAppUpdate,
+            requiresFirmwareUpdate: wearablesViewModel.requiresFirmwareUpdate,
+            connectGlasses: { Task { await wearablesViewModel.connectGlasses() } },
+            openDATGlassesAppUpdate: { wearablesViewModel.openDATGlassesAppUpdate() },
+            openFirmwareUpdate: { wearablesViewModel.openFirmwareUpdate() }
           )
         }
         .tabItem {
-          Label("Owl Boarding", systemImage: "graduationcap")
+          Label {
+            Text("Owl Boarding")
+          } icon: {
+            Image("owlTab").renderingMode(.template)
+          }
         }
         .tag(AppTab.samples)
 
@@ -94,9 +105,19 @@ struct DisplayAccessApp: App {
           )
         }
         .tabItem {
-          Label("Settings", systemImage: "gearshape")
+          Label(PhoneText.t("Settings", "Asetukset"), systemImage: "gearshape")
         }
         .tag(AppTab.settings)
+      }
+      // Owl Studio's look (JUN-101): dark first, the toolkit's accent.
+      .preferredColorScheme(.dark)
+      .tint(OwlTheme.accent)
+      .toolbarColorScheme(.dark, for: .tabBar)
+      .task {
+        #if DEBUG
+        // Simulator screenshots: OWL_PHONE_TAB=settings opens the Settings tab.
+        if ProcessInfo.processInfo.environment["OWL_PHONE_TAB"] == "settings" { selectedTab = .settings }
+        #endif
       }
       .alert("Error", isPresented: $wearablesViewModel.showError) {
         Button("OK") { wearablesViewModel.dismissError() }

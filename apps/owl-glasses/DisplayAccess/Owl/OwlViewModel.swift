@@ -35,11 +35,18 @@ struct OwlPhoneState: Equatable, Sendable {
     case problem
   }
 
+  /// The one thing on the phone that fixes it.
+  enum Fix: Sendable {
+    case permissions
+    case server
+  }
+
   let title: String
   let detail: String
   /// SF Symbol name.
   let symbol: String
   let tone: Tone
+  var fix: Fix? = nil
 }
 
 @Observable
@@ -117,7 +124,7 @@ final class OwlViewModel {
   @ObservationIgnored private var suggestedStepID: String?
   @ObservationIgnored private var images: [String: UIImage] = [:]
   @ObservationIgnored private var welcomed = false
-  @ObservationIgnored private var glassesNotAssigned = false
+  private var glassesNotAssigned = false
   @ObservationIgnored private var deviceStateToken: AnyListenerToken?
   @ObservationIgnored private var watchedDevice: DeviceIdentifier?
 
@@ -369,6 +376,27 @@ final class OwlViewModel {
     }
     return displayViewModel.isConnected
   }
+
+  // MARK: - Phone home (the employer's view)
+
+  /// Whether owl-api answered the phone's last look; nil before the first one.
+  private(set) var serverReachable: Bool?
+
+  /// The phone's own look at owl-api and at who wears these glasses, without the glasses:
+  /// the home screen shows it before Owl is opened on them. Nothing on the glasses changes.
+  func refreshForPhone() async {
+    let reachable = (try? await api.health()) ?? false
+    serverReachable = reachable
+    if reachable, phoneState?.fix == .server { phoneState = nil }
+    // While Owl runs on the glasses its own flow keeps the worker and the tasks current.
+    guard !displayViewModel.isConnected else { return }
+    // Without the server this shows the worker and tasks saved on the phone, and says why.
+    await loadTasks()
+    if glassesNotAssigned { phoneState = Self.phoneState(for: .notAssigned, detail: nil) }
+  }
+
+  /// Whether owl-api says these glasses belong to nobody (Owl Studio, People).
+  var phoneGlassesNotAssigned: Bool { glassesNotAssigned }
 
   /// The published tasks assigned to this worker in Owl Studio (`process_ids`), in that
   /// order: publishing a task and giving it to a worker are two steps (JUN-74). With no
@@ -2716,45 +2744,60 @@ final class OwlViewModel {
 
   /// The same state for the phone, in the employer's words: what happened and what to do.
   private static func phoneState(for kind: OwlProblemKind, detail: String?) -> OwlPhoneState {
+    let t = PhoneText.t
     switch kind {
     case .cameraNeeded:
-      OwlPhoneState(
-        title: "Camera not allowed",
-        detail: "Tap Permissions and allow the camera in Meta AI. Until then the worker can follow the steps, but Owl cannot check them.",
-        symbol: "camera.fill", tone: .problem)
+      return OwlPhoneState(
+        title: t("Camera not allowed", "Kameraa ei ole sallittu"),
+        detail: t(
+          "Allow the camera in Meta AI. Until then the worker can follow the steps, but Owl cannot check them.",
+          "Salli kamera Meta AI:ssa. Siihen asti työntekijä voi seurata vaiheita, mutta Owl ei voi tarkistaa niitä."),
+        symbol: "camera.fill", tone: .problem, fix: .permissions)
     case .microphoneNeeded:
-      OwlPhoneState(
-        title: "Microphone not allowed",
-        detail: "Tap Permissions and allow the microphone in Meta AI. Ask and narration do not work until then.",
-        symbol: "mic.slash.fill", tone: .problem)
+      return OwlPhoneState(
+        title: t("Microphone not allowed", "Mikrofonia ei ole sallittu"),
+        detail: t(
+          "Allow the microphone in Meta AI. Ask and narration do not work until then.",
+          "Salli mikrofoni Meta AI:ssa. Kysyminen ja kerronta eivät toimi siihen asti."),
+        symbol: "mic.slash.fill", tone: .problem, fix: .permissions)
     case .offline:
-      OwlPhoneState(
-        title: "No connection to Owl's server",
-        detail: "Saved tasks still work on the glasses. Checks, Ask and Help need the server: check the address under Server.",
-        symbol: "wifi.slash", tone: .problem)
+      return OwlPhoneState(
+        title: t("No connection to Owl's server", "Ei yhteyttä Owlin palvelimeen"),
+        detail: t(
+          "Saved tasks still work on the glasses. Checks, Ask and Help need the server.",
+          "Tallennetut tehtävät toimivat laseilla. Tarkistukset, kysyminen ja apu tarvitsevat palvelimen."),
+        symbol: "wifi.slash", tone: .problem, fix: .server)
     case .server:
-      OwlPhoneState(
-        title: "Owl's server has a problem",
-        detail: detail ?? "The server answered with an error. Steps still work; checks are not counted until it answers again.",
-        symbol: "exclamationmark.triangle.fill", tone: .problem)
+      return OwlPhoneState(
+        title: t("Owl's server has a problem", "Owlin palvelimessa on ongelma"),
+        detail: detail
+          ?? t(
+            "The server answered with an error. Steps still work; checks are not counted until it answers again.",
+            "Palvelin vastasi virheellä. Vaiheet toimivat; tarkistuksia ei lasketa ennen kuin se vastaa taas."),
+        symbol: "exclamationmark.triangle.fill", tone: .problem, fix: .server)
     case .notAllowed:
-      OwlPhoneState(
-        title: "Owl's server refused the token", detail: "Set the API token under Server.",
-        symbol: "lock.fill", tone: .problem)
+      return OwlPhoneState(
+        title: t("Owl's server refused the token", "Owlin palvelin ei hyväksynyt avainta"),
+        detail: t("Set the API token in the server settings.", "Aseta API-avain palvelimen asetuksissa."),
+        symbol: "lock.fill", tone: .problem, fix: .server)
     case .notAssigned:
-      OwlPhoneState(
-        title: "These glasses are not assigned",
-        detail: "In Owl Studio, open People and give \(glassesID) to a worker.", symbol: "person.fill.questionmark",
-        tone: .attention)
+      return OwlPhoneState(
+        title: t("These glasses are not assigned", "Näitä laseja ei ole annettu kenellekään"),
+        detail: t(
+          "In Owl Studio, open People and give \(glassesID) to a worker.",
+          "Avaa Owl Studiossa Ihmiset ja anna \(glassesID) työntekijälle."),
+        symbol: "person.fill.questionmark", tone: .attention)
     case .video:
-      OwlPhoneState(
-        title: "The clip cannot play",
-        detail: "The glasses play clips over https only. Start the https tunnel and set its address under Server.",
-        symbol: "play.slash.fill", tone: .attention)
+      return OwlPhoneState(
+        title: t("The clip cannot play", "Videota ei voi toistaa"),
+        detail: t(
+          "The glasses play clips over https only. Set the https tunnel address in the server settings.",
+          "Lasit toistavat videoita vain https-yhteydellä. Aseta https-tunnelin osoite palvelimen asetuksissa."),
+        symbol: "play.slash.fill", tone: .attention, fix: .server)
     case .other:
-      OwlPhoneState(
-        title: "Something went wrong", detail: detail ?? "Try again.", symbol: "exclamationmark.circle.fill",
-        tone: .problem)
+      return OwlPhoneState(
+        title: t("Something went wrong", "Jokin meni pieleen"), detail: detail ?? t("Try again.", "Yritä uudelleen."),
+        symbol: "exclamationmark.circle.fill", tone: .problem)
     }
   }
 
