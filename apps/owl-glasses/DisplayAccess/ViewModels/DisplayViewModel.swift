@@ -224,6 +224,7 @@ class DisplayViewModel {
         for await sessionState in stateStream {
           guard let self, !Task.isCancelled else { return }
           self.onSessionStateChange?(sessionState)
+          NSLog("[Owl] display: session \(sessionState)")
           switch sessionState {
           case .started:
             self.requiresDATAppUpdate = false
@@ -254,10 +255,12 @@ class DisplayViewModel {
       clearSessionState()
       requiresDATAppUpdate = true
       errorMessage = DeviceSessionError.datAppOnTheGlassesUpdateRequired.localizedDescription
+      NSLog("[Owl] display: the DAT app on the glasses needs an update")
     } catch {
       clearSessionState()
       requiresDATAppUpdate = false
       errorMessage = "Failed to create session: \(error.localizedDescription)"
+      NSLog("[Owl] display: session not created: \(error)")
     }
   }
 
@@ -276,6 +279,7 @@ class DisplayViewModel {
       displayStateTask = Task { [weak self] in
         for await state in stateStream {
           guard let self, !Task.isCancelled else { return }
+          NSLog("[Owl] display: \(state)")
           switch state {
           case .starting:
             break
@@ -307,6 +311,7 @@ class DisplayViewModel {
       devSession.stop()
       clearSessionState()
       errorMessage = "Failed to start display: \(error.localizedDescription)"
+      NSLog("[Owl] display: capability not started: \(error)")
     }
   }
 
@@ -514,5 +519,7 @@ class DisplayViewModel {
     }
     requiresDATAppUpdate = error == .datAppOnTheGlassesUpdateRequired
     errorMessage = error.localizedDescription
+    // Logged, so "Couldn't start display" on the phone can be read from the device logs.
+    NSLog("[Owl] display: session error \(error)")
   }
 }
