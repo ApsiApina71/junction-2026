@@ -194,7 +194,7 @@ def wording(process: Process) -> dict:
 
 
 @app.put("/processes/{process_id}", response_model=Process, dependencies=[Auth])
-def update_process(process_id: str, body: Process, request: Request):
+def update_process(process_id: str, body: Process, request: Request, language: LanguageQuery = ""):
     original = get_process(process_id)
     if body.id != process_id:
         raise HTTPException(status_code=422, detail="The body's id must match the URL.")
@@ -211,13 +211,14 @@ def update_process(process_id: str, body: Process, request: Request):
             if step[key] and step[key].startswith(base + "/media/"):
                 step[key] = step[key][len(base) :]
     updated = Process.model_validate(data)
-    if lang_key(updated.language) != lang_key(original.language):
-        # The same process in another language: kept beside the original, which does not change.
+    if language and lang_key(language) != lang_key(original.language):
+        # ?language=sv: the body is this process in another language, kept beside the original, which does not change.
         if step_ids != [step.id for step in original.steps]:
             raise HTTPException(status_code=422, detail="A translation must keep the steps of the original, in the same order.")
-        store.translations[(process_id, lang_key(updated.language))] = updated
-        return out(request, store.translated(original, updated.language))
-    if wording(updated) != wording(original):
+        store.translations[(process_id, lang_key(language))] = updated.model_copy(update={"language": language})
+        return out(request, store.translated(original, language))
+    # Without ?language= the body is the process itself. Its language can be corrected too (a recording's is a guess).
+    if wording(updated) != wording(original) or lang_key(updated.language) != lang_key(original.language):
         store.drop_translations(process_id)  # they would say what the process used to say
     store.processes[process_id] = updated
     return out(request, updated)

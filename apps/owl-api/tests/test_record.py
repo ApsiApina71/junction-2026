@@ -159,6 +159,33 @@ def test_plain_draft_without_a_model():
     assert process.steps[1].source.quote.startswith("Tape it shut")
 
 
+def test_plain_draft_keeps_the_whole_narration_for_the_reviewer():
+    """The instruction is cut at 140 characters; a rule at the end of the narration must still reach the reviewer."""
+    long = "Tape the box shut along the middle seam and press the tape down at both ends so it holds. " * 3 + "Never put the label over the tape."
+    rec = Recording(id="rec-8", title="Seal", expert="Laura", status="processing", steps=[RecordedStep(index=1, narration=long)])
+    step = record.write_process("proc-rec-8", rec, [None], "Kide Logistics", use_model=False).steps[0]
+    assert step.instruction.endswith("…") and len(step.instruction) <= 140
+    assert "Never put the label over the tape." not in step.instruction
+    assert step.source.quote.endswith("Never put the label over the tape.")
+    assert step.source.quote == " ".join(long.split())
+
+
+def test_plain_draft_guesses_the_language_of_the_narration():
+    finnish = Recording(
+        id="rec-7",
+        title="Sulje laatikko",
+        expert="Laura",
+        status="processing",
+        steps=[
+            RecordedStep(index=1, narration="Ota keskikokoinen laatikko ja laita tilauslista sen päälle."),
+            RecordedStep(index=2, narration="Teippaa laatikko kiinni. Älä koskaan laita tarraa teipin päälle."),
+        ],
+    )
+    assert record.write_process("proc-rec-7", finnish, [None, None], "Kide Logistics", use_model=False).language == "fi"
+    assert record.write_process("proc-rec-9", REC, [None, None], "Kide Logistics", use_model=False).language == "en"
+    assert record.guess_language("") == "en"
+
+
 def fake_model(monkeypatch, draft):
     calls = []
 

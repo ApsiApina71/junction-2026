@@ -172,7 +172,7 @@ def test_translation_follows_publishing_and_goes_stale_with_the_words(client):
 def test_put_in_another_language_is_stored_as_a_translation(client):
     original = client.get("/processes/proc-pick-pack").json()
     swedish = {**original, "language": "sv", "title": "Plocka och packa en order", "status": "draft"}
-    r = client.put("/processes/proc-pick-pack", json=swedish)
+    r = client.put("/processes/proc-pick-pack", params={"language": "sv"}, json=swedish)
     assert r.status_code == 200
     assert (r.json()["title"], r.json()["status"]) == ("Plocka och packa en order", "published")  # publishing stays with the original
     assert client.get("/processes/proc-pick-pack").json() == original
@@ -180,7 +180,17 @@ def test_put_in_another_language_is_stored_as_a_translation(client):
     assert client.get("/processes/proc-pick-pack", params={"language": "fi"}).json()["title"] == "Kerää ja pakkaa tilaus"
 
     fewer = {**swedish, "steps": swedish["steps"][:3]}
-    assert client.put("/processes/proc-pick-pack", json=fewer).status_code == 422
+    assert client.put("/processes/proc-pick-pack", params={"language": "sv"}, json=fewer).status_code == 422
+
+
+def test_put_without_language_corrects_the_language_of_the_process_itself(client):
+    """A recording's language is a guess: the reviewer sets it right, and that is not a translation."""
+    body = client.get("/processes/proc-pick-pack").json()
+    r = client.put("/processes/proc-pick-pack", json={**body, "language": "sv"})
+    assert r.status_code == 200
+    assert client.get("/processes/proc-pick-pack").json()["language"] == "sv"
+    # The Finnish translation was of the English wording, so it is gone with the change.
+    assert client.get("/processes/proc-pick-pack", params={"language": "fi"}).json()["language"] == "sv"
 
 
 def test_put_renumbers_steps_and_keeps_their_ids(client):

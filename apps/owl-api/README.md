@@ -13,7 +13,7 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 
 | Endpoint | Now | Real engine |
 |---|---|---|
-| `GET/PUT /processes` | fixtures, in memory. `?language=fi` answers with the stored translation; `PUT` renumbers the steps | |
+| `GET/PUT /processes` | fixtures, in memory. `?language=fi` answers with the stored translation (and on `PUT` stores one); `PUT` renumbers the steps | |
 | `GET/POST /employees`, `GET/PUT /employees/{id}`, `GET /glasses/{glasses_id}/employee` | real, in memory, seeded from fixtures (`app/people.py`) | [JUN-41](https://linear.app/junction-2026-bossit/issue/JUN-41) |
 | `POST /check` | **real**: Claude vision → rules → Jev gate → two-frames rule. `mock` form field or `OWL_MOCK_CHECK=1` for fixtures | [JUN-30](https://linear.app/junction-2026-bossit/issue/JUN-30), [JUN-37](https://linear.app/junction-2026-bossit/issue/JUN-37) |
 | `POST /ask` | **real**: every document in the cached system prompt, sources checked word for word. `OWL_MOCK_ASK=1` for the fixture | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |

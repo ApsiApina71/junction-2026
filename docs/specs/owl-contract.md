@@ -262,8 +262,8 @@ The glasses app asks this on "Hey Meta, start Owl" to learn who wears this pair.
 ### `PUT /processes/{id}`
 
 - The server numbers `Step.index` 1, 2, 3… from the order of `steps` and keeps every step `id`, so Owl Studio reorders and deletes steps by sending the array as it should be. Two steps with the same `id` are a `422`.
-- A body in the process's own language replaces the process. When its words change (titles, instructions, `say`, checks, sources, the steps or their order), stored translations are dropped, because they would say what the process used to say. Publishing alone keeps them.
-- A body in another language is stored as that language's translation, and the original does not change. It must keep the original's step ids in the same order (`422` otherwise). Its `status` is ignored: publishing happens on the original.
+- Without `?language=` the body replaces the process itself. Its `language` can be corrected this way too (a recording's language is a guess). When its words or its language change (titles, instructions, `say`, checks, sources, the steps or their order), stored translations are dropped, because they would say what the process used to say. Publishing alone keeps them.
+- With `?language=sv` the body is stored as that language's translation, and the original does not change. It must keep the original's step ids in the same order (`422` otherwise). Its `status` is ignored: publishing happens on the original.
 
 ### `DELETE /docs/{id}`
 
@@ -301,7 +301,7 @@ Multipart form: `narration` (text, the expert's words for this step), `photo` (J
 
 Before anything is stored, the server blurs faces in the photo and the clip, and converts the clip for the DAT `VideoPlayer`: H.264 MP4 with faststart, at most 400 px per side and 70 000 pixels (a 720×540 clip becomes 304×228), 15 fps, no audio, the first 10 s. A clip that cannot be read answers `400`.
 
-`POST /record/{id}/finish` answers at once with `status: "processing"`. Poll `GET /record/{id}` every 2 s until `status` is `done` (`process_id` names the new **draft** process; a person reviews and publishes it in Owl Studio) or `failed`. Each recorded step becomes one step: Claude rewrites the narration into a title, an instruction, a spoken sentence and check criteria, and the step keeps the recorded photo and clip. If the model fails, the narration is used as it is, so a recording is never lost.
+`POST /record/{id}/finish` answers at once with `status: "processing"`. Poll `GET /record/{id}` every 2 s until `status` is `done` (`process_id` names the new **draft** process; a person reviews and publishes it in Owl Studio) or `failed`. Each recorded step becomes one step: Claude rewrites the narration into a title, an instruction, a spoken sentence and check criteria, and the step keeps the recorded photo and clip. If the model fails, the narration is used as it is, so a recording is never lost: the instruction is then the narration cut at 140 characters (it ends in `…`), and the language is guessed from the words (`fi` or `en`). In both cases the step's `source.quote` holds the **whole** narration, never shortened, so the reviewer reads everything the expert said beside the written step.
 
 The glasses show only processes with `status: "published"`.
 
@@ -321,7 +321,7 @@ Multipart form: `image` (JPEG) or `clip` (as in `POST /check`), `employee_id`, `
 
 - `GET /processes?language=fi` and `GET /processes/{id}?language=fi` answer in that language when a translation of the process is stored, and with the original otherwise. `fi-FI` finds the `fi` translation.
 - A translation is the same process: same `id`, step ids, media, check kinds, SKUs and quantities. Only the words differ, and its `status` follows the original.
-- Translations come from `fixtures/process-<name>.<lang>.json` and from `PUT /processes/{id}` with a body in another language. They are never listed as processes of their own.
+- Translations come from `fixtures/process-<name>.<lang>.json` and from `PUT /processes/{id}?language=<lang>`. They are never listed as processes of their own.
 - `/check` and `/ask` take the language from the request or the employee, as before.
 
 ## Media

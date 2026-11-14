@@ -61,6 +61,40 @@ def _words(text: str, limit: int) -> str:
     return " ".join(words[:limit])
 
 
+# A few very common words tell Finnish narration from English when no model read it.
+FINNISH = {
+    "ja",
+    "ei",
+    "se",
+    "että",
+    "ota",
+    "laita",
+    "sitten",
+    "kun",
+    "tämä",
+    "tähän",
+    "niin",
+    "myös",
+    "vain",
+    "aina",
+    "ensin",
+    "päälle",
+    "tarkista",
+    "muista",
+    "sekä",
+    "tai",
+}
+ENGLISH = {"the", "and", "is", "it", "to", "of", "take", "put", "then", "this", "that", "you", "always", "first", "check", "with", "into", "or"}
+
+
+def guess_language(text: str) -> str:
+    """fi or en, for narration that no model read. The reviewer can correct it in Owl Studio."""
+    words = re.findall(r"[a-zåäö]+", text.lower())
+    finnish = sum(w in FINNISH or "ä" in w or "ö" in w for w in words)
+    english = sum(w in ENGLISH for w in words)
+    return "fi" if finnish > english else "en"
+
+
 def plain_draft(rec: Recording) -> ProcessDraft:
     """A draft straight from the narration, without a model: the first sentence is the title."""
     steps = []
@@ -69,7 +103,8 @@ def plain_draft(rec: Recording) -> ProcessDraft:
         steps.append(
             StepDraft(title=_clip(first, 32), instruction=_clip(s.narration or first, 140), say=_words(s.narration or first, 25), check="none", criteria=[])
         )
-    return ProcessDraft(title=rec.title, summary=f"Recorded by {rec.expert or 'an expert'}.", language="en", steps=steps)
+    language = guess_language(" ".join(s.narration for s in rec.steps))
+    return ProcessDraft(title=rec.title, summary=f"Recorded by {rec.expert or 'an expert'}.", language=language, steps=steps)
 
 
 def model_draft(rec: Recording, photos: list[bytes | None]) -> ProcessDraft:
@@ -114,7 +149,10 @@ def build_process(process_id: str, rec: Recording, draft: ProcessDraft, company:
                 reference_image_url=recorded.photo_url,
                 clip_url=recorded.clip_url,
                 check=Check(kind=kind, criteria=criteria if kind == "visual" else []),
-                source={"doc": f"{rec.expert or 'Expert'}'s recording", "quote": _clip(recorded.narration, 200)} if recorded.narration else None,
+                # The whole narration, never shortened: the reviewer in Owl Studio reads it beside the written step.
+                source={"doc": f"{rec.expert or 'Expert'}'s recording", "quote": re.sub(r"\s+", " ", recorded.narration).strip()}
+                if recorded.narration
+                else None,
             )
         )
     return Process(
