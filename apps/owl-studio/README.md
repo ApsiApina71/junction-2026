@@ -1,7 +1,7 @@
 ---
 status: active
 tags: [app, web, owl, studio]
-last-updated: 2026-11-14
+last-updated: 2026-11-15
 ---
 
 # owl-studio
@@ -11,6 +11,27 @@ Owl Studio is the company's side of **Owl Boarding** ([spec](../../docs/specs/on
 It talks to [`apps/owl-api`](../owl-api/README.md) through the [Owl contract](../../docs/specs/owl-contract.md). The shapes are in `src/lib/types.ts`, and every call Studio makes is in `src/lib/api.ts`.
 
 Studio is built from Meta's [UI Toolkit for Meta Ray-Ban Display](https://github.com/meta/meta-ray-ban-display-ui-toolkit-web) (`@wearables-ui-toolkit/mrbd`), the same components, materials, icons and type a Meta Ray-Ban Display web app uses, adapted to a desktop: the whole app is scaled with `zoom`, and edit fields are native fields drawn with the toolkit's tokens because its own text field is made for the glasses. Why and how: [ADR-004](../../docs/architecture/adr-004-studio-on-meta-ui-toolkit.md) (JUN-101).
+
+## Public demo
+
+The [public dashboard preview](https://owlboarding.com/studio/) uses the same views with fictional tasks, people and handbooks ([JUN-101](https://linear.app/junction-2026-bossit/issue/JUN-101)). Each tab gets its own in-memory workspace; edits and uploaded sample files reset on reload. It does not create a real API client, read saved credentials or send data to owl-api. The sample question answers come from local handbook text, without a model call.
+
+From `apps/owl-studio/`:
+
+```sh
+npm ci
+npm run dev:preview
+```
+
+The development entry opens at `/studio/preview.html`. To build the public demo:
+
+```sh
+npm run build:preview
+```
+
+This writes a complete static app to `dist-preview/`, including `index.html`, the sample media and bundled fonts. Place that directory's contents in the marketing site's `dist/studio/` and deploy the combined `dist/`. The demo expects the `/studio/` base path; publishing it as the site's root will break asset URLs. Build into a fresh release directory so old Studio assets do not remain in the combined release. The regular `npm run build` still produces the connected app in `dist/`.
+
+The entry is `preview.html` and `src/preview.tsx`; `src/preview/` contains the in-memory API, fixtures, styles and tests. `public/preview/` contains the sample images and clips. `vite.preview.config.ts` isolates the demo's environment loading and prefixes Studio's owl assets with `/studio/`. All these inputs are versioned; generated builds are ignored.
 
 ## Views
 

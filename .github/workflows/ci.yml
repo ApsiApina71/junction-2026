@@ -88,6 +88,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run build:preview
 
   ci-ok:
     # The single required check. Passes when every app job succeeded or was skipped.

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:preview": "vite --config vite.preview.config.ts --open /studio/preview.html",
     "build": "tsc -b && vite build",
+    "build:preview": "tsc -b && vite build --config vite.preview.config.ts && node -e \"require('node:fs').renameSync('dist-preview/preview.html', 'dist-preview/index.html')\"",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests"
