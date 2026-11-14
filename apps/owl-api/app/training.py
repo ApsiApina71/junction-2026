@@ -48,6 +48,14 @@ def in_training(store: Store, employee_id: str, on: date | None = None) -> bool:
     return found is not None and found[0] <= (on or today()) <= found[1]
 
 
+def customer_service(store: Store, employee_id: str) -> bool:
+    """JUN-98: the worker's role has customer service mode."""
+    employee = store.employees.get(employee_id)
+    entry = store.trainings.get(employee_id)
+    plan = plan_for(store, employee, entry) if employee and entry else None
+    return bool(plan and plan.customer_service)
+
+
 def summary(store: Store, progress: Progress, employee: Employee, on: date | None = None) -> dict | None:
     """The worker's training: the window, the progress towards the level, and Owl's suggestion."""
     entry = store.trainings.get(employee.id)
@@ -96,6 +104,7 @@ def summary(store: Store, progress: Progress, employee: Employee, on: date | Non
         "days": (ends - starts).days + 1,
         "days_left": max(0, days_left),
         "active": starts <= on <= ends,
+        "customer_service": plan.customer_service,
         "target": target,
         "practise": practise,
         "suggestion": suggestion,

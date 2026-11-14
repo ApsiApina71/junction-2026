@@ -50,6 +50,14 @@ def test_not_in_the_handbook(client):
     assert a == {"bullets": ["Not in the handbook, ask a colleague"], "say": None, "sources": [], "unsure": True}
 
 
+def test_only_for_a_customer_service_role(client):
+    assert client.get("/employees/emp-noa/training").json()["customer_service"] is True
+    client.put("/employees/emp-sami/training", json={"starts": main.training.today().isoformat()})
+    assert client.get("/employees/emp-sami/training").json()["customer_service"] is False
+    r = suggest(client, "Are you open on Sunday?", employee="emp-sami")
+    assert (r.status_code, r.json()["detail"]) == (403, "not_customer_service")
+
+
 def test_only_during_training(client):
     client.put("/employees/emp-noa/training", json={"starts": None})
     r = suggest(client, "Are you open on Sunday?")

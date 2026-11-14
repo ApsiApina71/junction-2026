@@ -26,6 +26,7 @@
       "id": "plan-cafe-counter",
       "role": "Café counter",
       "days": 5,
+      "customer_service": true,
       "target": []
     },
     {

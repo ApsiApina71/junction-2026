@@ -568,6 +568,8 @@ async def assist(body: AssistRequest):
         raise HTTPException(status_code=404, detail=f"No employee {body.employee_id}.")
     if not training.in_training(store, employee.id):
         raise HTTPException(status_code=409, detail="not_in_training")
+    if not training.customer_service(store, employee.id):
+        raise HTTPException(status_code=403, detail="not_customer_service")
     language = body.language or employee.language
     docs = store.docs_for(employee)
     if DEMO or MOCK_ASSIST:

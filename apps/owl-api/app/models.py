@@ -261,6 +261,8 @@ class TrainingPlan(BaseModel):
     role: Role
     days: int = Field(default=5, ge=1, le=90)
     target: list[TargetStep] = []
+    # JUN-98: workers in this role may turn on customer service mode on the glasses during training.
+    customer_service: bool = False
 
 
 class TrainingStart(BaseModel):

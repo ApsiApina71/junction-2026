@@ -405,7 +405,7 @@ The company sets per role how long training lasts and the level to reach: which 
 `GET /training/plans` → `{"plans": [TrainingPlan]}`. `PUT /training/plans/{id}` (Studio) saves one, `DELETE /training/plans/{id}` removes it.
 
 ```json
-{"id": "plan-warehouse-picker", "role": "Warehouse picker", "days": 5,
+{"id": "plan-warehouse-picker", "role": "Warehouse picker", "days": 5, "customer_service": false,
  "target": [{"process_id": "proc-pick-pack", "step_id": "step-4", "required": 3}]}
 ```
 
@@ -416,7 +416,7 @@ The company sets per role how long training lasts and the level to reach: which 
 ```json
 {
   "employee_id": "emp-sami", "plan_id": "plan-warehouse-picker",
-  "starts": "2026-11-11", "ends": "2026-11-15", "day": 5, "days": 5, "days_left": 0, "active": true,
+  "starts": "2026-11-11", "ends": "2026-11-15", "day": 5, "days": 5, "days_left": 0, "active": true, "customer_service": false,
   "target": [{"process_id": "proc-pick-pack", "step_id": "step-4", "title": "Pack heavy items first", "task": "Pick and pack an order",
               "required": 3, "done_without_help": 2, "met": false}],
   "practise": [{"process_id": "proc-pick-pack", "step_id": "step-4", "title": "Pack heavy items first"}],
@@ -488,7 +488,7 @@ A new worker at a counter (a shop, a café, a reception). During training, and o
 - 1–3 bullets, each at most 80 characters, for the display. `say` is always `null`: the glasses do not speak a suggestion while the customer listens.
 - `unsure: true` when the documents do not answer it: `bullets` is `["Not in the handbook, ask a colleague"]` (Finnish: "Ei käsikirjassa, kysy työkaverilta") and `sources` is empty. Owl never guesses. With the model, every bullet must rest on a quote found word for word in a document.
 - Only the last ~80 words count (`ASSIST_TAIL_WORDS`), so send at most the last half minute; the body may be up to 20 000 characters.
-- `404` unknown employee, `409 not_in_training` outside the worker's training period (JUN-96).
+- `404` unknown employee, `409 not_in_training` outside the worker's training period (JUN-96), `403 not_customer_service` when the worker's training plan does not have `customer_service: true`. The glasses offer the mode only when `GET /employees/{id}/training` says `customer_service: true` and `active: true`.
 - **The transcript is used for this one answer and dropped**: never written to disk, never logged, never on the stage view, never in an error message.
 
 `GET /assist/sign` → `{"text": "Our trainee wears Owl glasses. Owl listens to suggest answers from our handbook. Nothing is recorded."}`: the sign at the desk. Studio edits it with `PUT /assist/sign` `{"text"}` (≤ 300 characters).
