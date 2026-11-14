@@ -40,6 +40,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [architecture/adr-000-template.md](architecture/adr-000-template.md) | ADR template |
 | [architecture/adr-001-tech-stack.md](architecture/adr-001-tech-stack.md) | Tech stack decision |
 | [architecture/adr-003-glasses-app-dat-ios.md](architecture/adr-003-glasses-app-dat-ios.md) | Glasses app on Meta DAT iOS (today `owl-glasses` + `owl-api`) |
+| [architecture/adr-004-studio-on-meta-ui-toolkit.md](architecture/adr-004-studio-on-meta-ui-toolkit.md) | Owl Studio built from Meta's UI Toolkit for Meta Ray-Ban Display, adapted to a desktop (JUN-101) |
 | [specs/_template.md](specs/_template.md) | Lean PRD template |
 | [specs/onboarding-owl.md](specs/onboarding-owl.md) | Owl Boarding: what we build for the Meta challenge |
 | [specs/owl-contract.md](specs/owl-contract.md) | Owl data model, API contract and mock data (owl-api, glasses app, Owl Studio) |
@@ -65,3 +66,4 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 |---|---|
 | [ADR-001 Tech stack](architecture/adr-001-tech-stack.md) | accepted |
 | [ADR-003 Glasses app on Meta DAT iOS](architecture/adr-003-glasses-app-dat-ios.md) | accepted |
+| [ADR-004 Owl Studio on Meta's UI Toolkit](architecture/adr-004-studio-on-meta-ui-toolkit.md) | accepted |
