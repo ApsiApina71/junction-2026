@@ -351,6 +351,8 @@ struct OwlLocation: Codable, Equatable, Sendable {
   var match: Match? = nil
   /// When owl-api wants the next picture.
   var nextCheckMs: Int? = nil
+  /// False when the step has no picture of its place: only the trainer or Help opens it.
+  var canRecognize: Bool? = nil
 
   func isUnlocked(processID: String, stepID: String) -> Bool {
     (unlocked ?? []).contains { $0.processId == processID && $0.stepId == stepID }

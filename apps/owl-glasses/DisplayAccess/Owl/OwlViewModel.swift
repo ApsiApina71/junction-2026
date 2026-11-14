@@ -1324,6 +1324,7 @@ final class OwlViewModel {
     if camera == nil { NSLog("[Owl] location: no camera, the step waits for the trainer or Help") }
     lockTask = Task { [weak self] in
       var delay: Duration = .seconds(1)
+      var camera = camera
       while !Task.isCancelled {
         try? await Task.sleep(for: delay)
         guard let self, !Task.isCancelled, self.isCurrent(number), self.card == .locked else { return }
@@ -1339,6 +1340,12 @@ final class OwlViewModel {
               NSLog("[Owl] location: looks like \(match.stepId ?? match.zoneId ?? "?") (\(match.decidedBy ?? "model"))")
             }
             self.whereabouts = location
+            if location.canRecognize == false {
+              // No picture of this place yet: no more pictures, only the trainer or Help.
+              NSLog("[Owl] location: owl-api cannot recognise this place, waiting for the trainer or Help")
+              camera = nil
+              self.closeCamera()
+            }
           } else if camera == nil {
             await self.refreshLocation()
           } else {
@@ -1357,7 +1364,9 @@ final class OwlViewModel {
         guard self.isCurrent(number), let step = self.step else { return }
         if !self.isLocked(step) {
           let arrived = self.whereabouts?.tracking == true
-          await self.openStep(speak: true, after: arrived ? OwlStrings.youAreThere : nil)
+          // Opening the step starts a new scene, which cancels this task: the step opens in
+          // a task of its own, or its own requests would be cancelled with this one.
+          Task { await self.openStep(speak: true, after: arrived ? OwlStrings.youAreThere : nil) }
           return
         }
       }
