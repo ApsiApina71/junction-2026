@@ -79,7 +79,8 @@ describe('training', () => {
     expect(api.confirmTraining).not.toHaveBeenCalled()
 
     await user.type(within(card).getByLabelText('Your name'), 'Laura')
-    await user.selectOptions(within(card).getByLabelText('More practice for'), '5')
+    await user.click(within(card).getByRole('button', { name: /^More practice for/ }))
+    await user.click(screen.getByRole('radio', { name: '5 days' }))
     await user.click(within(card).getByRole('button', { name: 'Confirm: more practice' }))
     await waitFor(() => expect(api.confirmTraining).toHaveBeenCalledWith('emp-sami', 'more_practice', 'Laura', 5))
   })
@@ -89,10 +90,12 @@ describe('training', () => {
     const leo = { ...sami, id: 'emp-leo', name: 'Leo' }
     const api = trainingApi([trainee()])
     renderWith(<TrainingView />, fakeStudio({ api, employees: [sami, leo] }))
-    const who = await screen.findByLabelText('Who')
-    expect(within(who).queryByText(/^Sami/)).toBeNull()
-    await user.selectOptions(who, 'emp-leo')
-    expect(screen.getByRole('option', { name: 'The level for Warehouse picker (5 days)' })).toBeTruthy()
+    await user.click(await screen.findByRole('button', { name: /^Who/ }))
+    // Sami is in training already, so only Leo can start.
+    expect(screen.queryByRole('radio', { name: /^Sami/ })).toBeNull()
+    await user.click(screen.getByRole('radio', { name: /^Leo/ }))
+    await user.click(screen.getByRole('button', { name: /^Level/ }))
+    await user.click(screen.getByRole('radio', { name: 'The level for Warehouse picker (5 days)' }))
     await user.click(screen.getByRole('button', { name: 'Start training' }))
     await waitFor(() => expect(api.startTraining).toHaveBeenCalledWith('emp-leo', todayIso(), null))
   })
@@ -103,7 +106,8 @@ describe('training', () => {
     const published: Process = process({ status: 'published' })
     renderWith(<TrainingView />, fakeStudio({ api, processes: [published] }))
     await user.click(await screen.findByText('Warehouse picker'))
-    await user.selectOptions(screen.getByLabelText('2. Pick the items'), '2')
+    await user.click(screen.getByRole('button', { name: /^2\. Pick the items/ }))
+    await user.click(screen.getByRole('radio', { name: '2 times without help' }))
     await user.click(screen.getByLabelText(/Customer service mode/))
     await user.click(screen.getByRole('button', { name: 'Save the level' }))
     await waitFor(() =>

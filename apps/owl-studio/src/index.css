@@ -521,6 +521,86 @@ body {
   }
 }
 
+/* Training: who is in it, starting it, the level per role, and the sign at the desk. */
+
+.split.split-wide {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.column-content,
+.column-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xlarge);
+  padding: 0 var(--uit-spacing-large) var(--uit-spacing-2xl);
+}
+
+.column-stack {
+  padding-inline: 0;
+}
+
+.dot-list {
+  margin: 0;
+  padding-inline-start: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  color: var(--uit-color-text-primary);
+}
+
+.trainee {
+  block-size: 100%;
+}
+
+.panel-body.trainee-body,
+.panel-body.start-body,
+.panel-body.sign-body {
+  align-items: stretch;
+}
+
+.trainee-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.evidence {
+  inline-size: 100%;
+  border-collapse: collapse;
+  color: var(--uit-color-text-primary);
+}
+
+.evidence th,
+.evidence td {
+  padding: var(--uit-spacing-small) var(--uit-spacing-medium);
+  border-block-end: 1px solid var(--uit-color-border-primary);
+  text-align: start;
+  font-weight: inherit;
+}
+
+.evidence thead th {
+  color: var(--uit-color-text-secondary);
+}
+
+.plans {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.plan-foot,
+.new-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--uit-spacing-medium);
+  padding: var(--uit-spacing-small) var(--uit-spacing-large) var(--uit-spacing-medium);
+}
+
+.new-plan {
+  align-items: stretch;
+}
+
 /* Documents: a place to drop files, what Owl has read, and a question to try. */
 
 .dropzone {

@@ -1,10 +1,12 @@
+import { Button, ButtonGroup, ButtonGroupAlignment, ContainerHeader, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import { useCallback, useEffect, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { useStudio } from '../lib/studio.ts'
 import { newId, resultText, todayIso } from '../lib/training.ts'
 import type { Employee, Process, Trainee, TrainingPlan, TrainingResult } from '../lib/types.ts'
-import { Icon } from '../ui/Icon.tsx'
-import { EmptyState, Loading, Problem, StatusTag } from '../ui/parts.tsx'
+import { ICONS } from '../ui/icons.ts'
+import { ChoiceRow, FieldLabel, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 import './training.css'
 
@@ -49,66 +51,85 @@ export function TrainingView() {
   }, [api])
 
   return (
-    <div className="view">
-      <header className="view-head">
-        <div>
-          <h1>Training</h1>
-          <p className="lede">
-            Set how long training lasts and the level a new worker reaches, in your own steps. At the end Owl suggests Ready or More practice. The worker sees it on the glasses first, and a person decides.
-          </p>
-        </div>
-      </header>
+    <Page headerText="Training" enableSystemBarInset={false} className="route">
+      <div className="split split-wide">
+        <section className="split-list" aria-label="Training">
+          <ScrollView insetForHeader ariaLabel="Training" className="detail-scroll">
+            <div className="column-content">
+              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
+                Set how long training lasts and the level a new worker reaches, in your own steps. At the end Owl suggests Ready or More practice. The worker sees it on the glasses first, and a person decides.
+              </TextView>
 
-      {problem && <Problem>{problem}</Problem>}
+              {problem && <Problem>{problem}</Problem>}
 
-      <div className="two-col two-col-wide">
-        <div className="stack">
-          <section aria-labelledby="trainees-heading">
-            <h2 id="trainees-heading">In training</h2>
-            {trainees === null ? (
-              !problem && <Loading what="Getting who is in training" />
-            ) : trainees.length === 0 ? (
-              <EmptyState title="No one is in training">Start a training period for a new worker below.</EmptyState>
-            ) : (
-              <ul className="plain-list training-rows" aria-label="In training">
-                {trainees.map((trainee) => (
-                  <li key={trainee.employee_id}>
-                    <TraineeCard trainee={trainee} onChange={load} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+              <section aria-labelledby="trainees-heading" className="route-section">
+                <TextView as="h2" id="trainees-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                  In training
+                </TextView>
+                {trainees === null && !problem && <Waiting what="Getting who is in training" />}
+                {trainees !== null && trainees.length === 0 && (
+                  <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                    No one is in training. Start a training period for a new worker below.
+                  </TextView>
+                )}
+                {trainees !== null && trainees.length > 0 && (
+                  <ul className="tile-grid training-rows" aria-label="In training">
+                    {trainees.map((trainee) => (
+                      <li key={trainee.employee_id}>
+                        <TraineeCard trainee={trainee} onChange={load} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
 
-          {plans && employees && <StartTraining employees={employees} trainees={trainees ?? []} plans={plans} onStarted={load} />}
+              {plans && employees && <StartTraining employees={employees} trainees={trainees ?? []} plans={plans} onStarted={load} />}
 
-          <section aria-labelledby="plans-heading">
-            <h2 id="plans-heading">Target level per role</h2>
-            <p className="hint">Which steps a new worker does without help, and how many times. Only steps Owl verified count. A mistake the worker fixed is learning, not a minus point.</p>
-            {plans === null ? null : (
-              <div className="stack">
-                {plans.map((plan) => (
-                  <PlanEditor key={plan.id} plan={plan} processes={processes ?? []} onSaved={load} />
-                ))}
-                <NewPlan plans={plans} onSaved={load} />
-              </div>
-            )}
-          </section>
-        </div>
+              <section aria-labelledby="plans-heading" className="route-section">
+                <TextView as="h2" id="plans-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                  Target level per role
+                </TextView>
+                <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  Which steps a new worker does without help, and how many times. Only steps Owl verified count. A mistake the worker fixed is learning, not a minus point.
+                </TextView>
+                {plans !== null && (
+                  <div className="plans">
+                    {plans.map((plan) => (
+                      <PlanEditor key={plan.id} plan={plan} processes={processes ?? []} onSaved={load} />
+                    ))}
+                    <NewPlan plans={plans} onSaved={load} />
+                  </div>
+                )}
+              </section>
+            </div>
+          </ScrollView>
+        </section>
 
-        <aside className="stack">
-          <section className="panel" aria-labelledby="fair-heading">
-            <h2 id="fair-heading">What Studio sees</h2>
-            <ul className="plain-list">
-              <li>Who is in training and which day it is.</li>
-              <li>At the end: Owl's suggestion and the steps behind it, after the worker has seen it.</li>
-              <li>Not how someone does day by day, no camera pictures, no locations, no times.</li>
-            </ul>
-          </section>
-          <SignEditor />
-        </aside>
+        <section className="split-detail" aria-label="What Studio sees and the sign at the desk">
+          <ScrollView ariaLabel="What Studio sees" className="detail-scroll">
+            <div className="column-stack">
+              <Panel width="100%">
+                <div className="panel-body">
+                  <TextView as="h2" id="fair-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                    What Studio sees
+                  </TextView>
+                  <ul className="dot-list" aria-labelledby="fair-heading">
+                    {['Who is in training and which day it is.', "At the end: Owl's suggestion and the steps behind it, after the worker has seen it.", 'Not how someone does day by day, no camera pictures, no locations, no times.'].map((line) => (
+                      <li key={line}>
+                        <TextView as="span" textStyle={TextStyle.BODY2}>
+                          {line}
+                        </TextView>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Panel>
+              <SignEditor />
+            </div>
+          </ScrollView>
+        </section>
       </div>
-    </div>
+    </Page>
   )
 }
 
@@ -152,104 +173,82 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
   }
 
   const heading = `${trainee.name}${trainee.role ? `, ${trainee.role}` : ''}`
+  const state: { tone: Tone; text: string } = trainee.confirmed
+    ? { tone: trainee.confirmed.result === 'ready' ? 'positive' : 'info', text: `${resultText(trainee.confirmed.result)}, confirmed by ${trainee.confirmed.by}` }
+    : trainee.suggestion
+      ? { tone: 'warning', text: 'Needs your decision' }
+      : { tone: 'quiet', text: 'In training' }
+  const extendChoices = [1, 2, 3, 5, 10].map((days) => ({ value: String(days), label: days === 1 ? '1 day' : `${days} days` }))
   return (
-    <article className="panel trainee" aria-label={heading}>
-      <div className="trainee-head">
-        <span className="initial" aria-hidden="true">
-          {trainee.name.trim().charAt(0).toUpperCase()}
-        </span>
-        <div className="row-main">
-          <h3 className="row-title">{heading}</h3>
-          <span className="row-meta">
-            Day {Math.min(trainee.day, trainee.days)} of {trainee.days} · until {trainee.ends}
-          </span>
-        </div>
-        {trainee.confirmed ? (
-          <StatusTag tone={trainee.confirmed.result === 'ready' ? 'success' : 'accent'} shape={trainee.confirmed.result === 'ready' ? 'disc' : 'ring'}>
-            {resultText(trainee.confirmed.result)}, confirmed by {trainee.confirmed.by}
-          </StatusTag>
-        ) : trainee.suggestion ? (
-          <StatusTag tone="signal" shape="diamond">
-            Needs your decision
-          </StatusTag>
-        ) : (
-          <StatusTag tone="muted" shape="ring">
-            In training
-          </StatusTag>
-        )}
-      </div>
+    <article className="trainee" aria-label={heading}>
+      <Panel width="100%">
+        <div className="panel-body trainee-body">
+          <ContainerHeader title={heading} subtitle={`Day ${Math.min(trainee.day, trainee.days)} of ${trainee.days} · until ${trainee.ends}`} avatarPrimaryContent={<span className="initial uit-text-body1-emphasized">{trainee.name.trim().charAt(0).toUpperCase()}</span>} />
+          <StatusText tone={state.tone}>{state.text}</StatusText>
 
-      {trainee.suggestion && !trainee.confirmed ? (
-        <div className="trainee-result">
-          <p>
-            <strong>Owl suggests: {resultText(trainee.suggestion)}.</strong>{' '}
-            {trainee.suggestion === 'ready'
-              ? `${trainee.name} has done every step of the level without help.`
-              : `Steps to practise: ${trainee.practise.map((step) => step.title).join(', ')}. This is not a fail: training goes on with the glasses.`}
-          </p>
-          <table className="evidence">
-            <caption className="visually-hidden">The evidence: each step of the level, done without help</caption>
-            <thead>
-              <tr>
-                <th scope="col">Step</th>
-                <th scope="col">Without help</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trainee.target.map((row) => (
-                <tr key={`${row.process_id}/${row.step_id}`}>
-                  <th scope="row">{row.title}</th>
-                  <td>
-                    {row.done_without_help} of {row.required}
-                    {row.met ? <span className="visually-hidden">, reached</span> : <span className="muted">, not yet</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="hint">{trainee.name} saw this on the glasses. Owl gives the evidence; you decide.</p>
-          <div className="field-pair">
-            <div className="field">
-              <label htmlFor={`by-${trainee.employee_id}`}>Your name</label>
-              <input id={`by-${trainee.employee_id}`} className="input" value={by} maxLength={60} autoComplete="name" onChange={(event) => setBy(event.target.value)} />
+          {trainee.suggestion && !trainee.confirmed ? (
+            <div className="trainee-result">
+              <TextView as="p" textStyle={TextStyle.BODY2}>
+                <strong>{`Owl suggests: ${resultText(trainee.suggestion)}.`}</strong>{' '}
+                {trainee.suggestion === 'ready'
+                  ? `${trainee.name} has done every step of the level without help.`
+                  : `Steps to practise: ${trainee.practise.map((step) => step.title).join(', ')}. This is not a fail: training goes on with the glasses.`}
+              </TextView>
+              <table className="evidence">
+                <caption className="visually-hidden">The evidence: each step of the level, done without help</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="uit-text-meta1-emphasized">
+                      Step
+                    </th>
+                    <th scope="col" className="uit-text-meta1-emphasized">
+                      Without help
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trainee.target.map((row) => (
+                    <tr key={`${row.process_id}/${row.step_id}`}>
+                      <th scope="row" className="uit-text-body2">
+                        {row.title}
+                      </th>
+                      <td className="uit-text-body2">
+                        {row.done_without_help} of {row.required}
+                        {row.met ? <span className="visually-hidden">, reached</span> : <span className="status-text is-warning">, not yet</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                {`${trainee.name} saw this on the glasses. Owl gives the evidence; you decide.`}
+              </TextView>
+              <TextField id={`by-${trainee.employee_id}`} label="Your name" value={by} maxLength={60} onChange={setBy} error={error || null} />
+              <VerticalList ariaLabel="More practice" className="inline-list">
+                <ChoiceRow label="More practice for" choices={extendChoices} value={String(extend)} onChange={(days) => setExtend(Number(days))} />
+              </VerticalList>
+              <ButtonGroup alignment={ButtonGroupAlignment.START}>
+                <PrimaryButton title="Confirm: ready" icon={ICONS.check} disabled={busy} onClick={() => void confirm('ready')} />
+                <Button title="Confirm: more practice" alwaysShowText disabled={busy} onClick={() => void confirm('more_practice')} />
+              </ButtonGroup>
             </div>
-            <div className="field">
-              <label htmlFor={`extend-${trainee.employee_id}`}>More practice for</label>
-              <select id={`extend-${trainee.employee_id}`} className="input" value={extend} onChange={(event) => setExtend(Number(event.target.value))}>
-                {[1, 2, 3, 5, 10].map((days) => (
-                  <option key={days} value={days}>
-                    {days === 1 ? '1 day' : `${days} days`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {error && <p className="field-error">{error}</p>}
-          <div className="row-actions">
-            <button type="button" className="button button-primary" disabled={busy} onClick={() => void confirm('ready')}>
-              <Icon name="check" size={18} />
-              Confirm: ready
-            </button>
-            <button type="button" className="button button-secondary" disabled={busy} onClick={() => void confirm('more_practice')}>
-              Confirm: more practice
-            </button>
-          </div>
+          ) : (
+            <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+              {trainee.waiting_for_worker
+                ? `Owl has a suggestion. ${trainee.name} sees it on the glasses first, then it shows here.`
+                : trainee.confirmed
+                  ? trainee.confirmed.result === 'ready'
+                    ? `${trainee.name} works on their own now.`
+                    : `${trainee.name} practises with the glasses. Owl suggests again at the end, and ${trainee.name} sees it first.`
+                  : `${trainee.days_left === 1 ? '1 day left.' : `${trainee.days_left} days left.`} How it goes is between ${trainee.name} and Owl until the end.`}
+            </TextView>
+          )}
+          {error && !(trainee.suggestion && !trainee.confirmed) && <StatusText tone="negative">{error}</StatusText>}
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <Button title="End the training period" alwaysShowText disabled={busy} onClick={() => void stopTraining()} />
+          </ButtonGroup>
         </div>
-      ) : trainee.waiting_for_worker ? (
-        <p className="hint">Owl has a suggestion. {trainee.name} sees it on the glasses first, then it shows here.</p>
-      ) : trainee.confirmed ? (
-        <p className="hint">
-          {trainee.confirmed.result === 'ready' ? `${trainee.name} works on their own now.` : `${trainee.name} practises with the glasses. Owl suggests again at the end, and ${trainee.name} sees it first.`}
-        </p>
-      ) : (
-        <p className="hint">{trainee.days_left === 1 ? '1 day left.' : `${trainee.days_left} days left.`} How it goes is between {trainee.name} and Owl until the end.</p>
-      )}
-      {error && !(trainee.suggestion && !trainee.confirmed) && <p className="field-error">{error}</p>}
-      <div className="row-actions">
-        <button type="button" className="button button-quiet button-small" disabled={busy} onClick={() => void stopTraining()}>
-          End the training period
-        </button>
-      </div>
+      </Panel>
     </article>
   )
 }
@@ -268,8 +267,7 @@ function StartTraining({ employees, trainees, plans, onStarted }: { employees: E
 
   if (!free.length) return null
 
-  const start = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const start = async () => {
     if (!chosen) {
       setError('Choose who starts training.')
       return
@@ -289,45 +287,31 @@ function StartTraining({ employees, trainees, plans, onStarted }: { employees: E
     }
   }
 
+  const whoChoices = [{ value: '', label: 'Choose a person' }, ...free.map((employee) => ({ value: employee.id, label: employee.name, detail: employee.role || undefined }))]
+  const levelChoices = [{ value: '', label: byRole ? `The level for ${byRole.role} (${byRole.days} days)` : 'The level for their role' }, ...plans.map((plan) => ({ value: plan.id, label: `${plan.role} (${plan.days} days)` }))]
+
   return (
-    <form className="panel" onSubmit={(event) => void start(event)} aria-labelledby="start-heading" noValidate>
-      <h2 id="start-heading">Start a training period</h2>
-      <div className="field-pair">
-        <div className="field">
-          <label htmlFor="start-who">Who</label>
-          <select id="start-who" className="input" value={employeeId} onChange={(event) => setEmployeeId(event.target.value)}>
-            <option value="">Choose a person</option>
-            {free.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name}
-                {employee.role ? `, ${employee.role}` : ''}
-              </option>
-            ))}
-          </select>
+    <section aria-labelledby="start-heading">
+      <Panel width="100%">
+        <div className="panel-body start-body">
+          <TextView as="h2" id="start-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+            Start a training period
+          </TextView>
+          <VerticalList ariaLabel="Who and which level" className="inline-list">
+            <ChoiceRow label="Who" choices={whoChoices} value={employeeId} onChange={setEmployeeId} />
+            <ChoiceRow label="Level" choices={levelChoices} value={planId} onChange={setPlanId} />
+          </VerticalList>
+          <div className="field">
+            <FieldLabel htmlFor="start-day">First day</FieldLabel>
+            <input id="start-day" className="secret-input uit-text-body2" type="date" value={starts} onChange={(event) => setStarts(event.target.value)} />
+          </div>
+          {error && <StatusText tone="negative">{error}</StatusText>}
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <PrimaryButton title="Start training" icon={ICONS.training} disabled={busy} showLoader={busy} onClick={() => void start()} />
+          </ButtonGroup>
         </div>
-        <div className="field">
-          <label htmlFor="start-day">First day</label>
-          <input id="start-day" className="input" type="date" value={starts} onChange={(event) => setStarts(event.target.value)} />
-        </div>
-      </div>
-      <div className="field">
-        <label htmlFor="start-plan">Level</label>
-        <select id="start-plan" className="input" value={planId} onChange={(event) => setPlanId(event.target.value)}>
-          <option value="">{byRole ? `The level for ${byRole.role} (${byRole.days} days)` : 'The level for their role'}</option>
-          {plans.map((plan) => (
-            <option key={plan.id} value={plan.id}>
-              {plan.role} ({plan.days} days)
-            </option>
-          ))}
-        </select>
-      </div>
-      {error && <p className="field-error">{error}</p>}
-      <div className="form-actions">
-        <button type="submit" className="button button-primary" disabled={busy}>
-          Start training
-        </button>
-      </div>
-    </form>
+      </Panel>
+    </section>
   )
 }
 
@@ -337,6 +321,7 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
   const [days, setDays] = useState(plan.days)
   const [target, setTarget] = useState(plan.target)
   const [service, setService] = useState(Boolean(plan.customer_service))
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const dirty = days !== plan.days || service !== Boolean(plan.customer_service) || JSON.stringify(target) !== JSON.stringify(plan.target)
@@ -368,64 +353,57 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
   }
 
   const relevant = processes.filter((process) => process.status === 'published' || target.some((t) => t.process_id === process.id))
+  const requiredChoices = [0, 1, 2, 3, 4, 5, 10].map((n) => ({ value: String(n), label: n === 0 ? 'Not in the level' : n === 1 ? 'Once without help' : `${n} times without help` }))
   return (
-    <details className="panel plan">
-      <summary>
-        <span className="row-title">{plan.role}</span>
-        <span className="row-meta">
-          {plan.days} days · {plan.target.length === 1 ? '1 step' : `${plan.target.length} steps`}
-          {plan.customer_service ? ' · customer service' : ''}
-        </span>
-      </summary>
-      <div className="field">
-        <label htmlFor={`days-${plan.id}`}>Training lasts</label>
-        <div className="inline-field">
-          <input id={`days-${plan.id}`} className="input input-narrow" type="number" min={1} max={90} value={days} onChange={(event) => setDays(Math.max(1, Math.min(90, Number(event.target.value) || 1)))} />
-          <span>days</span>
+    <div className="plan">
+      <VerticalList ariaLabel={`The level for ${plan.role}`} className="inline-list">
+        <ListItem
+          title={plan.role}
+          subtitle={`${plan.days} days · ${plan.target.length === 1 ? '1 step' : `${plan.target.length} steps`}${plan.customer_service ? ' · customer service' : ''}`}
+          icon={ICONS.training}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        />
+        {open && (
+          <>
+            <ListItem title="Training lasts" subtitle={days === 1 ? '1 day' : `${days} days`} showSlider sliderMinimumValue={1} sliderMaximumValue={30} sliderValue={days} sliderIncrementPercentage={1 / 29} onSliderValueChange={(value) => setDays(Math.max(1, Math.min(30, Math.round(value))))} />
+            <ListItem
+              title="Customer service mode"
+              subtitle="The worker can turn it on at the counter during training. Owl listens and suggests answers from your documents. Nothing is recorded."
+              subtitleMaxLines={3}
+              showSwitch
+              checked={service}
+              onCheckedChange={setService}
+            />
+            {relevant.map((process) =>
+              process.steps.map((step) => (
+                <ChoiceRow
+                  key={`${process.id}/${step.id}`}
+                  label={`${step.index}. ${step.title}`}
+                  note={`${process.title} · ${requiredChoices.find((choice) => choice.value === String(required(process.id, step.id)))?.label ?? ''}`}
+                  choices={requiredChoices}
+                  value={String(required(process.id, step.id))}
+                  onChange={(value) => setRequired(process.id, step.id, Number(value))}
+                />
+              )),
+            )}
+          </>
+        )}
+      </VerticalList>
+      {open && (
+        <div className="plan-foot">
+          {relevant.length === 0 && (
+            <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+              Publish a task first. Its steps can then be part of the level.
+            </TextView>
+          )}
+          {error && <StatusText tone="negative">{error}</StatusText>}
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <PrimaryButton title="Save the level" icon={ICONS.check} disabled={busy || !dirty} onClick={() => void save()} />
+          </ButtonGroup>
         </div>
-      </div>
-      <label className="check-row">
-        <input type="checkbox" checked={service} onChange={(event) => setService(event.target.checked)} />
-        <span>
-          Customer service mode
-          <span className="hint"> The worker can turn it on at the counter during training. Owl listens and suggests answers from your documents. Nothing is recorded.</span>
-        </span>
-      </label>
-      {relevant.length === 0 && <p className="hint">Publish a task first. Its steps can then be part of the level.</p>}
-      {relevant.map((process) => (
-        <fieldset key={process.id} className="field">
-          <legend>{process.title}</legend>
-          <ul className="plain-list level-steps">
-            {process.steps.map((step) => (
-              <li key={step.id} className="level-step">
-                <label htmlFor={`req-${plan.id}-${process.id}-${step.id}`}>
-                  {step.index}. {step.title}
-                </label>
-                <select
-                  id={`req-${plan.id}-${process.id}-${step.id}`}
-                  className="input input-narrow"
-                  value={required(process.id, step.id)}
-                  onChange={(event) => setRequired(process.id, step.id, Number(event.target.value))}
-                >
-                  <option value={0}>Not in the level</option>
-                  {[1, 2, 3, 4, 5, 10].map((n) => (
-                    <option key={n} value={n}>
-                      {n === 1 ? 'Once without help' : `${n} times without help`}
-                    </option>
-                  ))}
-                </select>
-              </li>
-            ))}
-          </ul>
-        </fieldset>
-      ))}
-      {error && <p className="field-error">{error}</p>}
-      <div className="form-actions">
-        <button type="button" className="button button-primary" disabled={busy || !dirty} onClick={() => void save()}>
-          Save the level
-        </button>
-      </div>
-    </details>
+      )}
+    </div>
   )
 }
 
@@ -433,8 +411,7 @@ function NewPlan({ plans, onSaved }: { plans: TrainingPlan[]; onSaved: () => Pro
   const { api } = useStudio()
   const [role, setRole] = useState('')
   const [error, setError] = useState('')
-  const add = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const add = async () => {
     const name = role.trim()
     if (!name) {
       setError('Write the role, for example "Warehouse picker".')
@@ -451,19 +428,12 @@ function NewPlan({ plans, onSaved }: { plans: TrainingPlan[]; onSaved: () => Pro
     }
   }
   return (
-    <form className="inline-form" onSubmit={(event) => void add(event)} noValidate>
-      <div className="field">
-        <label htmlFor="new-plan-role">A level for another role</label>
-        <div className="inline-field">
-          <input id="new-plan-role" className="input" value={role} maxLength={60} placeholder="Packer" onChange={(event) => setRole(event.target.value)} />
-          <button type="submit" className="button button-secondary">
-            <Icon name="plus" size={18} />
-            Add
-          </button>
-        </div>
-      </div>
-      {error && <p className="field-error">{error}</p>}
-    </form>
+    <div className="new-plan">
+      <TextField id="new-plan-role" label="A level for another role" value={role} maxLength={60} placeholder="Packer" onChange={setRole} error={error || null} />
+      <ButtonGroup alignment={ButtonGroupAlignment.START}>
+        <Button title="Add" icon={ICONS.plus} alwaysShowText onClick={() => void add()} />
+      </ButtonGroup>
+    </div>
   )
 }
 
@@ -504,25 +474,22 @@ function SignEditor() {
   }
 
   return (
-    <section className="panel" aria-labelledby="sign-heading">
-      <h2 id="sign-heading">Customer service: the sign at the desk</h2>
-      <p className="hint">
-        In customer service mode the glasses listen during training, only while the worker has it on, and suggest answers from your documents. Nothing is recorded. This sign tells customers.
-      </p>
-      <div className="field">
-        <label htmlFor="sign-text">Text of the sign</label>
-        <textarea id="sign-text" className="input" rows={4} maxLength={SIGN_LIMIT} value={text} onChange={(event) => setText(event.target.value)} />
-      </div>
-      {error && <p className="field-error">{error}</p>}
-      <div className="row-actions">
-        <button type="button" className="button button-secondary button-small" disabled={!text.trim() || text.trim() === saved} onClick={() => void save()}>
-          Save
-        </button>
-        <button type="button" className="button button-quiet button-small" onClick={() => window.print()}>
-          <Icon name="print" size={18} />
-          Print the sign
-        </button>
-      </div>
+    <section aria-labelledby="sign-heading">
+      <Panel width="100%">
+        <div className="panel-body sign-body">
+          <TextView as="h2" id="sign-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+            Customer service: the sign at the desk
+          </TextView>
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            In customer service mode the glasses listen during training, only while the worker has it on, and suggest answers from your documents. Nothing is recorded. This sign tells customers.
+          </TextView>
+          <TextField id="sign-text" label="Text of the sign" value={text} multiline maxLength={SIGN_LIMIT} onChange={setText} error={error || null} />
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <PrimaryButton title="Save" icon={ICONS.check} disabled={!text.trim() || text.trim() === saved} onClick={() => void save()} />
+            <Button title="Print the sign" icon={ICONS.print} alwaysShowText onClick={() => window.print()} />
+          </ButtonGroup>
+        </div>
+      </Panel>
       <div className="print-sheet print-sign" aria-hidden="true">
         <img src="/owl/icon-64.png" alt="" width="96" height="96" />
         <p>{saved}</p>
