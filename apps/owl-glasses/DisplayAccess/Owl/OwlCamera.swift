@@ -42,38 +42,6 @@ final class OwlCamera: @unchecked Sendable {
   private var recorder: ClipRecorder?
   private var frameCount = 0
   private let decoder = FrameDecoder()
-  /// Stage mirroring (JUN-79): every frame is decoded as it arrives, so the stage page gets
-  /// a smooth video, not one picture a second. Off otherwise: decoding costs battery.
-  private let liveDecoder = FrameDecoder()
-  private var liveDecodeOn = false
-  private var liveReady = false
-  private var liveFrame: CVPixelBuffer?
-  private var liveFrameAt: Date?
-
-  var liveDecode: Bool {
-    get { lock.withLock { liveDecodeOn } }
-    set {
-      lock.withLock {
-        liveDecodeOn = newValue
-        if !newValue {
-          liveReady = false
-          liveFrame = nil
-          liveFrameAt = nil
-        }
-      }
-    }
-  }
-
-  /// The newest frame decoded for the stage, if it is newer than `after`, as a JPEG.
-  func stageJPEG(maxSide: CGFloat, after: Date?) -> (Data, Date)? {
-    let (frame, at, pixels, pixelsAt) = lock.withLock { (liveFrame, liveFrameAt, latestPixels, latestPixelsAt) }
-    // The simulator's stream arrives decoded; the glasses' arrives compressed.
-    guard let picture = pixels ?? frame, let taken = pixels != nil ? pixelsAt : at,
-      Date().timeIntervalSince(taken) < 1, after.map({ taken > $0 }) ?? true,
-      let jpeg = UIImage.owlImage(from: picture)?.owlScaled(maxSide: maxSide).jpegData(compressionQuality: 0.7)
-    else { return nil }
-    return (jpeg, taken)
-  }
   /// Simulator testing: always send clips, as if the phone could not decode (OWL_FORCE_CLIP=1).
   private static let forceClip = ProcessInfo.processInfo.environment["OWL_FORCE_CLIP"] == "1"
 
@@ -95,14 +63,11 @@ final class OwlCamera: @unchecked Sendable {
   /// medium at 15 fps, because its clips are what workers watch.
   enum Quality: Sendable {
     case work
-    /// Stage mirroring on: the stage page is the filmed point of view, so medium at 7 fps.
-    case stage
     case recording
 
     nonisolated var configuration: StreamConfiguration {
       switch self {
       case .work: StreamConfiguration(videoCodec: .hvc1, resolution: .low, frameRate: 7)
-      case .stage: StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 7)
       case .recording: StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 15)
       }
     }
@@ -194,29 +159,6 @@ final class OwlCamera: @unchecked Sendable {
       return self.recorder
     }
     recorder?.append(sample)
-    if pixels == nil { decodeLive(sample) }
-  }
-
-  private func decodeLive(_ sample: CMSampleBuffer) {
-    let key = sample.owlIsKeyFrame
-    let ready = lock.withLock { () -> Bool in
-      guard liveDecodeOn else { return false }
-      if key { liveReady = true }
-      return liveReady
-    }
-    guard ready else { return }
-    switch liveDecoder.decodeOne(sample) {
-    case .picture(let image):
-      lock.withLock {
-        liveFrame = image
-        liveFrameAt = Date()
-      }
-    case .nothing:
-      break
-    case .failed:
-      // Wait for the next key frame: the frames between need the ones that failed.
-      lock.withLock { liveReady = false }
-    }
   }
 
   /// How many frames are kept after a key frame. Decoding the newest picture means decoding
@@ -397,32 +339,6 @@ final class FrameDecoder: @unchecked Sendable {
         }
       }
       return pictures
-    }
-  }
-
-  enum OneResult {
-    case picture(CVPixelBuffer)
-    case nothing
-    case failed
-  }
-
-  /// Decodes the next frame of a running stream with the same session, so each frame needs
-  /// only itself and the session's reference frames (stage mirroring).
-  func decodeOne(_ sample: CMSampleBuffer) -> OneResult {
-    guard let format = CMSampleBufferGetFormatDescription(sample) else { return .failed }
-    return lock.withLock {
-      guard let session = session(for: format) else { return .failed }
-      var picture: CVPixelBuffer?
-      let status = VTDecompressionSessionDecodeFrame(
-        session, sampleBuffer: sample, flags: [], infoFlagsOut: nil
-      ) { status, _, image, _, _ in
-        if status == noErr, let image { picture = image }
-      }
-      if status != noErr {
-        invalidate()
-        return .failed
-      }
-      return picture.map { .picture($0) } ?? .nothing
     }
   }
 

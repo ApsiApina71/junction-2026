@@ -1400,34 +1400,10 @@ final class OwlViewModel {
     Task.detached { try? await api.postStage(update) }
   }
 
-  /// Stage mirroring (JUN-79): the camera's point of view on the stage page at the stream's
-  /// own rate (about 7 frames a second), the filmed view now that Meta AI's own recording
-  /// cannot share the camera. A frame is sent only when the last one has arrived, so a slow
-  /// link drops frames instead of piling them up. With mirroring on, the camera opens with
-  /// the display session, unless the worker paused it or said no to camera checks.
-  private func startStageFrames() {
-    stageFrameTask = Task { [weak self] in
-      var lastSent: Date?
-      var lastOpenTry = Date.distantPast
-      while !Task.isCancelled {
-        try? await Task.sleep(for: .milliseconds(140))
-        guard let self else { return }
-        let on = Self.stageMirroring
-        self.camera?.liveDecode = on
-        guard on, self.glassesOn, self.displayViewModel.isConnected else { continue }
-        guard let camera = self.camera else {
-          if !self.cameraPaused, self.consent?.cameraChecks == true, Date().timeIntervalSince(lastOpenTry) > 10 {
-            lastOpenTry = Date()
-            _ = await self.openCamera()
-          }
-          continue
-        }
-        guard let (jpeg, taken) = camera.stageJPEG(maxSide: 720, after: lastSent) else { continue }
-        lastSent = taken
-        try? await self.api.postStageFrame(jpeg, glassesID: Self.glassesID)
-      }
-    }
-  }
+  /// Stage mirroring (JUN-79) sends what the glasses show and say, never the camera: the
+  /// video wants the display itself, and an extra camera user cost the session on the real
+  /// glasses (JUN-53).
+  private func startStageFrames() {}
 
   // MARK: - Location during training (JUN-97)
 
@@ -2666,7 +2642,9 @@ final class OwlViewModel {
   /// right after a step, JUN-53), so a failed opening is tried again, fresh, up to three times
   /// within 30 s; each failure says why in the log.
   private func openCamera(quality requested: OwlCamera.Quality? = nil) async -> OwlCamera? {
-    let quality = requested ?? (Self.stageMirroring ? .stage : .work)
+    // Low at 7 fps for everything but a recording: medium for the stage failed on the
+    // glasses with videoStreamingError (JUN-53).
+    let quality = requested ?? .work
     if let camera {
       // One camera for the whole display session (JUN-53): on the real glasses the first
       // stream of a session works, and a stream added after a stop fails within seconds. So
@@ -2714,8 +2692,7 @@ final class OwlViewModel {
           return nil
         }
         cameraDenied = false
-        // The stage's medium stream falls back to low when it does not start (JUN-53).
-        let tryQuality: OwlCamera.Quality = attempt > 1 && quality == .stage ? .work : quality
+        let tryQuality = quality
         let camera = try await OwlCamera.open(on: session, quality: tryQuality)
         camera.onError = { [weak self] message, hot in
           NSLog("[Owl] camera: \(message)")
@@ -2729,7 +2706,7 @@ final class OwlViewModel {
               symbol: "thermometer.sun.fill", tone: .attention)
           }
         }
-        NSLog("[Owl] camera open (\(tryQuality == .work ? "low, 7 fps" : tryQuality == .stage ? "medium, 7 fps, stage" : "medium, 15 fps"))")
+        NSLog("[Owl] camera open (\(tryQuality == .work ? "low, 7 fps" : "medium, 15 fps"))")
         if attempt > 1 { NSLog("[Owl] camera opened on try \(attempt)") }
         return camera
       } catch {
