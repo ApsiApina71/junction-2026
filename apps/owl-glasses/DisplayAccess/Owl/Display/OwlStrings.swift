@@ -511,6 +511,11 @@ enum OwlStrings {
     name.map { t("Call \($0), shift manager", "Soita: \($0), vuoropäällikkö") }
       ?? t("Call the shift manager", "Soita vuoropäällikölle")
   }
+  /// The button: short enough to sit next to two others.
+  static func callName(_ name: String?) -> String {
+    name.map { t("Call \($0)", "Soita: \($0)") } ?? t("Call manager", "Soita päällikölle")
+  }
+  static var expertShort: String { t("Expert", "Asiantuntija") }
   static var managerSeesView: String {
     t("They see your view and talk you through it.", "Hän näkee näkymäsi ja neuvoo puheella.",
       easy: "They see what you see and help you.", "Hän näkee saman kuin sinä ja auttaa.")

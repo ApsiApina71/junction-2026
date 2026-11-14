@@ -2793,8 +2793,12 @@ final class OwlViewModel {
   }
 
   /// A display button action that runs `body` on the main actor.
-  private func action(_ body: @escaping @MainActor (OwlViewModel) async -> Void) -> OwlAction {
+  private func action(
+    _ body: @escaping @MainActor (OwlViewModel) async -> Void, line: Int = #line
+  ) -> OwlAction {
     { [weak self] in
+      // Every pinch that reaches the app, with the source line of the button it hit (JUN-53).
+      NSLog("[Owl] pinch: button at OwlViewModel.swift:\(line)")
       Task { @MainActor [weak self] in
         guard let self else { return }
         await body(self)
@@ -2805,11 +2809,13 @@ final class OwlViewModel {
   /// A button of the step or correction card. For a moment after Owl itself changed the card
   /// (a correction appeared, or cleared because the worker fixed it), a pinch is ignored: it
   /// was aimed at a button that is no longer in focus, and must not become Done, Watch or Back.
-  private func cardAction(_ body: @escaping @MainActor (OwlViewModel) async -> Void) -> OwlAction {
-    action { model in
+  private func cardAction(
+    _ body: @escaping @MainActor (OwlViewModel) async -> Void, line: Int = #line
+  ) -> OwlAction {
+    action({ model in
       guard model.pinchCounts() else { return }
       await body(model)
-    }
+    }, line: line)
   }
 
   private func pinchCounts() -> Bool {
@@ -2823,12 +2829,17 @@ final class OwlViewModel {
 
   /// The way out of a waiting screen. A pinch in its first moment is ignored: it is the second
   /// half of a double pinch on the button that led to the wait, not a wish to leave it.
-  private func waitAction(_ body: @escaping @MainActor (OwlViewModel) async -> Void) -> OwlAction {
+  private func waitAction(
+    _ body: @escaping @MainActor (OwlViewModel) async -> Void, line: Int = #line
+  ) -> OwlAction {
     let shown = ContinuousClock.now
-    return action { model in
-      guard ContinuousClock.now - shown > .milliseconds(1200) else { return }
+    return action({ model in
+      guard ContinuousClock.now - shown > .milliseconds(1200) else {
+        NSLog("[Owl] pinch ignored: second half of a double pinch")
+        return
+      }
       await body(model)
-    }
+    }, line: line)
   }
 }
 

@@ -544,21 +544,17 @@ enum OwlScreens {
   static func helpChoice(
     managerName: String?, onManager: @escaping OwlAction, onExpert: @escaping OwlAction, onBack: @escaping OwlAction
   ) -> FlexBox {
-    FlexBox(direction: .column, spacing: 10) {
-      card {
-        header(.listening, meta: OwlStrings.helpLabel, title: OwlStrings.whoHelps)
-      }
-      FlexBox(direction: .column, spacing: 2) {
-        Text(OwlStrings.callShiftManager(managerName), style: .body)
-        Text(OwlStrings.managerSeesView, style: .meta, color: .secondary)
-      }
-      .padding(18)
-      .background(.card)
-      .onTap(onManager)
-      choice(OwlStrings.askStudioExpert, onExpert)
-      buttonRow {
-        Button(label: OwlStrings.back, style: .secondary, iconName: .arrowLeft, onClick: onBack)
-      }
+    // Real buttons: on the glasses a pinch did not reach the tappable rows this screen had
+    // (JUN-53, "Call Mika" did nothing), while buttons work everywhere.
+    screen {
+      header(.listening, meta: OwlStrings.helpLabel, title: OwlStrings.whoHelps)
+      Text(OwlStrings.callShiftManager(managerName), style: .body)
+      Text(OwlStrings.managerSeesView, style: .meta, color: .secondary)
+    } buttons: {
+      Button(label: OwlStrings.callName(managerName), style: .primary, iconName: .phoneHandsetArrowDownLeft, onClick: onManager)
+        .actionRole(.primary)
+      Button(label: OwlStrings.expertShort, style: .secondary, iconName: .person, onClick: onExpert)
+      Button(label: OwlStrings.back, style: .secondary, iconName: .arrowLeft, onClick: onBack)
     }
   }
 
