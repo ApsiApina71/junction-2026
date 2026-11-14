@@ -135,8 +135,9 @@ body,
   }
 }
 
-/* The compact rows wherever the full ones would not fit all seven sections (0.72 zoom needs 719 px with full rows). */
-@media (min-width: 701px) and (max-height: 700px), (min-width: 1680px) and (max-height: 760px) {
+/* The compact rows wherever the full ones would not fit all seven sections (0.72 zoom needs 719 px with full rows, and
+   the public demo's banner takes 52 px more). */
+@media (min-width: 701px) and (max-height: 700px), (min-width: 1680px) and (max-height: 800px) {
   .sidebar-nav {
     --uit-listitem-min-height: 76px;
     --uit-spacing-large: 16px;
