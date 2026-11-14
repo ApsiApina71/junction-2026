@@ -199,18 +199,27 @@
     }).join("");
   }
 
-  let source;
+  let source, lastVersion = -1, lastMessage = 0;
+  function render(state) {
+    lastMessage = Date.now();
+    if (state.version === lastVersion) return;
+    lastVersion = state.version;
+    renderWho(state);
+    renderDisplay(state.glasses);
+    renderCamera(state.glasses, state.version);
+    renderTimeline(state.glasses);
+  }
   function connect() {
     if (source) source.close();
+    lastVersion = -1;
     source = new EventSource("/stage/events" + q());
-    source.onmessage = (msg) => {
-      const state = JSON.parse(msg.data);
-      renderWho(state);
-      renderDisplay(state.glasses);
-      renderCamera(state.glasses, state.version);
-      renderTimeline(state.glasses);
-    };
+    source.onmessage = (msg) => render(JSON.parse(msg.data));
   }
+  // Some tunnels hold back the event stream: then the page asks for the state twice a second.
+  setInterval(async () => {
+    if (Date.now() - lastMessage < 2000) return;
+    try { render(await (await fetch("/stage/state" + q(), { cache: "no-store" })).json()); } catch {}
+  }, 500);
   connect();
 </script>
 </body>
