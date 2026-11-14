@@ -135,9 +135,9 @@ enum OwlStrings {
       "Camera is off. Owl can't check this step.", "Kamera ei ole käytössä. Owl ei voi tarkistaa tätä vaihetta.",
       easy: "The camera is off. Owl cannot check.", "Kamera on pois. Owl ei voi tarkistaa.")
     case .cameraFailed: t(
-      "The camera did not start. Owl can't check this step.",
-      "Kamera ei käynnistynyt. Owl ei voi tarkistaa tätä vaihetta.",
-      easy: "The camera did not start. Owl cannot check.", "Kamera ei käynnistynyt. Owl ei voi tarkistaa.")
+      "The camera is busy or did not start. Owl can't check this step.",
+      "Kamera on varattu tai ei käynnistynyt. Owl ei voi tarkistaa tätä vaihetta.",
+      easy: "The camera is busy. Owl cannot check.", "Kamera on varattu. Owl ei voi tarkistaa.")
     case .offline: t(
       "No connection. Owl can't check this step.", "Ei yhteyttä. Owl ei voi tarkistaa tätä vaihetta.",
       easy: "Owl has no connection. Owl cannot check.", "Owlilla ei ole yhteyttä. Owl ei voi tarkistaa.")
@@ -227,10 +227,12 @@ enum OwlStrings {
         "Kameraa ei ole sallittu. Esihenkilösi voi sallia sen puhelimesta.",
         easy: "Owl may not use the camera. Your boss can allow it.",
         "Owl ei saa käyttää kameraa. Esihenkilösi voi sallia sen.")
+    // Meta AI's own recording ("Record display") takes the camera from Owl, and DAT does not
+    // say so (JUN-53): the wearer hears the likely cause and its fix.
     case .cameraFailed: t(
-      "The glasses camera did not start. Try again in a moment.",
-      "Lasien kamera ei käynnistynyt. Yritä hetken päästä uudelleen.",
-      easy: "The camera did not start. Try again soon.", "Kamera ei käynnistynyt. Yritä pian uudelleen.")
+      "The glasses camera is busy or did not start. If the glasses are recording, stop the recording, then try again.",
+      "Lasien kamera on varattu tai ei käynnistynyt. Jos lasit nauhoittavat, lopeta nauhoitus ja yritä uudelleen.",
+      easy: "The camera is busy. Stop any recording. Then try again.", "Kamera on varattu. Lopeta nauhoitus. Yritä sitten uudelleen.")
     case .offline: t(
       "There is no connection to Owl's server.", "Yhteyttä Owlin palvelimeen ei ole.",
       easy: "Owl has no connection.", "Owlilla ei ole yhteyttä.")

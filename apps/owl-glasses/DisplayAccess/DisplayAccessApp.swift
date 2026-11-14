@@ -29,6 +29,7 @@ struct DisplayAccessApp: App {
   @State private var selectedTab: AppTab = .samples
 
   init() {
+    OwlLogFile.start()
     do {
       try Wearables.configure()
     } catch {

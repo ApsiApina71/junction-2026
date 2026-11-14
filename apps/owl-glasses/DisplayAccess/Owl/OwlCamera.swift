@@ -46,10 +46,12 @@ final class OwlCamera: @unchecked Sendable {
   private static let forceClip = ProcessInfo.processInfo.environment["OWL_FORCE_CLIP"] == "1"
 
   /// Called on stream errors after the camera has started (glasses taken off, link lost).
-  var onError: (@Sendable (String) -> Void)?
+  /// The flag is true when the glasses are too warm to stream (`thermalHot`).
+  var onError: (@Sendable (String, Bool) -> Void)?
 
-  private init(camera: Camera, quality: Quality) {
+  private init(camera: Camera, quality: Quality, sessionID: ObjectIdentifier) {
     self.quality = quality
+    self.sessionID = sessionID
     self.camera = camera
   }
 
@@ -73,9 +75,15 @@ final class OwlCamera: @unchecked Sendable {
 
   let quality: Quality
 
+  /// The display session this camera belongs to: a camera lives as long as its session.
+  let sessionID: ObjectIdentifier
+  /// The stream reported `stopped`: this camera gives no more frames.
+  private var streamStopped = false
+  var isStopped: Bool { lock.withLock { streamStopped } }
+
   static func open(on session: DeviceSession, quality: Quality = .work) async throws -> OwlCamera {
     guard let camera = try session.addCamera(config: quality.configuration) else { throw OwlError.noCamera }
-    let owlCamera = OwlCamera(camera: camera, quality: quality)
+    let owlCamera = OwlCamera(camera: camera, quality: quality, sessionID: ObjectIdentifier(session as AnyObject))
     do {
       try await owlCamera.start()
     } catch {
@@ -93,12 +101,15 @@ final class OwlCamera: @unchecked Sendable {
     }.store(in: tokens)
     stream.errorPublisher.listen { [weak self] error in
       NSLog("[Owl] stream error: \(error)")
-      self?.onError?(error.localizedDescription)
+      var hot = false
+      if case .thermalHot = error { hot = true }
+      self?.onError?(error.localizedDescription, hot)
     }.store(in: tokens)
 
     let states = AsyncStream<StreamState> { continuation in
-      stream.statePublisher.listen { state in
+      stream.statePublisher.listen { [weak self] state in
         NSLog("[Owl] stream state: \(state)")
+        if let self { self.lock.withLock { self.streamStopped = state == .stopped } }
         continuation.yield(state)
       }.store(in: tokens)
     }

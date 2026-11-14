@@ -722,14 +722,18 @@ final class OwlViewModel {
   private func startWatching(_ number: Int) async {
     checkTask?.cancel()
     guard checksAllowed else {
-      // No consent, or paused: the camera stays off and the worker confirms with Done.
-      closeCamera()
+      // No consent, or paused: the camera is really off and the worker confirms with Done.
+      dropCamera()
       await setLive(.blocked(cameraPaused ? .cameraPaused : .checksOff), number)
       return
     }
     guard let camera = await openCamera() else {
       guard isCurrent(number) else { return }
-      phoneState = Self.phoneState(for: cameraDenied ? .cameraNeeded : .other, detail: "The glasses camera did not start.")
+      phoneState = Self.phoneState(
+        for: cameraDenied ? .cameraNeeded : .other,
+        detail: PhoneText.t(
+          "The glasses camera is busy or did not start. If the glasses are recording (Meta AI), stop the recording; if they are warm, let them cool. Then open the step again.",
+          "Lasien kamera on varattu tai ei käynnistynyt. Jos lasit nauhoittavat (Meta AI), lopeta nauhoitus; jos ne ovat lämpimät, anna niiden jäähtyä. Avaa sitten vaihe uudelleen."))
       await setLive(.blocked(cameraDenied ? .cameraOff : .cameraFailed), number)
       return
     }
@@ -832,7 +836,7 @@ final class OwlViewModel {
         location: consent?.location)
     }
     stopCheckLoop()
-    closeCamera()
+    dropCamera()
     correction = nil
     card = .step
     live = .blocked(.checksOff)
@@ -1623,7 +1627,8 @@ final class OwlViewModel {
     if cameraPaused {
       stopCheckLoop()
       stopRecognition()
-      closeCamera()
+      // The worker paused the camera: it is off, not resting (JUN-80).
+      dropCamera()
       correction = nil
       card = .step
       speaker.say("Camera paused. Checks are off.")
@@ -2607,7 +2612,7 @@ final class OwlViewModel {
     case .stopped:
       stopEverything()
       newScene()
-      closeCamera()
+      dropCamera()
       listener.detach()
       statusText = "Owl closed on the glasses"
       phoneState = OwlPhoneState(
@@ -2648,15 +2653,16 @@ final class OwlViewModel {
   /// within 30 s; each failure says why in the log.
   private func openCamera(quality: OwlCamera.Quality = .work) async -> OwlCamera? {
     if let camera {
-      if camera.quality == quality { return camera }
-      // A recording needs the sharper stream, everything else the cooler one: one at a time.
-      closeCamera()
+      // One camera for the whole display session (JUN-53): on the real glasses the first
+      // stream of a session works, and a stream added after a stop fails within seconds. So
+      // the camera is never stopped between steps, only when its session is gone or the
+      // stream itself stopped; whatever quality it was opened with, it is reused.
+      let session = displayViewModel.currentDeviceSession().map { ObjectIdentifier($0 as AnyObject) }
+      if camera.sessionID == session, !camera.isStopped { return camera }
+      NSLog("[Owl] camera: \(camera.isStopped ? "the stream stopped" : "the display session changed"), opening a new one")
+      dropCamera()
     }
-    if let cameraOpening {
-      let opened = await cameraOpening.value
-      if let opened, opened.quality == quality { return opened }
-      if opened != nil { closeCamera() }
-    }
+    if let cameraOpening { return await cameraOpening.value }
     let closings = cameraClosings
     let opening = Task { @MainActor [weak self] () -> OwlCamera? in
       guard let self else { return nil }
@@ -2694,7 +2700,18 @@ final class OwlViewModel {
         }
         cameraDenied = false
         let camera = try await OwlCamera.open(on: session, quality: quality)
-        camera.onError = { message in NSLog("[Owl] camera: \(message)") }
+        camera.onError = { [weak self] message, hot in
+          NSLog("[Owl] camera: \(message)")
+          guard hot else { return }
+          Task { @MainActor in
+            self?.phoneState = OwlPhoneState(
+              title: PhoneText.t("The glasses are too warm", "Lasit ovat liian lämpimät"),
+              detail: PhoneText.t(
+                "The glasses stopped the camera to cool down. Take them off for a few minutes, out of the sun and off the charger.",
+                "Lasit pysäyttivät kameran jäähtyäkseen. Ota ne pois päästä muutamaksi minuutiksi, pois auringosta ja laturista."),
+              symbol: "thermometer.sun.fill", tone: .attention)
+          }
+        }
         NSLog("[Owl] camera open (\(quality == .work ? "low, 7 fps" : "medium, 15 fps"))")
         if attempt > 1 { NSLog("[Owl] camera opened on try \(attempt)") }
         return camera
@@ -2705,7 +2722,15 @@ final class OwlViewModel {
     return nil
   }
 
+  /// The camera is not needed now. The stream keeps running (low, 7 fps) and nothing is sent:
+  /// stopping it and adding a new one later failed on the real glasses (JUN-53). Frames are
+  /// used only by the loops that run, and they all stop with the scene.
   private func closeCamera() {
+    camera?.discardClip()
+  }
+
+  /// Really stops the camera: its display session is gone or its stream stopped.
+  private func dropCamera() {
     cameraClosings += 1
     if camera != nil { NSLog("[Owl] camera closed") }
     camera?.close()
