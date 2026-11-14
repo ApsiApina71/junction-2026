@@ -53,6 +53,14 @@ enum OwlStrings {
   static var noTasks: String {
     t("No tasks yet. Ask your supervisor.", "Ei vielä tehtäviä. Kysy esihenkilöltäsi.")
   }
+  /// The list is from the phone's memory: say so, and say what will not work.
+  static var savedTasksOnly: String {
+    t("No connection. These are saved tasks, and Owl can't check steps now.", "Ei yhteyttä. Nämä ovat tallennettuja tehtäviä, eikä Owl voi nyt tarkistaa vaiheita.")
+  }
+  /// No connection and nothing saved: the reason is the connection, not the supervisor.
+  static var nothingSaved: String {
+    t("Owl can't reach its server, and no tasks are saved on this phone yet.", "Owl ei saa yhteyttä palvelimeensa, eikä puhelimeen ole vielä tallennettu tehtäviä.")
+  }
   static func steps(_ count: Int) -> String {
     count == 1 ? t("1 step", "1 vaihe") : t("\(count) steps", "\(count) vaihetta")
   }

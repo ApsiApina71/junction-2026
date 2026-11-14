@@ -558,7 +558,8 @@ struct SampleAppsView: View {
         OwlPhoneStatusView(state: state)
       }
       if let employee = owlViewModel.employee {
-        Text("\(employee.name) · \(employee.company ?? "") · \(owlViewModel.processes.count) tasks")
+        // The worker's own tasks, the same list the glasses show.
+        Text("\(employee.name) · \(employee.company ?? "") · \(owlViewModel.myProcesses.count) tasks")
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -624,6 +625,9 @@ struct SampleAppsView: View {
       let ready = await setDeveloperPreviewMode(selectedDeveloperPreviewMode)
       isDeveloperPreviewTransitioning = false
       guard ready else { return }
+      // OWL_HIDE_PREVIEW=1 closes the preview sheet once the mock glasses run, so a screenshot
+      // shows the phone's own screen (the employer's view of a problem, JUN-42).
+      if env["OWL_HIDE_PREVIEW"] == "1" { isDeveloperPreviewPresented = false }
       if let name = env["OWL_PREVIEW_SCREEN"], !name.isEmpty {
         // One designed screen with sample data (JUN-36, see OwlScreenGallery).
         await owlViewModel.previewScreen(name, deviceIdentifier: phonePreviewDeviceIdentifier)

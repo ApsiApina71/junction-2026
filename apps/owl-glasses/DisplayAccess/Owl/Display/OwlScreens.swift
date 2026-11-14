@@ -65,16 +65,26 @@ enum OwlScreens {
 
   /// Every published task of this worker. The list scrolls with the focus, so a task
   /// published a minute ago is reachable however many there are.
+  /// `offline`: the list comes from the phone's memory because owl-api did not answer. The
+  /// screen says so, and with nothing saved it says "No connection", not "No tasks yet".
   static func taskList(
-    employee: OwlEmployee?, processes: [OwlProcess], onSelect: @escaping @Sendable (String) -> Void,
-    onRecord: @escaping OwlAction, onProgress: OwlAction? = nil
+    employee: OwlEmployee?, processes: [OwlProcess], offline: Bool = false,
+    onSelect: @escaping @Sendable (String) -> Void, onRecord: @escaping OwlAction, onProgress: OwlAction? = nil,
+    onRetry: OwlAction? = nil
   ) -> FlexBox {
     let who = [employee?.name, employee?.company].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    let nothingSaved = offline && processes.isEmpty
     return FlexBox(direction: .column, spacing: 10) {
       card {
-        header(.listening, meta: who.isEmpty ? nil : who, title: OwlStrings.yourTasks)
-        if processes.isEmpty {
+        header(
+          nothingSaved ? .unsure : .listening, meta: who.isEmpty ? nil : who,
+          title: nothingSaved ? OwlStrings.problemTitle(.offline) : OwlStrings.yourTasks)
+        if nothingSaved {
+          Text(OwlStrings.nothingSaved, style: .body, color: .secondary)
+        } else if processes.isEmpty {
           Text(OwlStrings.noTasks, style: .body, color: .secondary)
+        } else if offline {
+          Text(OwlStrings.savedTasksOnly, style: .meta, color: .secondary)
         }
       }
       for process in processes {
@@ -90,10 +100,19 @@ enum OwlScreens {
         .onTap { onSelect(process.id) }
       }
       buttonRow {
-        if let onProgress {
-          Button(label: OwlStrings.myProgress, style: .secondary, iconName: .star, onClick: onProgress)
+        if nothingSaved, let onRetry {
+          // Nothing else works without the server, so trying again is the one thing to do.
+          Button(label: OwlStrings.tryAgain, style: .primary, iconName: .twoArrowsClockwise, onClick: onRetry)
+            .actionRole(.primary)
+        } else {
+          if offline, let onRetry {
+            Button(label: OwlStrings.tryAgain, style: .secondary, iconName: .twoArrowsClockwise, onClick: onRetry)
+          }
+          if let onProgress {
+            Button(label: OwlStrings.myProgress, style: .secondary, iconName: .star, onClick: onProgress)
+          }
+          Button(label: OwlStrings.recordTask, style: .secondary, iconName: .videoCamera, onClick: onRecord)
         }
-        Button(label: OwlStrings.recordTask, style: .secondary, iconName: .videoCamera, onClick: onRecord)
       }
     }
   }

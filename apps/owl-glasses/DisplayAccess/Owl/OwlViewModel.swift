@@ -164,7 +164,7 @@ final class OwlViewModel {
     OwlCamera.removeLeftoverClips()
     // The first screen is drawn before owl-api has said who wears the glasses: the last
     // worker's language if there was one, otherwise the phone's.
-    if let last = OwlCache.load()?.employee.language {
+    if let last = savedTasks()?.employee.language {
       speaker.language = last
       OwlStrings.language = last
     } else {
@@ -297,15 +297,27 @@ final class OwlViewModel {
     await drawTasks(readAloud: true)
     guard refresh else { return }
     let before = myProcesses.map(\.id)
+    let wasOffline = isOffline
+    let wearer = employee?.id
     await loadTasks()
-    guard isCurrent(number), !glassesNotAssigned, myProcesses.map(\.id) != before else { return }
-    await drawTasks(readAloud: false)
+    guard isCurrent(number) else { return }
+    if glassesNotAssigned {
+      // The glasses were taken from this worker in Owl Studio while the list was open.
+      await showProblem(.notAssigned, retry: { await $0.open() })
+    } else if employee?.id != wearer {
+      // Someone else wears the glasses now: their consent and their welcome come first.
+      await open()
+    } else if myProcesses.map(\.id) != before || isOffline != wasOffline {
+      // New tasks, or the connection went or came back: the list says which it is.
+      await drawTasks(readAloud: false)
+    }
   }
 
   private func drawTasks(readAloud: Bool) async {
     let tasks = myProcesses
     let employee = employee
-    statusText = isOffline ? "Offline: \(tasks.count) saved tasks" : "\(tasks.count) tasks"
+    let offline = isOffline
+    statusText = offline ? "Offline: \(tasks.count) saved tasks" : "\(tasks.count) tasks"
     if readAloud, access.audioFirst, !tasks.isEmpty {
       speaker.say(OwlStrings.yourTasks + ": " + tasks.map(\.title).joined(separator: ". ") + ".", interrupt: false)
     }
@@ -314,9 +326,10 @@ final class OwlViewModel {
     }
     await showScreen(stage: .init(kind: "tasks", title: OwlStrings.yourTasks, text: tasks.map(\.title).joined(separator: " · "))) {
       OwlScreens.taskList(
-        employee: employee, processes: tasks, onSelect: select,
+        employee: employee, processes: tasks, offline: offline, onSelect: select,
         onRecord: self.action { await $0.startRecording() },
-        onProgress: employee == nil ? nil : self.action { await $0.showProgress() })
+        onProgress: employee == nil ? nil : self.action { await $0.showProgress() },
+        onRetry: self.action { await $0.showTasks() })
     }
   }
 
@@ -338,8 +351,9 @@ final class OwlViewModel {
       self.employee = employee
       self.processes = processes
       isOffline = false
-      OwlCache.save(employee: employee, processes: processes)
+      OwlCache.save(employee: employee, processes: processes, glassesID: glassesID, employeeID: employeeID)
       use(employee)
+      keepStepPictures()
       phoneState = nil
     } catch OwlError.glassesNotAssigned {
       NSLog("[Owl] glasses \(Self.glassesID) are not assigned")
@@ -355,7 +369,7 @@ final class OwlViewModel {
       // for the worker they were saved for: on a shared pair of glasses, one worker never
       // gets another worker's list.
       let known = fresh ?? employee
-      if let cached = OwlCache.load(), known == nil || cached.employee.id == known?.id {
+      if let cached = savedTasks(), known == nil || cached.employee.id == known?.id {
         employee = fresh ?? cached.employee
         processes = cached.processes
       } else if let fresh {
@@ -365,6 +379,13 @@ final class OwlViewModel {
       if let employee { use(employee) }
       phoneState = Self.phoneState(for: kind(of: error), detail: nil)
     }
+  }
+
+  /// The tasks saved on this phone for the glasses and worker it is set up for now.
+  private func savedTasks() -> (employee: OwlEmployee, processes: [OwlProcess])? {
+    OwlCache.load(
+      glassesID: Self.glassesID.trimmingCharacters(in: .whitespaces),
+      employeeID: Self.employeeID.trimmingCharacters(in: .whitespaces))
   }
 
   /// The worker's language and profile, for the voice and for the screens' own words.
@@ -520,7 +541,9 @@ final class OwlViewModel {
       return
     }
     guard isCurrent(number) else { return }
-    await setLive(.watching, number)
+    // When the tasks came from the phone's memory because owl-api did not answer, the card
+    // says so from its first moment, not "Owl is watching". Owl keeps trying all the same.
+    await setLive(isOffline ? .blocked(.offline) : .watching, number)
     nextCheckDelay = Self.checkInterval
     checkTask = Task { [weak self] in
       while !Task.isCancelled {
@@ -562,6 +585,7 @@ final class OwlViewModel {
         return
       }
       checkFailures = 0
+      isOffline = false
       // A server that does not pace the checks gets the default interval.
       nextCheckDelay = result.nextCheckMs.map { .milliseconds($0) } ?? Self.checkInterval
       await applyLive(result, number)
@@ -783,6 +807,7 @@ final class OwlViewModel {
         }
         logCheck(step, frame: frame, sentAt: sentAt, result: result, final: true)
         checkFailures = 0
+        isOffline = false
         if result.status != "checking" { return (result, nil) }
         // The engine is still busy with the frame before. Ask again with a newer picture.
         newerThan = Date()
@@ -986,10 +1011,13 @@ final class OwlViewModel {
     else { return }
     // A correction or a check that is under way comes first.
     guard correction == nil, card == .step else { return }
-    let isNext = seen.index == here.index + 1
-    let text = t(OwlText.looksLikeStep(seen.index, isNext: isNext, language: language))
+    // Only the next step is said. The worker can act on it (pinch Done), and a wrong guess
+    // costs nothing, because Done still runs the check. "Looks like step 4" on step 1 gives the
+    // worker nothing to do, and the model is right about six times in ten (JUN-34).
+    guard seen.index == here.index + 1 else { return }
+    let text = t(OwlText.looksLikeStep(seen.index, isNext: true, language: language))
     await setLive(.suggests(text), number)
-    if isNext, suggestedStepID != id {
+    if suggestedStepID != id {
       suggestedStepID = id
       speaker.say(text)
     }
@@ -1672,18 +1700,18 @@ final class OwlViewModel {
         symbol: "mic.slash.fill", tone: .problem)
     case .offline:
       OwlPhoneState(
-        title: "No connection to owl-api",
+        title: "No connection to Owl's server",
         detail: "Saved tasks still work on the glasses. Checks, Ask and Help need the server: check the address under Server.",
         symbol: "wifi.slash", tone: .problem)
     case .server:
       OwlPhoneState(
-        title: "owl-api has a problem",
+        title: "Owl's server has a problem",
         detail: detail ?? "The server answered with an error. Steps still work; checks are not counted until it answers again.",
         symbol: "exclamationmark.triangle.fill", tone: .problem)
     case .notAllowed:
       OwlPhoneState(
-        title: "owl-api refused the token", detail: "Set the API token under Server.", symbol: "lock.fill",
-        tone: .problem)
+        title: "Owl's server refused the token", detail: "Set the API token under Server.",
+        symbol: "lock.fill", tone: .problem)
     case .notAssigned:
       OwlPhoneState(
         title: "These glasses are not assigned",
@@ -1731,11 +1759,25 @@ final class OwlViewModel {
   private func image(_ urlString: String?) async -> UIImage? {
     guard let urlString else { return nil }
     if let cached = images[urlString] { return cached }
-    guard let image = try? await api.image(urlString) else { return nil }
+    guard let image = try? await api.image(urlString) else {
+      // No connection: the picture kept from the last time the tasks were loaded.
+      return OwlCache.image(for: urlString)
+    }
     // The display is 600×600; smaller images keep the Bluetooth link fast.
     let scaled = image.owlScaled(maxSide: 480)
     images[urlString] = scaled
+    OwlCache.save(image: scaled, for: urlString)
     return scaled
+  }
+
+  /// Fetches the step pictures of the worker's tasks once the tasks are known, so a step
+  /// still has its picture when the connection is gone (the spec: saved tasks work offline).
+  private func keepStepPictures() {
+    let urls = myProcesses.flatMap(\.steps).compactMap(\.referenceImageUrl)
+    OwlCache.removeImages(except: urls)
+    Task { [weak self] in
+      for url in urls { _ = await self?.image(url) }
+    }
   }
 
   /// A display button action that runs `body` on the main actor.
@@ -1764,6 +1806,10 @@ enum OwlCache {
   private struct Saved: Codable {
     let employee: OwlEmployee
     let processes: [OwlProcess]
+    /// The glasses and the worker setting the tasks were saved for. Saved tasks are for one
+    /// worker on one pair of glasses: a phone pointed at other glasses starts with none.
+    var glassesID: String?
+    var employeeID: String?
   }
 
   private static var url: URL {
@@ -1771,16 +1817,54 @@ enum OwlCache {
       .appendingPathComponent("owl-cache.json")
   }
 
-  static func save(employee: OwlEmployee, processes: [OwlProcess]) {
-    guard let data = try? JSONEncoder().encode(Saved(employee: employee, processes: processes)) else { return }
+  static func save(employee: OwlEmployee, processes: [OwlProcess], glassesID: String, employeeID: String) {
+    let saved = Saved(employee: employee, processes: processes, glassesID: glassesID, employeeID: employeeID)
+    guard let data = try? JSONEncoder().encode(saved) else { return }
     try? data.write(to: url, options: .atomic)
   }
 
-  static func load() -> (employee: OwlEmployee, processes: [OwlProcess])? {
+  /// The saved tasks, when they were saved for these glasses and this worker setting.
+  static func load(glassesID: String, employeeID: String) -> (employee: OwlEmployee, processes: [OwlProcess])? {
     guard let data = try? Data(contentsOf: url),
-      let saved = try? JSONDecoder().decode(Saved.self, from: data)
+      let saved = try? JSONDecoder().decode(Saved.self, from: data),
+      saved.glassesID == glassesID, saved.employeeID == employeeID
     else { return nil }
     return (saved.employee, saved.processes)
+  }
+
+  // Step pictures of the saved tasks, for when there is no connection.
+
+  private static var imageFolder: URL {
+    FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("owl-step-pictures", isDirectory: true)
+  }
+
+  /// One file per picture, named after the path of its address: the server's address changes
+  /// with every tunnel, the path does not.
+  private static func imageFile(for urlString: String) -> URL? {
+    let path = URL(string: urlString)?.path ?? urlString
+    let name = String(path.map { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" ? $0 : "_" }.suffix(120))
+    return name.isEmpty ? nil : imageFolder.appendingPathComponent(name)
+  }
+
+  static func save(image: UIImage, for urlString: String) {
+    guard let file = imageFile(for: urlString), let data = image.jpegData(compressionQuality: 0.8) else { return }
+    try? FileManager.default.createDirectory(at: imageFolder, withIntermediateDirectories: true)
+    try? data.write(to: file, options: .atomic)
+  }
+
+  static func image(for urlString: String) -> UIImage? {
+    guard let file = imageFile(for: urlString), let data = try? Data(contentsOf: file) else { return nil }
+    return UIImage(data: data)
+  }
+
+  /// Deletes the pictures of tasks that are no longer this worker's.
+  static func removeImages(except urlStrings: [String]) {
+    let keep = Set(urlStrings.compactMap { imageFile(for: $0)?.lastPathComponent })
+    let files = (try? FileManager.default.contentsOfDirectory(atPath: imageFolder.path)) ?? []
+    for name in files where !keep.contains(name) {
+      try? FileManager.default.removeItem(at: imageFolder.appendingPathComponent(name))
+    }
   }
 }
 

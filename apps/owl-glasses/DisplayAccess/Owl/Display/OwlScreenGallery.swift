@@ -16,7 +16,7 @@ import UIKit
 @MainActor
 enum OwlScreenGallery {
   static let names = [
-    "welcome", "tasks", "step", "step-starting", "step-looks-right", "step-cant-see", "step-blocked", "step-visual",
+    "welcome", "tasks", "tasks-offline", "tasks-nothing-saved", "tasks-none", "step", "step-starting", "step-looks-right", "step-cant-see", "step-blocked", "step-visual",
     "step-no-check", "correction", "correction-missing", "correction-too-many", "correction-names",
     "correction-visual", "checking", "cannot-check", "cannot-check-offline", "done", "done-unverified",
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
@@ -56,6 +56,15 @@ enum OwlScreenGallery {
       return OwlScreens.welcome(employee: data.employee, onStart: none)
     case "tasks":
       return OwlScreens.taskList(employee: data.employee, processes: data.processes, onSelect: { _ in }, onRecord: none)
+    case "tasks-offline":
+      return OwlScreens.taskList(
+        employee: data.employee, processes: data.processes, offline: true, onSelect: { _ in }, onRecord: none,
+        onProgress: none, onRetry: none)
+    case "tasks-nothing-saved":
+      return OwlScreens.taskList(
+        employee: nil, processes: [], offline: true, onSelect: { _ in }, onRecord: none, onRetry: none)
+    case "tasks-none":
+      return OwlScreens.taskList(employee: data.employee, processes: [], onSelect: { _ in }, onRecord: none, onProgress: none)
     case "step":
       return stepCard(pick, .watching)
     case "step-starting":
