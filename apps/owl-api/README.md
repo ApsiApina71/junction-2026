@@ -53,6 +53,10 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 `app/search.py` splits the documents into sections by heading and ranks them with BM25, all on this server (JUN-71). Ask uses it when the documents are larger than `ASK_MAX_CHARS`, and demo mode answers from it.
 
+## Learning progress
+
+`app/progress.py` keeps each run of a task in memory from its `/check` answers (JUN-73): steps done, warnings caught (once per spoken warning) and fixed, and the time to finish. The worker reads their own with `GET /employees/{id}/progress`; `GET /stats` gives anonymous totals for the pilot. A learning aid, not monitoring: Studio never shows one person's results.
+
 ## Data
 
 - State lives in memory, seeded from `fixtures/`. Uploads (documents, recorded photos and clips, help frames) go to `data/` (gitignored).

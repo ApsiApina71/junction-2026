@@ -221,6 +221,8 @@ Answer to one camera frame during a step.
 | `POST /employees` | JSON (below) | `Employee` | Studio |
 | `GET /employees/{id}` | none | `Employee` | glasses, Studio |
 | `PUT /employees/{id}` | JSON, any of the `POST /employees` fields | `Employee` | Studio |
+| `GET /employees/{id}/progress` | none | `Progress` (below) | glasses only |
+| `GET /stats` | none | anonymous totals (below) | Studio, pitch |
 | `GET /glasses/{glasses_id}/employee` | none | `Employee`, or `404` when the pair is not assigned | glasses |
 | `GET /processes` | none; optional `?language=fi` | `{"processes": [Process]}` (published and drafts, steps included) | glasses, Studio |
 | `GET /processes/{id}` | none; optional `?language=fi` | `Process` | glasses, Studio |
@@ -283,6 +285,7 @@ Multipart form:
 | `run_id` | text | A UUID the glasses app makes when the worker starts a process. The "two frames in a row" rule is kept per run and step. |
 | `final` | text `true` / `false`, default `false` | `true` on the "Done" pinch. |
 | `language` | text, optional | Defaults to the employee's language. |
+| `employee_id` | text, optional | The worker, for their own learning progress (JUN-73). |
 
 Why `clip`: with the phone locked in a pocket the app runs in the background, and the DAT `raw` video codec stops delivering frames there; `hvc1` keeps delivering compressed frames ([VideoCodec](https://wearables.developer.meta.com/docs/reference/ios_swift/dat/1.0/mwdatcamera_videocodec)). The phone decodes them when it can and falls back to `clip` when iOS refuses background decoding.
 
@@ -297,6 +300,30 @@ Send one frame at a time and wait for the answer, about one frame every 1–2 s 
 Only `question` is required. The question is the final transcription from the glasses' Speech capability.
 
 When all documents together are larger than `ASK_MAX_CHARS`, only the best sections for the question go to the model, picked by a local BM25 index on this server (JUN-71). Source quotes are still checked against the whole documents.
+
+### Learning progress (JUN-73)
+
+Owl is a learning aid, not monitoring: the EU AI Act treats AI that monitors workers as high-risk. So the worker sees their own progress on their glasses, and the company sees only anonymous totals. **Owl Studio never shows one person's results.**
+
+`GET /employees/{id}/progress` (the worker's own glasses only):
+
+```json
+{
+  "employee_id": "emp-sami",
+  "tasks_done": 2,
+  "steps_done": 10,
+  "problems_caught": 1,
+  "problems_fixed": 1,
+  "runs": [{"run_id": "…", "process_id": "proc-pick-pack", "title": "Pick and pack an order", "started_at": "…", "finished_at": "…", "seconds": 240, "steps_done": 5, "problems_caught": 0, "problems_fixed": 0}],
+  "faster_than_first": true
+}
+```
+
+- A run starts with its first `/check` and is finished when the process's last step is done. `runs` is newest first.
+- `problems_caught` counts each spoken warning once; `problems_fixed` counts a warned step that then came out ok.
+- `faster_than_first`: the latest finished run of a task against the first finished run of the same task, or `null` when there is only one.
+
+`GET /stats` (no names, no ids): `{"runs", "tasks_finished", "workers", "median_seconds_to_first_finished_task", "problems_caught", "problems_fixed"}`. Runs live in memory and reset when owl-api restarts.
 
 ### Demo mode (`OWL_DEMO=1`)
 

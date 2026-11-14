@@ -23,6 +23,7 @@ from . import ask as ask_engine
 from . import demo as demo_engine
 from . import media as media_engine
 from . import people, verifier, vision
+from . import progress as progress_engine
 from . import record as record_engine
 from .models import (
     Answer,
@@ -63,6 +64,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 
 store = Store()
 tracker = verifier.Tracker()
+progress = progress_engine.Progress()
 demo = demo_engine.Demo()
 
 
@@ -274,13 +276,18 @@ async def check(
     clip: Annotated[UploadFile | None, File()] = None,
     final: Annotated[bool, Form()] = False,
     language: Annotated[str, Form(max_length=10)] = "",
+    # The worker, for their own learning progress (JUN-73). Optional.
+    employee_id: Annotated[str, Form(max_length=80)] = "",
     # ok | warning | unsure | checking: a fixture answer instead of the model, for UI work. Also OWL_MOCK_CHECK=1.
     mock: Annotated[str, Form()] = "",
 ):
-    step = get_step(get_process(process_id), step_id)
+    process = get_process(process_id)
+    step = get_step(process, step_id)
     frame = await read_frame(image, clip)
     if mock or MOCK_CHECK:
-        return out(request, mock_check(step, final, mock))
+        result = mock_check(step, final, mock)
+        progress.record(run_id, employee_id, process, step, result)
+        return out(request, result)
     language = language or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
     if not tracker.try_begin(run_id):
         # One check per run at a time: a frame that arrives while the last one is checked is answered at once.
@@ -291,12 +298,28 @@ async def check(
                 step, frame, None, run_id, final, language, tracker,
                 observe=lambda _f, s, _r, _l: demo.observe(process_id, s, run_id), jev=lambda *_: None, decided_by="demo",
             )  # fmt: skip
-            return out(request, result)
-        reference = reference_image(step)
-        result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
+        else:
+            reference = reference_image(step)
+            result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
     finally:
         tracker.end(run_id)
+    progress.record(run_id, employee_id, process, step, result)
     return out(request, result)
+
+
+# Learning progress (JUN-73): the worker's own, and anonymous totals. Never one person's results in Studio.
+
+
+@app.get("/employees/{employee_id}/progress", dependencies=[Auth])
+def employee_progress(employee_id: str) -> dict:
+    if employee_id not in store.employees:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    return progress.for_employee(employee_id)
+
+
+@app.get("/stats", dependencies=[Auth])
+def stats() -> dict:
+    return progress.stats()
 
 
 # Ask
