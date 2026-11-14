@@ -1,11 +1,11 @@
 """The Junction volunteer story for the demo video (JUN-102, JUN-105), without demo mode.
 
-`OWL_STORY=junction` turns this server into the Junction 2026 volunteer crew: Laura (crew lead, the expert), Sami (a new
-volunteer in training), Mika (the shift manager on shift), the volunteer handbook, the recycling round and the venue's
+`OWL_STORY=junction` turns this server into the Junction 2026 volunteer crew: Sami (crew lead, the expert), Jose (a new
+volunteer in training, Owl's lines in English and his welcome in Spanish), Mika (the shift manager on shift), the volunteer handbook, the recycling round and the venue's
 areas. The other demo companies are removed, so Studio shows only Junction.
 
 Only the data changes: vision, the rules, Hint and Help are the real engine, unlike `OWL_DEMO=1`, which scripts what
-the camera sees. The story is seeded once: what Studio changes afterwards (Laura's recorded task, a place photo,
+the camera sees. The story is seeded once: what Studio changes afterwards (Sami's recorded task, a place photo,
 the training) is kept across restarts. `OWL_RESET=1` seeds it again from scratch.
 """
 
@@ -40,13 +40,16 @@ def apply(store: Store, name: str = "junction", today: date | None = None) -> No
         for path in sorted(folder.glob("process-*.json")):
             process = Process.model_validate_json(path.read_text(encoding="utf-8"))
             store.processes.setdefault(process.id, process)
-        if "emp-laura" in store.employees and store.employees["emp-laura"].company == company:
+        seeded = story["employees"][0]["id"]  # the volunteer in training: the story's first person
+        if seeded in store.employees and store.employees[seeded].company == company:
             return  # seeded on an earlier start; keep what Studio changed since
 
-        # Only Junction: the other demo companies' people, tasks, plans and documents go.
+        # Only the story's people, and only Junction's tasks, plans and documents. A cast from an older version of
+        # the story (Laura and Sami as the volunteer, before JUN-102 changed it) goes too.
         ours = {e["id"] for e in story["employees"]}
-        for employee_id in [k for k, e in store.employees.items() if e.company != company and k not in ours]:
+        for employee_id in [k for k in store.employees if k not in ours]:
             del store.employees[employee_id]
+            store.consents.pop(employee_id, None)
         for process_id in [k for k, p in store.processes.items() if p.company != company]:
             del store.processes[process_id]
             store.drop_translations(process_id)

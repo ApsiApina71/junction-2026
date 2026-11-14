@@ -6,7 +6,7 @@
   "language": "en",
   "status": "published",
   "source": "record",
-  "expert": "Laura",
+  "expert": "Sami",
   "steps": [
     {
       "id": "step-1",
@@ -25,7 +25,7 @@
         "order_lines": null,
         "warning": "That's a deposit can. It goes in the CANS hole."
       },
-      "source": {"doc": "Laura's recording", "quote": "Deposit cans go in the round CANS opening, not the plastic."},
+      "source": {"doc": "Sami's recording", "quote": "Deposit cans go in the round CANS opening, not the plastic."},
       "checkpoint": {"zone_id": "zone-recycling", "label": "Recycling point", "photo_urls": []}
     },
     {
@@ -37,7 +37,7 @@
       "reference_image_url": null,
       "clip_url": null,
       "check": {"kind": "none", "criteria": [], "order_lines": null},
-      "source": {"doc": "Laura's recording", "quote": "When a bin is full, tie the bag and put a new one in."}
+      "source": {"doc": "Sami's recording", "quote": "When a bin is full, tie the bag and put a new one in."}
     }
   ]
 }
