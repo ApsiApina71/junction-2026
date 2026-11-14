@@ -46,6 +46,18 @@ With a key, leave out the `OWL_MOCK_*` and `OWL_DEMO` flags so Check, Ask and Re
 
 Run it without `--reload` during the demo. owl-api saves its state to `apps/owl-api/data/state.json` after every change, so a restart keeps workers, recordings and progress; help sessions are dropped on purpose. For a clean rehearsal, start once with `OWL_RESET=1` (or delete `data/state.json`).
 
+**Reset the demo** (consents back to "not asked", no learning runs, no extra workers or recordings) before every rehearsal and before going on stage:
+
+```sh
+# stop owl-api, then
+rm -f apps/owl-api/data/state.json
+# start owl-api again as above (OWL_DEMO=1 …)
+```
+
+One worker can also be put back to "not asked" without a restart: `curl -X DELETE http://<mac ip>:8000/employees/emp-sami/consent`.
+
+**Stage view for the audience:** open `https://<tunnel>/stage` (add `?token=<API_TOKEN>` when a token is set) on the projector laptop, and turn on "Stage mirroring" in the Owl app on the phone.
+
 Check:
 
 ```sh
