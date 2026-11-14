@@ -87,15 +87,6 @@ struct SampleAppsView: View {
         wearerCard
         problemCards
         statusCard
-        VStack(spacing: 8) {
-          OwlPrimaryButton(
-            title: t("Open Owl on glasses", "Avaa Owl laseilla"), symbol: "eyeglasses", busy: isOpening, action: openOnGlasses)
-          Text(t("Or say \u{201C}Hey Meta, start Owl\u{201D} with the glasses on.", "Tai sano laseilla \u{201C}Hey Meta, start Owl\u{201D}."))
-            .font(.footnote)
-            .foregroundStyle(OwlTheme.textSecondary)
-            .multilineTextAlignment(.center)
-        }
-        .padding(.top, 4)
         OwlSectionLabel(text: t("Setup", "Käyttöönotto"))
           .padding(.top, 8)
         setupRows
@@ -124,6 +115,9 @@ struct SampleAppsView: View {
     }
     }
     .scrollIndicators(.hidden)
+    // The one primary action stays in view above the tab bar, however many problem cards
+    // there are; the scroll content ends above it, so nothing hides under the bar.
+    .safeAreaInset(edge: .bottom, spacing: 0) { primaryBar }
     .background(OwlTheme.window.ignoresSafeArea())
     .refreshable { await owlViewModel.refreshForPhone() }
     .toolbar(.hidden, for: .navigationBar)
@@ -161,6 +155,25 @@ struct SampleAppsView: View {
   }
 
   // MARK: - Home (the employer's phone, JUN-101 look)
+
+  private var primaryBar: some View {
+    VStack(spacing: 6) {
+      OwlPrimaryButton(
+        title: t("Open Owl on glasses", "Avaa Owl laseilla"), symbol: "eyeglasses", busy: isOpening, action: openOnGlasses)
+      Text(t("Or say \u{201C}Hey Meta, start Owl\u{201D} with the glasses on.", "Tai sano laseilla \u{201C}Hey Meta, start Owl\u{201D}."))
+        .font(.caption)
+        .foregroundStyle(OwlTheme.textSecondary)
+        .multilineTextAlignment(.center)
+    }
+    .padding(.horizontal, 16)
+    .padding(.top, 14)
+    .padding(.bottom, 10)
+    .background(
+      LinearGradient(
+        stops: [.init(color: OwlTheme.window.opacity(0), location: 0), .init(color: OwlTheme.window, location: 0.25)],
+        startPoint: .top, endPoint: .bottom)
+    )
+  }
 
   private var header: some View {
     HStack(spacing: 12) {
