@@ -1,0 +1,6 @@
+{
+  "images" : [
+    { "filename" : "owlAlert.png", "idiom" : "universal" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}

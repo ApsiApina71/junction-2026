@@ -552,6 +552,10 @@ struct SampleAppsView: View {
       Text(owlViewModel.statusText)
         .font(.headline)
         .multilineTextAlignment(.center)
+      if let state = owlViewModel.phoneState {
+        // The same state the glasses show, with what the employer can do about it (JUN-42).
+        OwlPhoneStatusView(state: state)
+      }
       if let employee = owlViewModel.employee {
         Text("\(employee.name) · \(employee.company ?? "") · \(owlViewModel.processes.count) tasks")
           .font(.caption)
@@ -615,6 +619,11 @@ struct SampleAppsView: View {
       let ready = await setDeveloperPreviewMode(selectedDeveloperPreviewMode)
       isDeveloperPreviewTransitioning = false
       guard ready else { return }
+      if let name = env["OWL_PREVIEW_SCREEN"], !name.isEmpty {
+        // One designed screen with sample data (JUN-36, see OwlScreenGallery).
+        await owlViewModel.previewScreen(name, deviceIdentifier: phonePreviewDeviceIdentifier)
+        return
+      }
       if env["OWL_AUTO_VOICE"] == "1" {
         try? await Task.sleep(for: .seconds(2))
         testNote = phonePreview.sendLaunchApp() ?? "Sent \u{201C}Hey Meta, start Owl\u{201D}"
