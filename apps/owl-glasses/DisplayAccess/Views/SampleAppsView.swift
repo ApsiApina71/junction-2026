@@ -860,6 +860,26 @@ struct SampleAppsView: View {
       }
       NSLog("[Owl] test: script finished")
     }
+    // OWL_STEP_FILE=<path>: each line appended to the file runs as one more step, so a
+    // recording can take one screen at a time (`echo help >> <path>`).
+    if let path = env["OWL_STEP_FILE"] {
+      var done = 0
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .milliseconds(300))
+        let lines = ((try? String(contentsOfFile: path, encoding: .utf8)) ?? "")
+          .split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+        guard lines.count > done else { continue }
+        for step in lines[done...] {
+          NSLog("[Owl] test: take \(step)")
+          if step.hasPrefix("speak:") {
+            phonePreview.simulateSpeech(String(step.dropFirst(6)))
+          } else {
+            await owlViewModel.runTestStep(step)
+          }
+        }
+        done = lines.count
+      }
+    }
     #endif
     if env["OWL_AUTO_RECORD"] == "1" {
       // One narrated 4 s step, then finish.
