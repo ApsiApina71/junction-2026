@@ -1,0 +1,56 @@
+{
+  "company": "Junction 2026",
+  "employees": [
+    {
+      "id": "emp-sami",
+      "name": "Sami",
+      "language": "en",
+      "welcome_language": "fi",
+      "role": "Volunteer",
+      "company": "Junction 2026",
+      "welcome": "Tervetuloa Junctioniin, Sami! Tänään opit kierrätyskierroksen ja infotiskin. Minä olen Owl. Näytän jokaisen vaiheen.",
+      "process_ids": ["proc-recycling"],
+      "glasses_id": "glasses-1"
+    },
+    {
+      "id": "emp-laura",
+      "name": "Laura",
+      "language": "en",
+      "role": "Crew lead",
+      "company": "Junction 2026",
+      "welcome": "Hi Laura! Record a task once and Owl teaches it to every new volunteer.",
+      "process_ids": [],
+      "glasses_id": null
+    },
+    {
+      "id": "emp-mika",
+      "name": "Mika",
+      "language": "en",
+      "role": "Shift manager",
+      "company": "Junction 2026",
+      "welcome": "Hi Mika! When a volunteer calls for help, you see their view and can talk them through it.",
+      "process_ids": [],
+      "glasses_id": null,
+      "shift_manager": true,
+      "answers_on": "phone"
+    }
+  ],
+  "consents": {
+    "emp-sami": {"camera_checks": true, "recording": false, "location": true}
+  },
+  "plan": {
+    "id": "plan-volunteer",
+    "role": "Volunteer",
+    "days": 3,
+    "customer_service": true,
+    "target": [{"process_id": "proc-recycling", "step_id": "step-1", "required": 2}]
+  },
+  "trainings": {"emp-sami": "plan-volunteer"},
+  "on_shift": "emp-mika",
+  "zones": [
+    {"id": "zone-recycling", "name": "Recycling point", "kind": "other", "x": 0.06, "y": 0.1, "w": 0.22, "h": 0.3},
+    {"id": "zone-info", "name": "Info desk", "kind": "other", "x": 0.4, "y": 0.1, "w": 0.22, "h": 0.3},
+    {"id": "zone-hall", "name": "Main hall", "kind": "other", "x": 0.06, "y": 0.5, "w": 0.56, "h": 0.4}
+  ],
+  "sign": "Owl is listening during training. Our new volunteer wears Owl glasses, and Owl suggests answers from the volunteer handbook. Nothing is recorded."
+}

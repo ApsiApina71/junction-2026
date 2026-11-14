@@ -26,8 +26,8 @@ MAX_BULLET = 80
 MIN_SHARED_WORDS = 2
 
 UNSURE = {
-    "en": "Not in the handbook, ask a colleague",
-    "fi": "Ei käsikirjassa, kysy työkaverilta",
+    "en": "Not in the handbook. Ask a colleague.",
+    "fi": "Ei käsikirjassa. Kysy työkaverilta.",
 }
 
 INSTRUCTIONS = """You are Owl, a training assistant on smart glasses. A new worker is serving a customer at a counter \

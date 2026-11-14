@@ -1,0 +1,43 @@
+{
+  "id": "proc-recycling",
+  "title": "Recycling round",
+  "summary": "Sort the bottles at the recycling point, then swap a full bag.",
+  "company": "Junction 2026",
+  "language": "en",
+  "status": "published",
+  "source": "record",
+  "expert": "Laura",
+  "steps": [
+    {
+      "id": "step-1",
+      "index": 1,
+      "title": "Sort the bottles",
+      "instruction": "Bottles with the deposit mark go to the return crate. Other plastic goes to the plastic bin.",
+      "say": "Bottles with the deposit mark go to the return crate, not the plastic bin.",
+      "reference_image_url": null,
+      "clip_url": null,
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "No bottle with a deposit mark is in or above the plastic bin",
+          "Bottles with a deposit mark are in the return crate"
+        ],
+        "order_lines": null,
+        "warning": "That's a deposit bottle. It goes to the return crate."
+      },
+      "source": {"doc": "Laura's recording", "quote": "Bottles with the deposit mark go to the return crate, not the plastic bin."},
+      "checkpoint": {"zone_id": "zone-recycling", "label": "Recycling point", "photo_urls": []}
+    },
+    {
+      "id": "step-2",
+      "index": 2,
+      "title": "Swap a full bag",
+      "instruction": "When the plastic bin is full, tie the bag and put a new one in.",
+      "say": "When the bin is full, tie the bag and put a new one in.",
+      "reference_image_url": null,
+      "clip_url": null,
+      "check": {"kind": "none", "criteria": [], "order_lines": null},
+      "source": {"doc": "Laura's recording", "quote": "When a bin is full, tie the bag and put a new one in."}
+    }
+  ]
+}

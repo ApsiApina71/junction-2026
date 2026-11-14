@@ -47,7 +47,7 @@ def test_opening_hours(client):
 
 def test_not_in_the_handbook(client):
     a = suggest(client, "Do you know who won the football match yesterday?").json()
-    assert a == {"bullets": ["Not in the handbook, ask a colleague"], "say": None, "sources": [], "unsure": True}
+    assert a == {"bullets": ["Not in the handbook. Ask a colleague."], "say": None, "sources": [], "unsure": True}
 
 
 def test_only_for_a_customer_service_role(client):
@@ -132,7 +132,7 @@ def test_model_bullets_need_a_real_quote(monkeypatch):
 
     not_found = assist.Draft(found=False, bullets=[], sources=[])
     monkeypatch.setattr(assist, "client", fake_client(not_found))
-    assert assist.answer("who won the match", DOCS, "fi").bullets == ["Ei käsikirjassa, kysy työkaverilta"]
+    assert assist.answer("who won the match", DOCS, "fi").bullets == ["Ei käsikirjassa. Kysy työkaverilta."]
 
 
 def test_each_company_has_its_own_handbook():
