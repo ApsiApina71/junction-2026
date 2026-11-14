@@ -112,7 +112,7 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
   - `order`: the products and quantities seen are compared with `order_lines`.
   - `none`: no check. The worker confirms the step with a pinch.
 - `check.order_lines` is set only for `order` checks.
-- `reviewed` (default `true`): `false` on a step that Owl wrote from a recording and that no person has checked yet. Owl Studio sets it to `true` when the reviewer has read the step against the narration. `PUT /processes/{id}` answers `422` when the body is `published` and a step is not reviewed; saving a draft is always allowed.
+- `reviewed` (default `true`): `false` on a step that Owl wrote from a recording or a document and that no person has checked yet. Owl Studio sets it to `true` when the reviewer has read the step against the narration. `PUT /processes/{id}` answers `422` when the body is `published` and a step is not reviewed; saving a draft is always allowed.
 - `source` is where the step comes from, or `null`: the document quote for a process written from documents, the expert's whole narration for a recorded one.
 - `rule`: the company rule from the handbooks that backs this step (`{doc, section, quote}`, quoted word for word), or `null`. Owl finds it locally for recorded steps (JUN-70). Show it as "Company rule".
 

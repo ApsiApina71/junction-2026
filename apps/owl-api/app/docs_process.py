@@ -153,6 +153,7 @@ def from_doc(process_id: str, doc_title: str, text: str, title: str | None, comp
                 say=_words(s.say, 25),
                 check=Check(kind=kind, criteria=criteria if kind == "visual" else []),
                 source=Source(doc=doc_title, section=s.section, quote=s.quote.strip()) if quote_ok else None,
+                reviewed=False,  # Owl wrote it: a person checks it in Owl Studio before the task can be published
             )
         )
     return Process(

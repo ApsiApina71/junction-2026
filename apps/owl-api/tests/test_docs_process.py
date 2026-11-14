@@ -120,6 +120,9 @@ def test_process_from_docs_over_http(client):
     process = r.json()
     assert (process["title"], process["status"], process["source"]) == ("Warehouse basics", "draft", "docs")
     assert process["id"] in [p["id"] for p in client.get("/processes").json()["processes"]]
+    assert all(s["reviewed"] is False for s in process["steps"])
+    # Owl wrote these steps: they cannot be published before a person has reviewed them.
+    assert client.put(f"/processes/{process['id']}", json={**process, "status": "published"}).status_code == 422
     assert client.post("/processes/from-docs", json={"doc_id": "doc-nope"}).status_code == 404
 
 
