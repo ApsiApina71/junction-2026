@@ -256,6 +256,14 @@ final class OwlViewModel {
 
   /// Shows the current step, says it and starts Owl Check if the step has one.
   private func openStep() async {
+    // The worker pinched Done while Owl said "Looks like step N", and this is step N:
+    // tell the server, so it learns from the confirmed view (JUN-34).
+    if let suggested = suggestedStepID, let process, let step, step.id == suggested {
+      let api = api
+      let runID = runID
+      Task.detached { try? await api.confirmStep(runID: runID, processID: process.id, stepID: suggested) }
+      NSLog("[Owl] recognize: worker confirmed \(suggested)")
+    }
     stopRecognition()
     guard let process, let step else { return }
     checkFailures = 0
@@ -601,7 +609,8 @@ final class OwlViewModel {
         }
         try? FileManager.default.removeItem(at: url)
         do {
-          let result = try await self.api.recognizeStep(clip: clip, processID: process.id, employeeID: self.employee?.id)
+          let result = try await self.api.recognizeStep(
+            clip: clip, processID: process.id, runID: self.runID, employeeID: self.employee?.id)
           NSLog("[Owl] recognize: \(result.status) \(result.stepId ?? "-") margin \(result.margin ?? 0) (\(result.backend ?? "?"))")
           guard !Task.isCancelled, self.step?.id == stepID else { return }
           self.showRecognition(result, process: process, current: stepID)

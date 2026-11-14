@@ -122,12 +122,23 @@ struct OwlAPI: Sendable {
   }
 
   /// A short clip (about 2 s, HEVC MP4) → which step it looks like (JUN-34).
-  func recognizeStep(clip: Data, processID: String, employeeID: String?) async throws -> OwlStepRecognition {
+  func recognizeStep(clip: Data, processID: String, runID: String, employeeID: String?) async throws
+    -> OwlStepRecognition
+  {
     var form = MultipartForm()
     form.addFile("clip", filename: "step.mp4", contentType: "video/mp4", data: clip)
     form.addField("process_id", processID)
+    // The server combines the run's last few clips.
+    form.addField("run_id", runID)
     if let employeeID { form.addField("employee_id", employeeID) }
     return try await send(try request("steps/recognize", form: form, timeout: 30))
+  }
+
+  /// The worker confirmed a "Looks like step N" with a pinch: the server keeps that view as an
+  /// example of the step (a vector, never the video), so recognition improves with use.
+  func confirmStep(runID: String, processID: String, stepID: String) async throws {
+    struct Body: Encodable { let runId: String; let processId: String; let stepId: String }
+    try await sendNoContent(try request("steps/confirm", json: Body(runId: runID, processId: processID, stepId: stepID)))
   }
 
   // Stage view (JUN-79): only while "Stage mirroring" is on.

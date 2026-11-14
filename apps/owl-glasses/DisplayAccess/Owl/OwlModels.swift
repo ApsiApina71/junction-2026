@@ -244,4 +244,6 @@ struct OwlStepRecognition: Codable, Equatable, Sendable {
   let margin: Double?
   /// `vjepa2` or `baseline`.
   let backend: String?
+  /// V-JEPA 2's own action name ("Putting something into something"); for the stage only.
+  let action: String?
 }
