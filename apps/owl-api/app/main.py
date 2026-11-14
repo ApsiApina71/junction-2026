@@ -423,7 +423,19 @@ async def check(
             )  # fmt: skip
         else:
             reference = reference_image(step)
-            result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
+            # JEPA_CONFIRM_DONE: Owl's own ✓ also needs V-JEPA's latest look to be this step (a second opinion).
+            confirm = (lambda: recognizer.agrees(run_id, process_id, step.id)) if jepa.JEPA_CONFIRM_DONE > 0 else None
+            result = await call_model(
+                lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe, confirm_done=confirm)
+            )
+            if jepa.JEPA_LEARN_FROM_USE and (result.step_done or result.status == "warning"):
+                # Owl Check is the teacher: V-JEPA's latest look in this step becomes one more example, and the probe
+                # learns it in the background.
+                def learn() -> None:
+                    if recognizer.learn(run_id, process_id, step.id):
+                        recognizer.probe_for(process, step_clips(process))
+
+                threading.Thread(target=learn, name="jepa-learn", daemon=True).start()
     finally:
         tracker.end(run_id)
     result = with_pace(step, result)
@@ -520,7 +532,8 @@ async def recognize_step(
         return {"status": "ok" if step_id else "unsure", "step_id": step_id, "similarities": {}, "margin": 0.0, "backend": "demo"}
     clips = step_clips(process)
     try:
-        result = await run_in_threadpool(lambda: recognizer.recognize(process, clips, data, run_id=run_id or None))
+        current = progress.next_step(worker.id, process) if worker else None
+        result = await run_in_threadpool(lambda: recognizer.recognize(process, clips, data, run_id=run_id or None, current=current))
     except jepa.ClipError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     # Which step and how sure, not what the camera saw: V-JEPA's action words only with OWL_DEBUG_LOG=1 (a rehearsal).

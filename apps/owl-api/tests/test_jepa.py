@@ -234,3 +234,63 @@ def test_one_step_without_other_clips_uses_the_prototype(tmp_path, expert_clips)
     pytest.importorskip("torch")
     recognizer = jepa.Recognizer(tmp_path / "cache", TokenEmbedder(), other_dir=tmp_path / "none")
     assert recognizer.probe_for(PROCESS, {"step-1": expert_clips["step-1"]}) is None
+
+
+def test_the_order_prior_favours_the_current_and_next_step():
+    steps = ["step-1", "step-2", "step-3", "step-4"]
+    classes = ["step-1", "step-2", "step-3", "step-4", "other"]
+    flat = np.full(5, 0.2)
+    out = jepa.order_prior(flat, classes, steps, "step-2")
+    assert out[1] == out[2] > out[0] == out[3]  # here and next stay; one behind and two ahead are weighted down
+    assert abs(out.sum() - 1) < 1e-6
+    assert (jepa.order_prior(flat, classes, steps, None) == flat).all()  # unknown position: unchanged
+
+
+def test_second_opinion_and_learning_from_use(tmp_path, expert_clips, monkeypatch):
+    pytest.importorskip("torch")
+    monkeypatch.setattr(jepa, "JEPA_LEARN_FROM_USE", True)
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "walking.mp4").write_bytes(scene_clip("step-5", seconds=3.0, seed=4))
+    clips = {k: v for k, v in expert_clips.items() if k in ("step-1", "step-4")}
+    recognizer = jepa.Recognizer(tmp_path / "cache", TokenEmbedder(), other_dir=other)
+    first = recognizer.probe_for(PROCESS, clips)[0]
+    result = recognizer.recognize(PROCESS, clips, scene_clip("step-4", seconds=2.0, noise=8, shift=5, seed=3), run_id="r1")
+    assert result.step_id == "step-4"
+    assert recognizer.agrees("r1", PROCESS.id, "step-4", 0.5) and not recognizer.agrees("r1", PROCESS.id, "step-1", 0.5)
+    assert not recognizer.agrees("other-run", PROCESS.id, "step-4", 0.5)
+    # Owl Check passed step 4: the look is kept (tokens only) and the probe trains again with it.
+    assert recognizer.learn("r1", PROCESS.id, "step-4")
+    assert [c for c, _ in recognizer.learned(PROCESS.id)] == ["step-4"]
+    assert recognizer.probe_for(PROCESS, clips)[0] is not first
+    again = jepa.Recognizer(tmp_path / "cache", TokenEmbedder(), other_dir=other)
+    assert [c for c, _ in again.learned(PROCESS.id)] == ["step-4"]  # kept on disk
+
+
+def test_owl_waits_for_v_jepa_before_its_own_check_mark():
+    from app.models import Check
+    from app.verifier import Tracker, run_check
+    from app.vision import CriterionSeen, Observation
+
+    step = PROCESS.steps[3].model_copy(update={"check": Check(kind="visual", criteria=["Nothing is wrong"], done_when="A hand closes the box")})
+    obs = Observation(
+        visibility="clear",
+        hint=None,
+        items=[],
+        criteria=[
+            CriterionSeen(index=1, criterion="Nothing is wrong", met="yes", note=""),
+            CriterionSeen(index=2, criterion="A hand closes the box", met="yes", note=""),
+        ],
+        matches_reference="no_reference",
+        summary="x",
+    )
+
+    def looks(agree: bool) -> list[bool]:
+        tracker = Tracker()
+        return [
+            run_check(step, b"", None, "r", False, "en", tracker, observe=lambda *_: obs, jev=lambda *_: None, confirm_done=lambda: agree).step_done
+            for _ in range(3)
+        ]
+
+    assert looks(True) == [False, True, True]
+    assert looks(False) == [False, False, False]

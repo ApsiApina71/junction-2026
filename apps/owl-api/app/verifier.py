@@ -433,6 +433,7 @@ def run_check(
     observe: Callable[[bytes, Step, bytes | None, str], Observation],
     jev: Callable[[Step, Observation], JevAnswer | None] = ask_jev,
     decided_by: str | None = None,
+    confirm_done: Callable[[], bool] | None = None,
 ) -> CheckResult:
     """decided_by overrides who is named as the decider; demo mode sets "demo" (its observations are scripted)."""
     if step.check.kind == "none":
@@ -443,7 +444,8 @@ def run_check(
     status = tracker.status_for(run_id, step.id, verdict, final)
     # Owl saw the step done, twice in a row, on a clear view with nothing wrong: done without a Done pinch.
     auto = step.check.done_when and step.check.kind == "visual" and not final
-    if auto and tracker.done_for(run_id, step.id, status == "ok" and obs.visibility == "clear" and done_seen(step, obs)):
+    seen = status == "ok" and obs.visibility == "clear" and done_seen(step, obs) and (confirm_done is None or confirm_done())
+    if auto and tracker.done_for(run_id, step.id, seen):
         return build_result(step, verdict, confidence, decided_by or decider, "ok", True, language, obs.hint)
     first_ok = tracker.first_ok(run_id, step.id) if status == "ok" else False
     new_warning = tracker.warning_is_new(run_id, step.id)

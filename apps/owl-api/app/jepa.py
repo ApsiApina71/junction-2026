@@ -61,6 +61,18 @@ JEPA_MIN_PROB = float(os.getenv("JEPA_MIN_PROB", "0.6"))
 # Clips of "not doing any step" (walking, talking at a desk, other work), so the probe can say "none of the steps".
 JEPA_OTHER_DIR = os.getenv("JEPA_OTHER_DIR", "")
 PROBE_STEPS = int(os.getenv("JEPA_PROBE_STEPS", "120"))
+# V-JEPA as a second opinion for Owl's own ✓ (done_when): above 0, a step is marked done by itself only when V-JEPA's
+# latest look in the run (within JEPA_AGREE_S) is the same step with at least this probability. 0 = off.
+JEPA_CONFIRM_DONE = float(os.getenv("JEPA_CONFIRM_DONE", "0"))
+JEPA_AGREE_S = float(os.getenv("JEPA_AGREE_S", "15"))
+# The order of the steps as knowledge: 1 = the probe's step probabilities are weighted towards the step the worker is
+# on and the one after it. 0 = off.
+JEPA_ORDER_PRIOR = os.getenv("JEPA_ORDER_PRIOR", "0") == "1"
+# Learning from use with Owl Check as the teacher: 1 = when Owl Check passes or warns on a step, the run's latest
+# V-JEPA look is kept as one more example of that step (pooled tokens only, never video, not tied to the worker, at
+# most JEPA_LEARN_MAX per step) and the task's probe is trained again in the background. 0 = off.
+JEPA_LEARN_FROM_USE = os.getenv("JEPA_LEARN_FROM_USE", "0") == "1"
+JEPA_LEARN_MAX = int(os.getenv("JEPA_LEARN_MAX", "20"))
 
 
 class ClipError(Exception):
@@ -287,6 +299,50 @@ def clip_windows(frames: list[np.ndarray], fps: float, seconds: float = 2.0, str
     return [frames[s : s + n] for s in range(0, len(frames) - n + 1, max(1, int(stride * fps)))]
 
 
+def step_boundaries(frames: list[np.ndarray], fps: float, embed: ClipEmbedder, window: float = 2.0, stride: float = 0.5, min_gap: float = 3.0) -> list[float]:
+    """Where one continuous expert video changes from one action to the next (Record, JUN-32): the seconds at which a
+    new step most likely starts. V-JEPA embeds 2 s windows every 0.5 s; a boundary is where the 2 s before and the 2 s
+    after look least alike (cosine distance of their mean embeddings), a peak well above the video's usual change,
+    at least `min_gap` seconds from the next one. Suggestions for the person who reviews the recording, never final."""
+    n, step = max(1, int(window * fps)), max(1, int(stride * fps))
+    starts = list(range(0, max(1, len(frames) - n + 1), step))
+    if len(starts) < 6:
+        return []
+    vecs = np.stack([_unit(embed.embed(frames[s : s + n])) for s in starts])
+    k = max(1, round(window / stride))  # compare the 2 s before with the 2 s after
+    times, scores = [], []
+    for i in range(k, len(vecs) - k + 1):
+        before, after = _unit(vecs[i - k : i].mean(0)), _unit(vecs[i : i + k].mean(0))
+        times.append(starts[i] / fps)
+        scores.append(1.0 - float(np.dot(before, after)))
+    if not scores:
+        return []
+    scores_a = np.array(scores)
+    threshold = scores_a.mean() + 1.0 * scores_a.std()
+    picked: list[tuple[float, float]] = []
+    for i in np.argsort(-scores_a):
+        if scores_a[i] < threshold:
+            break
+        if all(abs(times[i] - t) >= min_gap for t, _ in picked):
+            picked.append((times[i], float(scores_a[i])))
+    return sorted(round(t, 1) for t, _ in picked)
+
+
+def order_prior(probs: np.ndarray, classes: list[str], step_ids: list[str], current: str | None) -> np.ndarray:
+    """The steps come in order: the current step and the next one keep their probability, a step further away is
+    weighted down (by half per step of distance), "other" is left alone. Renormalised."""
+    if current not in step_ids:
+        return probs
+    here = step_ids.index(current)
+    weights = np.ones(len(classes))
+    for i, c in enumerate(classes):
+        if c in step_ids:
+            distance = step_ids.index(c) - here
+            weights[i] = 1.0 if distance in (0, 1) else 0.5 ** (abs(distance) - (1 if distance > 1 else 0))
+    out = probs * weights
+    return out / out.sum() if out.sum() > 0 else probs
+
+
 _embedder: ClipEmbedder | None = None
 _embedder_lock = threading.Lock()
 
@@ -373,6 +429,55 @@ class Recognizer:
         self._recent: dict[str, list[tuple[float, np.ndarray]]] = {}  # run id -> recent query embeddings
         self._last: dict[str, tuple[str, np.ndarray]] = {}  # run id -> (process id, the last accumulated query)
         self._probes: dict[str, tuple[str, object, list[str]]] = {}  # process id -> (key, probe, classes)
+        self._looks: dict[str, tuple[float, str, str | None, float, object]] = {}  # run -> (time, process, step, p, tokens)
+        self._learned: dict[str, list[tuple[str, object]]] = {}  # process id -> [(step id, pooled tokens)]
+
+    def latest_look(self, run_id: str, process_id: str, now: float | None = None) -> tuple[str | None, float] | None:
+        """V-JEPA's latest answer in this run for this task, within JEPA_AGREE_S: (step id or None, its probability)."""
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            look = self._looks.get(run_id)
+        if look is None or look[1] != process_id or now - look[0] > JEPA_AGREE_S:
+            return None
+        return look[2], look[3]
+
+    def agrees(self, run_id: str, process_id: str, step_id: str, threshold: float = JEPA_CONFIRM_DONE) -> bool:
+        """The second opinion for Owl's own ✓: V-JEPA's latest look is this step with at least `threshold`."""
+        look = self.latest_look(run_id, process_id)
+        return look is not None and look[0] == step_id and look[1] >= threshold
+
+    def _learned_path(self, process_id: str) -> Path:
+        safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in process_id)
+        return self.cache_dir / f"learned-{self.embed.name}-{safe}.pt"
+
+    def learned(self, process_id: str) -> list[tuple[str, object]]:
+        if process_id not in self._learned:
+            path = self._learned_path(process_id)
+            items: list[tuple[str, object]] = []
+            if path.is_file():
+                import torch
+
+                items = [(c, t) for c, t in torch.load(path, map_location="cpu", weights_only=True)]
+            self._learned[process_id] = items
+        return self._learned[process_id]
+
+    def learn(self, run_id: str, process_id: str, step_id: str) -> bool:
+        """Owl Check passed or warned on this step: the run's latest V-JEPA look becomes one more example of it, if it
+        is recent. Pooled tokens only (no video), not tied to the worker, at most JEPA_LEARN_MAX per step."""
+        with self._lock:
+            look = self._looks.get(run_id)
+        if look is None or look[1] != process_id or time.monotonic() - look[0] > JEPA_AGREE_S or look[4] is None:
+            return False
+        import torch
+
+        items = self.learned(process_id)
+        mine = [i for i, (c, _) in enumerate(items) if c == step_id]
+        if len(mine) >= JEPA_LEARN_MAX:
+            items.pop(mine[0])
+        items.append((step_id, look[4].detach().to("cpu", torch.float16)))
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        torch.save([(c, t) for c, t in items], self._learned_path(process_id))
+        return True
 
     def other_clips(self) -> list[Path]:
         return sorted(p for p in self.other_dir.glob("*") if p.suffix.lower() in (".mp4", ".mov")) if self.other_dir.is_dir() else []
@@ -387,8 +492,11 @@ class Recognizer:
             by_class["other"] = others
         if len(by_class) < 2:
             return None
+        learned = [(c, t) for c, t in self.learned(process.id) if c in by_class] if JEPA_LEARN_FROM_USE else []
         key = hashlib.sha256(
-            "|".join(f"{c}:{hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for c, paths in by_class.items() for p in paths).encode()
+            (
+                "|".join(f"{c}:{hashlib.sha256(p.read_bytes()).hexdigest()[:16]}" for c, paths in by_class.items() for p in paths) + f"|learned:{len(learned)}"
+            ).encode()
         ).hexdigest()
         with self._train_lock:
             cached = self._probes.get(process.id)
@@ -403,6 +511,10 @@ class Recognizer:
                     for w in clip_windows(frames, fps):
                         xs.append(self.embed.tokens(w))
                         ys.append(i)
+            device = xs[0].device
+            for c, t in learned:
+                xs.append(t.to(device, xs[0].dtype))
+                ys.append(classes.index(c))
             probe = train_probe(xs, ys, len(classes))
             self._probes[process.id] = (key, probe, classes)
             log.info("Probe for %s: %d classes, %d windows, %.1f s", process.id, len(classes), len(xs), time.monotonic() - start)
@@ -484,13 +596,16 @@ class Recognizer:
                 del self._recent[key]
         return _unit(np.mean([v for _, v in recent], axis=0))
 
-    def recognize(self, process: Process, clips: dict[str, Path], data: bytes, min_margin: float = JEPA_MIN_MARGIN, run_id: str | None = None) -> Recognition:
-        """clips: step id -> the expert clip on disk. Steps without a clip are not candidates."""
+    def recognize(
+        self, process: Process, clips: dict[str, Path], data: bytes, min_margin: float = JEPA_MIN_MARGIN, run_id: str | None = None, current: str | None = None
+    ) -> Recognition:
+        """clips: step id -> the expert clip on disk. Steps without a clip are not candidates. current: the step the
+        worker is on (for JEPA_ORDER_PRIOR)."""
         if not clips:
             return Recognition("unsure", None, {}, 0.0, self.embed.name)
         probe = self.probe_for(process, clips)
         if probe is not None:
-            return self._recognize_with_probe(process, probe, data, run_id)
+            return self._recognize_with_probe(process, probe, data, run_id, current)
         protos = {step.id: self.with_examples(process.id, step.id, self.prototype(clips[step.id])) for step in process.steps if step.id in clips}
         query = self.accumulate(run_id, self.embed.embed(decode_frames(data)))
         action = getattr(self.embed, "last_action", None)
@@ -504,13 +619,17 @@ class Recognizer:
         status = "ok" if margin >= min_margin else "unsure"
         return Recognition(status, best if status == "ok" else None, sims, margin, self.embed.name, action)
 
-    def _recognize_with_probe(self, process: Process, probe: tuple[object, list[str]], data: bytes, run_id: str | None) -> Recognition:
+    def _recognize_with_probe(
+        self, process: Process, probe: tuple[object, list[str]], data: bytes, run_id: str | None, current: str | None = None
+    ) -> Recognition:
         import torch
 
         model, classes = probe
         tokens = self.embed.tokens(decode_frames(data))
         with torch.no_grad():
             probs = torch.softmax(model(tokens[None]), -1)[0].float().cpu().numpy()
+        if JEPA_ORDER_PRIOR:
+            probs = order_prior(probs, classes, [s.id for s in process.steps], current)
         probs = self._accumulate_probs(run_id, probs)
         if run_id:
             with self._lock:
@@ -520,4 +639,14 @@ class Recognizer:
         margin = round(float(probs[order[0]] - probs[order[1]]), 4)
         sims = {c: round(float(p), 4) for c, p in zip(classes, probs, strict=True) if c != "other"}
         status = "ok" if best != "other" and probs[order[0]] >= JEPA_MIN_PROB else "unsure"
+        if run_id:
+            with self._lock:
+                # The latest look: for the second opinion, and its pooled tokens (no video) for learning from use.
+                self._looks[run_id] = (
+                    time.monotonic(),
+                    process.id,
+                    best if status == "ok" else None,
+                    float(probs[order[0]]),
+                    tokens if JEPA_LEARN_FROM_USE else None,
+                )
         return Recognition(status, best if status == "ok" else None, sims, margin, f"{self.embed.name}+probe")
