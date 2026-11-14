@@ -14,7 +14,7 @@
       "title": "Sort the cans",
       "instruction": "Deposit cans go in the round CANS opening of the white bin. The black square opening is PLASTIC, for other plastic.",
       "say": "Deposit cans go in the round CANS opening, not the plastic.",
-      "reference_image_url": null,
+      "reference_image_url": "/media/proc-recycling/step-1.jpg",
       "clip_url": null,
       "check": {
         "kind": "visual",
@@ -33,7 +33,10 @@
       "checkpoint": {
         "zone_id": "zone-recycling",
         "label": "Recycling point",
-        "photo_urls": []
+        "photo_urls": [
+          "/media/proc-recycling/place-1.jpg",
+          "/media/proc-recycling/place-2.jpg"
+        ]
       }
     },
     {
