@@ -210,15 +210,17 @@ Answer to one camera frame during a step.
   "expert": "Laura",
   "status": "recording",
   "steps": [
-    {"index": 1, "narration": "First take a medium box...", "photo_url": "https://.../rec-1/1.jpg", "clip_url": "https://.../rec-1/1.mp4", "key": "6F1C…"}
+    {"index": 1, "narration": "First take a medium box...", "photo_url": "https://.../rec-1-Qm4xT7vLp2Zs/1.jpg", "clip_url": "https://.../rec-1-Qm4xT7vLp2Zs/1.mp4", "key": "6F1C…"}
   ],
   "process_id": null,
-  "dropped": []
+  "dropped": [],
+  "media_dir": "rec-1-Qm4xT7vLp2Zs"
 }
 ```
 
 - `status`: `recording`, `processing` (the AI is writing the steps), `done` (`process_id` is set), `failed`.
 - `key` is the glasses' own name for a step upload (or `null`), and `dropped` lists the keys of uploads the expert gave up; see `DELETE /record/{id}/steps/{key}`.
+- `media_dir` is the folder of the recording's photos and clips under `/media`. `/media/*` is served without a token, because the glasses' display loads pictures and clips by address, so the folder name ends in random letters like a Help session's. An address is as private as the link itself: whoever has it can open it.
 
 ## Endpoints
 

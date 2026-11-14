@@ -215,6 +215,9 @@ class Recording(BaseModel):
     process_id: str | None = None
     # Keys of step uploads the expert gave up: removed if they arrived, ignored if they arrive later.
     dropped: list[str] = []
+    # The folder of this recording's photos and clips under /media. Its name ends in random letters: media is served
+    # by address without a token (the glasses' display loads it), so the address must not be guessable.
+    media_dir: str | None = None
 
 
 class TranslateRequest(BaseModel):

@@ -6,9 +6,11 @@ import type { Stats } from '../lib/types.ts'
 import { StatusTag } from '../ui/parts.tsx'
 
 // Every sentence here says what the code does today and no more (apps/owl-api: main.py, media.py, record.py,
-// ask.py, verifier.py, progress.py; apps/owl-glasses: Info.plist). Two things are kept apart on purpose: what Owl's own server
+// ask.py, verifier.py, progress.py, persist.py, jepa.py, stage.py, translate.py, docs_process.py; apps/owl-glasses:
+// Info.plist, OwlViewModel.swift, OwlCamera.swift). Two things are kept apart on purpose: what Owl's own server
 // stores and deletes, which Owl controls and can state exactly, and what happens to data once it has gone to
-// someone else (the model provider, Meta), which follows their terms. When that code changes, change this page.
+// someone else (the model provider, Meta), which follows their terms. The same list is in
+// docs/specs/onboarding-owl.md ("Where the data goes"). When that code changes, change both.
 
 /** Where the company's data goes: what stays on its own server, what is sent out, and the limits. */
 export function DataView() {
@@ -61,18 +63,33 @@ export function DataView() {
                 Kept until you delete them on the <a href={href('documents')}>Documents</a> page. The file is deleted from the server and Owl stops answering from it at once.
               </dd>
               <dt>Recorded photos and clips</dt>
-              <dd>Kept with the task. Faces are blurred before anything is saved. Clips are cut to ten seconds, made small enough for the glasses and saved without sound.</dd>
+              <dd>
+                Kept with the task. Faces are blurred before anything is saved. Clips are cut to ten seconds, made small enough for the glasses and saved without sound. They are in a folder with a random name, because the glasses load them by address without
+                a login.
+              </dd>
               <dt>A worker's view during Help</dt>
               <dd>Kept only while that request is open, in a folder with a random name. Deleted when help ends, and anything left over is deleted when the server starts.</dd>
               <dt>Pictures sent for a check</dt>
               <dd>Never saved. The server reads the picture, sends it to the model and drops it. Owl keeps no record of what a worker's camera saw while they worked.</dd>
+              <dt>Short clips for knowing which step it is</dt>
+              <dd>
+                Never saved and never sent out: the server compares about two seconds of the worker's view with the expert's clips itself. When the worker confirms a step Owl suggested, the server keeps that look as a row of numbers, an example of the step. No
+                video, and not linked to the worker.
+              </dd>
               <dt>Learning progress</dt>
               <dd>
                 After each check the server notes, for that run of the task: when it started and finished, which task it was, how many steps were done, and how many problems Owl caught and how many of them were then fixed. The run is linked to the worker when
-                the glasses say who is wearing them. It does not keep what the problem was, and no picture. Held in the server's memory, gone when the server restarts.
+                the glasses say who is wearing them. It does not keep what the problem was, and no picture. Saved in a file on the server, so it is still there after a restart. The worker erases their own with Forget me on the glasses.
               </dd>
-              <dt>Tasks, people and conversations</dt>
-              <dd>Held in the server's memory. They are gone when the server restarts.</dd>
+              <dt>What each worker agreed to</dt>
+              <dd>Whether they allowed camera checks and recording, and when. Saved on the server and on the phone. Without a yes to camera checks the server refuses the pictures.</dd>
+              <dt>Tasks, translations, people and recordings</dt>
+              <dd>Saved in a file on the server, so they are still there after a restart. Questions and answers are not saved.</dd>
+              <dt>The stage view</dt>
+              <dd>
+                Off unless someone switches on Stage mirroring on the phone. While it is on, the server holds the worker's current screen, what Owl last said and the newest camera picture, at most one a second, and shows them to anyone who opens the stage
+                page with the access token. Each picture replaces the one before, and none is saved.
+              </dd>
             </dl>
           </section>
 
@@ -90,9 +107,13 @@ export function DataView() {
               <dt>A check</dt>
               <dd>One picture from the glasses camera, with the step and the expert's photo of it. The model describes what it sees, and your server decides.</dd>
               <dt>A question</dt>
-              <dd>The worker's question, the task and step they are on, and every document you have added.</dd>
+              <dd>The worker's question, the task and step they are on, and your documents: all of them while they are short enough to fit, otherwise the parts that match the question best.</dd>
               <dt>A new recording</dt>
               <dd>What the expert said at each step and the photo of it, after faces are blurred, so the model can write the steps.</dd>
+              <dt>A task written from a document</dt>
+              <dd>The text of that document.</dd>
+              <dt>A translation</dt>
+              <dd>The words of a task, the first time a worker needs it in another language.</dd>
               <dt>If Jev is switched on</dt>
               <dd>A written description of what the camera saw and the order to compare it with goes to TypeSafe's decision model through OpenRouter, under their terms. No picture is sent to it.</dd>
             </dl>
@@ -110,8 +131,25 @@ export function DataView() {
               <dd>Owl does not send task data, pictures or documents to a Meta model.</dd>
               <dt>Meta's toolkit in the Owl app</dt>
               <dd>Its usage and crash reporting is switched off in the app.</dd>
+              <dt>Speech on the glasses</dt>
+              <dd>"Hey Meta, start Owl" and the worker's spoken questions are turned into text by Meta's software on the glasses and in Meta's app. Owl gets the text. Where Meta's software does that work is Meta's to say.</dd>
               <dt>Meta's own app and the glasses</dt>
               <dd>The glasses connect to the phone through Meta's app. What that app and the glasses themselves send to Meta follows Meta's terms, not Owl's.</dd>
+            </dl>
+          </section>
+
+          <section aria-labelledby="data-phone">
+            <div className="data-head">
+              <h2 id="data-phone">On the worker's phone</h2>
+              <StatusTag tone="accent" shape="ring">
+                Owl controls this
+              </StatusTag>
+            </div>
+            <dl>
+              <dt>Saved for working without a connection</dt>
+              <dd>The worker's tasks and the photo of each step, for the glasses and the worker the phone is set up for. Replaced when the tasks change.</dd>
+              <dt>The camera</dt>
+              <dd>No picture or clip from the glasses camera stays on the phone. A clip is deleted when its step is over, sent or not, and anything left by a closed app is deleted the next time it starts.</dd>
             </dl>
           </section>
 
@@ -133,6 +171,8 @@ export function DataView() {
               <dd>The picture goes to the model as the camera took it.</dd>
               <dt>A check covers what the camera saw</dt>
               <dd>Owl says a step was checked, not that it is correct. Something hidden from the camera is not checked.</dd>
+              <dt>A photo or clip opens for anyone who has its address</dt>
+              <dd>The glasses load pictures and clips by address, without a login. Recorded media and a worker's view during Help sit in folders with random names, so an address cannot be guessed, but whoever is given one can open it.</dd>
               <dt>Recorded tasks cannot be deleted here yet</dt>
               <dd>Unpublishing takes a task off the glasses. Removing its photos and clips from the server has to be done by whoever runs it.</dd>
             </dl>
@@ -193,7 +233,7 @@ export function DataView() {
                 </div>
               </dl>
               <p className="hint">
-                For everyone together, without names, since the server last started.{stats.workers === 1 ? ' With one worker, these are that person\'s numbers.' : ''}
+                For everyone together, without names, for as long as the server has kept its records.{stats.workers === 1 ? ' With one worker, these are that person\'s numbers.' : ''}
               </p>
             </>
           ) : (

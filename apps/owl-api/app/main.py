@@ -640,10 +640,12 @@ async def record_step(
         if key and key in rec.dropped:
             # The expert gave this upload up while it was on its way: nothing of it is kept.
             return out(request, rec)
+        if rec.media_dir is None:
+            rec.media_dir = f"{rec.id}-{secrets.token_urlsafe(9)}"
         # A file name no step of this recording has had, also after a step was taken back.
         number = len(rec.steps) + len(rec.dropped) + 1
-        photo_url = store.save_media(f"{rec.id}/{number}.jpg", photo_jpeg)
-        clip_url = store.save_media(f"{rec.id}/{number}.mp4", clip_mp4) if clip_mp4 else None
+        photo_url = store.save_media(f"{rec.media_dir}/{number}.jpg", photo_jpeg)
+        clip_url = store.save_media(f"{rec.media_dir}/{number}.mp4", clip_mp4) if clip_mp4 else None
         rec.steps.append(RecordedStep(index=len(rec.steps) + 1, narration=narration.strip(), photo_url=photo_url, clip_url=clip_url, key=key or None))
     return out(request, rec)
 

@@ -1,4 +1,5 @@
 import io
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -153,8 +154,11 @@ def test_record_flow(client, monkeypatch):
     )
     assert r.status_code == 200
     step = r.json()["steps"][0]
-    assert step["photo_url"].endswith(f"/media/{rec['id']}/1.jpg")
-    assert step["clip_url"].endswith(f"/media/{rec['id']}/1.mp4")
+    # Recorded media is served by address without a token, so the folder name ends in random letters.
+    folder = re.search(rf"/media/({rec['id']}-[\w-]{{12}})/1\.jpg$", step["photo_url"])
+    assert folder, step["photo_url"]
+    assert step["clip_url"].endswith(f"/media/{folder.group(1)}/1.mp4")
+    assert client.get(f"/media/{rec['id']}/1.jpg").status_code == 404  # the plain, guessable address is not served
     with Image.open(io.BytesIO(client.get(step["photo_url"]).content)) as img:
         assert max(img.size) <= 600
     bad = client.post(

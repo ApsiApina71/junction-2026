@@ -402,7 +402,27 @@ describe('where the data goes', () => {
     const meta = screen.getByRole('region', { name: 'Meta and the glasses' })
     expect(within(meta).getByText('Owl does not send task data, pictures or documents to a Meta model.')).toBeTruthy()
     expect(within(meta).getByText(/follows Meta's terms, not Owl's\./)).toBeTruthy()
+    expect(within(meta).getByText(/Where Meta's software does that work is Meta's to say\./)).toBeTruthy()
     expect(screen.queryByText(/Nothing from Owl/)).toBeNull()
+  })
+
+  it('covers what was added after the page was first written: step clips, consent, the stage view and the phone', async () => {
+    renderWith(<DataView />)
+
+    const server = screen.getByRole('region', { name: 'On your Owl server' })
+    expect(within(server).getByText(/Never saved and never sent out/)).toBeTruthy()
+    expect(within(server).getByText(/Without a yes to camera checks the server refuses the pictures\./)).toBeTruthy()
+    expect(within(server).getByText(/Off unless someone switches on Stage mirroring on the phone\./)).toBeTruthy()
+
+    const model = screen.getByRole('region', { name: 'Sent to the AI model' })
+    expect(within(model).getByText(/otherwise the parts that match the question best\./)).toBeTruthy()
+    expect(within(model).getByText('The words of a task, the first time a worker needs it in another language.')).toBeTruthy()
+
+    const phone = screen.getByRole('region', { name: "On the worker's phone" })
+    expect(within(phone).getByText(/No picture or clip from the glasses camera stays on the phone\./)).toBeTruthy()
+
+    const limits = screen.getByRole('region', { name: 'Limits you should know' })
+    expect(within(limits).getByText(/whoever is given one can open it\./)).toBeTruthy()
   })
 
   it('says what the server keeps about each worker\'s learning, and that hiding it here is not a lock', async () => {
@@ -410,7 +430,10 @@ describe('where the data goes', () => {
 
     const server = screen.getByRole('region', { name: 'On your Owl server' })
     expect(within(server).getByText(/The run is linked to the worker when\s+the glasses say who is wearing them\./)).toBeTruthy()
-    expect(within(server).getByText(/Held in the server's memory, gone when the server restarts\./)).toBeTruthy()
+    // The server keeps its state in a file now (JUN-78): the page must not say a restart erases it.
+    expect(within(server).getByText(/Saved in a file on the server, so it is still there after a restart\./)).toBeTruthy()
+    expect(within(server).getByText(/The worker erases their own with Forget me on the glasses\./)).toBeTruthy()
+    expect(screen.queryByText(/gone when the server restarts/)).toBeNull()
 
     const limits = screen.getByRole('region', { name: 'Limits you should know' })
     expect(within(limits).getByText(/That is how these screens are made, not a lock/)).toBeTruthy()
@@ -419,7 +442,7 @@ describe('where the data goes', () => {
     // Studio itself shows totals only, and says what they are.
     expect(await screen.findByText('Workers who have used Owl')).toBeTruthy()
     expect(screen.getByText('4 min')).toBeTruthy()
-    expect(screen.getByText('For everyone together, without names, since the server last started.')).toBeTruthy()
+    expect(screen.getByText('For everyone together, without names, for as long as the server has kept its records.')).toBeTruthy()
     expect(screen.queryByText(/no log|no record of who|only the worker/i)).toBeNull()
   })
 })

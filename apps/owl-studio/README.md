@@ -19,7 +19,7 @@ It talks to [`apps/owl-api`](../owl-api/README.md) through the [Owl contract](..
 | Documents | Add `.md`, `.txt` or `.pdf` instructions, delete them, and try a question to see Owl's answer and its source. | [JUN-38](https://linear.app/junction-2026-bossit/issue/JUN-38) |
 | People | Add a new worker with a language, tasks and a pair of glasses. Shows the welcome as it is shown and spoken; it can be rewritten by hand or handed back to Owl. | [JUN-41](https://linear.app/junction-2026-bossit/issue/JUN-41) |
 | Help | Open requests, then the console: the worker's live view with an honest freshness line, the conversation and quick replies under it, the step they are on beside it, dictation, and a click on the picture to point at something. | [JUN-40](https://linear.app/junction-2026-bossit/issue/JUN-40), [JUN-33](https://linear.app/junction-2026-bossit/issue/JUN-33), [JUN-60](https://linear.app/junction-2026-bossit/issue/JUN-60) |
-| Data | Where the company's data goes, in two parts that are kept apart: what Owl's own server stores and deletes, and what is sent to the model provider and to Meta, where their terms apply. Then the limits, and the learning totals for everyone together. | [JUN-59](https://linear.app/junction-2026-bossit/issue/JUN-59) |
+| Data | Where the company's data goes, in two parts that are kept apart: what Owl's own server stores and deletes, and what is sent to the model provider and to Meta, where their terms apply. Then what stays on the worker's phone, the limits, and the learning totals for everyone together. The same list is in the spec under "Where the data goes"; change both together. | [JUN-59](https://linear.app/junction-2026-bossit/issue/JUN-59) |
 
 ## Rules the code keeps
 

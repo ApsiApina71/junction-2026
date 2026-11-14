@@ -14,13 +14,13 @@ Onboarding for all physical work, on Meta Ray-Ban Display glasses. Working title
 
 ## Problem
 
-White-collar onboarding has a hundred SaaS tools. Blue-collar work has none: warehouses, restaurants, bakeries, construction sites and customer service are learned next to an experienced worker. The knowledge is tacit ("this lever", "this dough consistency"), onboarding is slow and expensive, and so companies prefer to hire people who already know the job.
+White-collar onboarding has a hundred SaaS tools. For physical work there are connected-worker platforms such as Augmentir and Tulip, mostly in manufacturing. A warehouse team, a restaurant, a bakery or a construction site still learns the job next to an experienced worker. The knowledge is tacit ("this lever", "this dough consistency"), onboarding is slow and expensive, and so companies prefer to hire people who already know the job.
 
 **Why now:** smart glasses bring together what the person sees, a phone and AI.
 
 **Why glasses, not a phone:** the hands stay on the work, and learning and checking happen from the worker's own view.
 
-**Why not Meta AI:** it does not know the company's tacit knowledge; companies will not hand that knowledge to Meta, so the data stays with the company; and Owl teaches and checks a task, it does not only answer questions.
+**Why not Meta AI:** it does not know the company's tacit knowledge; the company keeps that knowledge on its own Owl server and decides which AI model reads it (today Anthropic's API; see [Where the data goes](#where-the-data-goes)); and Owl teaches and checks a task, it does not only answer questions.
 
 ## Three levels of company knowledge
 
@@ -57,7 +57,7 @@ The new worker never takes out the phone or opens the Meta AI app.
 
 ## Users and inclusion
 
-"Hire anyone": immigrants (instructions in their own language), supported employment for people with intellectual disabilities, people with dyslexia (learning from images and video, not text), and everyone on their first day.
+"Hire anyone" is the aim, not a promise: Owl is designed for the people an employer would otherwise pass over. Immigrants (a task is translated into the worker's language the first time it is needed, and Owl speaks it), supported employment for people with intellectual disabilities and people with dyslexia (pictures, video and speech before text, and an easy-language profile with short plain sentences), people with low vision (an audio-first profile: everything on the display is also spoken), Deaf and hard-of-hearing people and loud workplaces (a display-first profile: every spoken line is also shown), and everyone on their first day. None of this has been tried with these groups yet; that is what a pilot is for.
 
 ## Example story (not the demo)
 
@@ -78,9 +78,39 @@ The demo task is decided in [JUN-44](https://linear.app/junction-2026-bossit/iss
 
 ## Safety and privacy
 
-- A learning aid, not monitoring: the EU AI Act treats AI used to monitor workers as high-risk. Owl does not score people; results are not shared with managers without the worker's consent.
-- Check photos are not stored. Faces in recorded material are blurred before storing.
-- Company data stays with the company. DAT analytics are opted out.
+- **A learning aid, not monitoring.** The EU AI Act treats AI used to monitor workers as high-risk. Owl does not score people. The worker sees their own progress on the glasses and can erase it ("Forget me"); Owl Studio shows only totals for everyone together.
+- **The worker chooses.** On the first start Owl says what the camera does, on the display and aloud in the worker's language, and the worker allows or refuses checks with a pinch. Without a yes, Owl guides without looking, and owl-api refuses the pictures. The camera can be paused on any step. An expert agrees before anything is recorded.
+- **Honest about what a check is.** A step counts as verified only when a check passed for it. When Owl could not check, the summary says so.
+
+### Where the data goes
+
+What the code does today. Owl Studio shows the same list to the company ("Where your data goes"); change both together.
+
+| Data | Owl's own server (owl-api) | Sent to the AI model |
+|---|---|---|
+| Picture for a check | Never saved | One picture, with the step and the expert's photo of it |
+| Short clip for knowing which step it is | Never saved. Compared with the expert's clips on the server itself. A look the worker confirmed is kept as numbers (no video, not linked to the worker) | Never |
+| The company's documents | Kept until deleted in Owl Studio | With a question: all of them while they fit, otherwise the parts that match best. One document when a task is written from it |
+| A worker's question | Not saved | The question, the task and the step |
+| A recording | Photos and clips kept with the task, faces blurred first, clips cut to 10 s without sound | What the expert said and the blurred photos, to write the steps |
+| A task's words | Kept | The first time a worker needs the task in another language |
+| A worker's view during Help | Kept only while the request is open, then deleted | Never |
+| Learning progress | Per run: start, finish, task, steps done, problems caught and fixed. Linked to the worker, saved in a file, erased by "Forget me" | Never |
+| What a worker agreed to | Saved, with the time | Never |
+| The stage view (off by default) | The current screen, Owl's last sentence and the newest camera picture, held in memory and replaced, never saved | Never |
+
+- **The model provider's terms apply to what is sent.** Today owl-api calls Anthropic's API with the model named in `MODEL_ID`. What the provider does with the data afterwards follows its terms and is not Owl's to promise. Another provider, or a model hosted in Europe, would be a change in the few files that make the calls; it is not built.
+- **If Jev is switched on,** a written description of what the camera saw and the order goes to TypeSafe's decision model through OpenRouter. No picture.
+- **On the worker's phone:** the worker's tasks and the photo of each step, so a task works without a connection. No picture or clip from the glasses camera stays on the phone.
+- **Meta:** Owl does not send task data, pictures or documents to a Meta model, and the DAT toolkit's analytics and crash reporting are opted out. "Hey Meta, start Owl" and the worker's speech are turned into text by Meta's software, and the glasses connect through Meta's app: those follow Meta's terms.
+
+**Limits of this prototype**
+
+- owl-api has one access token for everything. Hiding one worker's progress from Owl Studio is how the screens are made, not a lock.
+- Photos and clips are loaded by address without a login, because the glasses' display fetches them. Recorded media and Help pictures sit in folders with random names; whoever is given an address can open it.
+- Face blurring uses a detector and can miss a face. A recorded task is looked through by a person before it is published.
+- Pictures for a check and for Help are not blurred.
+- A recorded task cannot be deleted from Owl Studio yet.
 
 ## Pilot and business
 
