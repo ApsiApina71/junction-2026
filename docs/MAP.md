@@ -49,6 +49,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [runbooks/local-dev.md](runbooks/local-dev.md) | Local tooling and running apps |
 | [runbooks/demo-day.md](runbooks/demo-day.md) | Demo and submission checklist |
 | [runbooks/owl-cafe-script.md](runbooks/owl-cafe-script.md) | Café scene for customer service mode (JUN-98) |
+| [runbooks/owl-junction-shoot.md](runbooks/owl-junction-shoot.md) | Demo video shoot: the Junction volunteer story with `OWL_STORY=junction` (JUN-102) |
 | [runbooks/owl-demo.md](runbooks/owl-demo.md) | Owl demo: start owl-api, tunnel and glasses app; rehearsal checklist for real glasses (JUN-53) |
 | [../infra/README.md](../infra/README.md) | Hosting: what runs where for the demo |
 | [../design/README.md](../design/README.md) | Claude Design workflow and prototypes |
