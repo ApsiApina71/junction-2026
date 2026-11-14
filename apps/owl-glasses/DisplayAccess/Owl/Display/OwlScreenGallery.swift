@@ -22,7 +22,7 @@ enum OwlScreenGallery {
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
     "help-connected", "help-marked", "record", "record-step", "status", "problem-camera", "problem-microphone",
     "problem-offline", "problem-server", "problem-not-allowed", "problem-not-assigned", "problem-video",
-    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
+    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "customer-service", "assist", "assist-heard", "assist-busy", "assist-hint", "assist-unsure", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
   ]
 
   /// The screen for a gallery name, or nil when the name is unknown.
@@ -169,6 +169,21 @@ enum OwlScreenGallery {
       return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: nil, onOK: none)
     case "training-confirmed":
       return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: "Laura", onOK: none)
+    case "customer-service":
+      return OwlScreens.taskList(
+        employee: data.employee, processes: [], onSelect: { _ in }, onRecord: none, onProgress: none, onCustomerService: none)
+    case "assist":
+      return OwlScreens.assist(heard: nil, hint: nil, busy: false, onHint: none, onEnd: none)
+    case "assist-heard":
+      return OwlScreens.assist(heard: data.heard, hint: nil, busy: false, onHint: none, onEnd: none)
+    case "assist-busy":
+      return OwlScreens.assist(heard: data.heard, hint: nil, busy: true, onHint: none, onEnd: none)
+    case "assist-hint":
+      return OwlScreens.assist(heard: data.heard, hint: data.assist, busy: false, onHint: none, onEnd: none)
+    case "assist-unsure":
+      return OwlScreens.assist(
+        heard: nil, hint: OwlAssist(bullets: [data.finnish ? "Ei käsikirjassa, kysy työkaverilta" : "Not in the handbook, ask a colleague"], say: nil, sources: [], unsure: true),
+        busy: false, auto: true, onHint: none, onEnd: none)
     case "goto":
       return OwlScreens.goTo(
         process: process, step: pick, label: data.long ? "Aisle C · Shelf 12 · Bottom row, left end" : "Aisle C · Shelf 12",
@@ -441,6 +456,26 @@ private struct Sample {
     finnish
       ? ["Olet tehnyt 3 tehtävää.", "Korjasit 2 ongelmaa, jotka Owl huomasi.", "Nopeammin kuin ensimmäisellä kerralla."]
       : ["You have finished 3 tasks.", "You fixed 2 problems Owl caught.", "Faster than your first time."]
+  }
+
+  /// JUN-98 demo: Noa at the counter of Café Kide.
+  var heard: String {
+    long
+      ? t("…and I bought these coffee beans yesterday but I haven't opened them, can I still return them, or do I need the receipt?",
+          "…ostin nämä kahvipavut eilen mutta en ole avannut niitä, voinko vielä palauttaa ne, vai tarvitsenko kuitin?")
+      : t("Can I return these coffee beans unopened?", "Voinko palauttaa avaamattomat kahvipavut?")
+  }
+
+  var assist: OwlAssist {
+    let bullets = [
+      t("Unopened coffee beans: returnable within 14 days", "Avaamattomat kahvipavut: palautus 14 päivän sisällä"),
+      t("Receipt needed; refund to the same card", "Kuitti tarvitaan; hyvitys samalle kortille"),
+      t("Opened coffee cannot be returned", "Avattua kahvia ei voi palauttaa"),
+    ]
+    return OwlAssist(
+      bullets: long ? bullets.map { $0 + t(" (ask the shift lead if unsure)", " (kysy vuoroesihenkilöltä)") } : bullets, say: nil,
+      sources: [OwlSource(doc: t("Café Kide: counter handbook", "Café Kide: tiskin käsikirja"), section: t("Returns and refunds", "Palautukset"), quote: nil)],
+      unsure: false)
   }
 
   /// JUN-96 demo: Sami on day 4 of 5, one step short of the target.

@@ -298,5 +298,28 @@ if let confirmed = try? decoder.decode(OwlTraining.self, from: Data(confirmedJSO
   expect((confirmed.remainingDays() ?? 0) > 0, "days left are counted from the end date")
 }
 
+// JUN-98: the conversation keeps only the last 30 seconds, and a new hint is about what was
+// said after the last one.
+var talk = OwlConversation()
+let t0 = Date(timeIntervalSince1970: 1_000_000)
+talk.append("Can I return these coffee beans?", at: t0)
+talk.append("When are you open on Saturday?", at: t0.addingTimeInterval(20))
+expect(talk.recent(now: t0.addingTimeInterval(25)) == "Can I return these coffee beans? When are you open on Saturday?", "both lines inside 30 s")
+expect(talk.recent(now: t0.addingTimeInterval(40)) == "When are you open on Saturday?", "a line older than 30 s is left out")
+expect(
+  talk.recent(now: t0.addingTimeInterval(25), after: t0.addingTimeInterval(10)) == "When are you open on Saturday?",
+  "after a hint, only what was said since")
+expect(
+  talk.recent(now: t0.addingTimeInterval(25), after: t0.addingTimeInterval(22)) == "Can I return these coffee beans? When are you open on Saturday?",
+  "nothing new since the hint: the whole window again")
+talk.partial = "and is there"
+expect(talk.recent(now: t0.addingTimeInterval(25)).hasSuffix("and is there"), "what is being said now is included")
+talk.append(String(repeating: "a", count: 5000), at: t0.addingTimeInterval(26))
+expect(talk.recent(now: t0.addingTimeInterval(26)).count == OwlConversation.maxCharacters, "never more than the server takes")
+expect(OwlConversation.looksLikeQuestion("how much is a latte"), "a question without a question mark")
+expect(OwlConversation.looksLikeQuestion("Onko pullassa gluteenia"), "a Finnish question")
+expect(!OwlConversation.looksLikeQuestion("Thanks, have a nice day."), "not a question")
+expect(OwlConversation().isEmpty, "a new conversation is empty")
+
 print("\(passed) passed, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

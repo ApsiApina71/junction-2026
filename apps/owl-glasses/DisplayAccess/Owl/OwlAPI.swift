@@ -112,6 +112,18 @@ struct OwlAPI: Sendable {
         json: Body(cameraChecks: cameraChecks, recording: recording, location: location)))
   }
 
+  // Customer service mode (JUN-98)
+
+  /// Suggested answers for the last ~30 seconds of the conversation. The transcript is sent
+  /// only here and owl-api does not store it.
+  func assist(employeeID: String, transcript: String, language: String?) async throws -> OwlAssist {
+    struct Body: Encodable { let employeeId: String; let transcript: String; let language: String? }
+    var request = try request("assist", json: Body(employeeId: employeeID, transcript: transcript, language: language))
+    // A hint is useful only within a few seconds.
+    request.timeoutInterval = 8
+    return try await send(request)
+  }
+
   // Location during training (JUN-97)
 
   /// A marker the camera saw: `owl:zone:<zone_id>` or `owl:cp:<process_id>:<step_id>`.

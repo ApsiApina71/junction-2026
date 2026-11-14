@@ -300,6 +300,11 @@ struct OwlTraining: Codable, Equatable, Sendable {
   let suggestion: String?
   let seenAt: String?
   let confirmed: Confirmed?
+  /// The training plan is for a customer service desk: the glasses offer the customer
+  /// service mode while the period is active (JUN-98).
+  var customerService: Bool? = nil
+
+  var offersCustomerService: Bool { customerService == true && active == true }
 
   /// The trainer's result once confirmed, else Owl's suggestion.
   var result: String? { confirmed?.result ?? suggestion }

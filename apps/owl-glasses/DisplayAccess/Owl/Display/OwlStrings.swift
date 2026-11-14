@@ -336,6 +336,40 @@ enum OwlStrings {
     ready ? t("Result: Ready.", "Tulos: Valmis työhön.") : t("Result: More practice.", "Tulos: Lisää harjoitusta.")
   }
   static var ok: String { t("OK", "OK") }
+  // Customer service mode (JUN-98). Owl listens only while the mode is on, and says so.
+  static var customerService: String { t("Customer service", "Asiakaspalvelu") }
+  static var customerServiceStart: String {
+    t(
+      "At the counter, pinch Customer service. Owl listens and suggests answers.",
+      "Nipistä tiskillä Asiakaspalvelu. Owl kuuntelee ja ehdottaa vastauksia.",
+      easy: "At the counter, pinch Customer service.", "Nipistä tiskillä Asiakaspalvelu.")
+  }
+  static var owlListening: String { t("Owl is listening", "Owl kuuntelee") }
+  static var hint: String { t("Hint", "Vihje") }
+  static var end: String { t("End", "Lopeta") }
+  static var assistIdle: String {
+    t("Pinch Hint when you need an answer.", "Nipistä Vihje, kun tarvitset vastauksen.",
+      easy: "Stuck? Pinch Hint.", "Jumissa? Nipistä Vihje.")
+  }
+  static var assistNothingHeard: String {
+    t("Owl has not heard a question yet.", "Owl ei ole vielä kuullut kysymystä.")
+  }
+  static var assistLooking: String { t("Looking in the handbook…", "Etsin käsikirjasta…") }
+  static var assistSuggestion: String { t("Suggestion", "Ehdotus") }
+  static var assistOffered: String { t("Owl offers a hint", "Owl tarjoaa vihjeen") }
+  static var assistCouldNot: String {
+    t("Owl couldn't find a hint now. Ask a colleague.", "Owl ei löytänyt vihjettä nyt. Kysy työkaverilta.")
+  }
+  static var sayAssistOn: String {
+    t("Customer service on. Owl is listening.", "Asiakaspalvelu päällä. Owl kuuntelee.")
+  }
+  static var sayAssistOff: String {
+    t("Owl stopped listening. Nothing was saved.", "Owl lopetti kuuntelun. Mitään ei tallennettu.")
+  }
+  static var assistOnlyInTraining: String {
+    t("Customer service mode is only for your training period.", "Asiakaspalvelutila on vain koulutusjaksoa varten.")
+  }
+
   // Location during training (JUN-97). Shown whenever tracking is on.
   static var locationOn: String { t("Location on", "Sijainti päällä") }
   static func locationIn(_ zone: String) -> String { t("Location on · \(zone)", "Sijainti päällä · \(zone)") }

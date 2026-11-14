@@ -78,7 +78,7 @@ enum OwlScreens {
   static func taskList(
     employee: OwlEmployee?, processes: [OwlProcess], offline: Bool = false,
     onSelect: @escaping @Sendable (String) -> Void, onRecord: @escaping OwlAction, onProgress: OwlAction? = nil,
-    onRetry: OwlAction? = nil
+    onRetry: OwlAction? = nil, onCustomerService: OwlAction? = nil
   ) -> FlexBox {
     let who = [employee?.name, employee?.company].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
     let nothingSaved = offline && processes.isEmpty
@@ -90,7 +90,7 @@ enum OwlScreens {
         if nothingSaved {
           Text(OwlStrings.nothingSaved, style: .body, color: .secondary)
         } else if processes.isEmpty {
-          Text(OwlStrings.noTasks, style: .body, color: .secondary)
+          Text(onCustomerService == nil ? OwlStrings.noTasks : OwlStrings.customerServiceStart, style: .body, color: .secondary)
         } else if offline {
           Text(OwlStrings.savedTasksOnly, style: .meta, color: .secondary)
         }
@@ -115,6 +115,13 @@ enum OwlScreens {
         } else {
           if offline, let onRetry {
             Button(label: OwlStrings.tryAgain, style: .secondary, iconName: .twoArrowsClockwise, onClick: onRetry)
+          }
+          // JUN-98: at a customer service desk the counter is the work, so it leads when
+          // there are no tasks.
+          if let onCustomerService {
+            Button(
+              label: OwlStrings.customerService, style: processes.isEmpty ? .primary : .secondary,
+              iconName: .threeDotSpeechBubble, onClick: onCustomerService)
           }
           if let onProgress {
             Button(label: OwlStrings.myProgress, style: .secondary, iconName: .star, onClick: onProgress)
@@ -455,6 +462,41 @@ enum OwlScreens {
       Button(label: OwlStrings.back, style: .primary, iconName: .arrowLeft, onClick: onBack)
         .actionRole(.primary)
       Button(label: OwlStrings.askAgain, style: .secondary, iconName: .speechBubble, onClick: onAskAgain)
+    }
+  }
+
+  // MARK: - Customer service (JUN-98)
+
+  /// The counter: Owl listens and says so on every screen. With a hint, its bullets and the
+  /// document they come from; otherwise the last words heard. Hint stays the primary button,
+  /// so the next hint is one pinch away.
+  static func assist(
+    heard: String?, hint: OwlAssist?, busy: Bool, auto: Bool = false, onHint: @escaping OwlAction,
+    onEnd: @escaping OwlAction
+  ) -> FlexBox {
+    let title =
+      busy ? OwlStrings.assistLooking
+      : hint == nil ? OwlStrings.customerService : auto ? OwlStrings.assistOffered : OwlStrings.assistSuggestion
+    let mood: OwlMood = busy ? .thinking : hint?.unsure == true ? .unsure : .listening
+    return screen {
+      header(mood, meta: "\(OwlStrings.customerService) · \(OwlStrings.owlListening)", title: title)
+      if let hint, !busy {
+        for bullet in hint.bullets.prefix(3) {
+          Text("• \(bullet)", style: .body)
+        }
+        if let source = hint.sources.first {
+          Text(OwlStrings.source(source.doc + (source.section.map { " · \($0)" } ?? "")), style: .meta, color: .secondary)
+        }
+      } else {
+        if let heard {
+          Text("\u{201C}\(heard)\u{201D}", style: .body, color: .secondary)
+        }
+        Text(OwlStrings.assistIdle, style: .meta, color: .secondary)
+      }
+    } buttons: {
+      Button(label: OwlStrings.hint, style: .primary, iconName: .lightBulb, onClick: onHint)
+        .actionRole(.primary)
+      Button(label: OwlStrings.end, style: .secondary, iconName: .x, onClick: onEnd)
     }
   }
 

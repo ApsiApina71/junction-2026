@@ -89,6 +89,20 @@ final class OwlViewModel {
   @ObservationIgnored private var lockTask: Task<Void, Never>?
   /// The last marker sent, so owl-api hears only changes.
   @ObservationIgnored private var lastMarker: String?
+  /// The worker's training period, read when Owl opens (JUN-96, JUN-98).
+  @ObservationIgnored private var training: OwlTraining?
+  /// Customer service mode (JUN-98). The conversation is only in memory and only while the
+  /// mode is on.
+  @ObservationIgnored private var conversation = OwlConversation()
+  @ObservationIgnored private var assistHint: OwlAssist?
+  @ObservationIgnored private var assistBusy = false
+  @ObservationIgnored private var assistAuto = false
+  @ObservationIgnored private var assistScene: Int?
+  @ObservationIgnored private var autoHintTask: Task<Void, Never>?
+  @ObservationIgnored private var assistDrawnAt = Date.distantPast
+  @ObservationIgnored private var lastHintAt: Date?
+  /// Owl's own spoken words are not the customer's: the mic hears them until about then.
+  @ObservationIgnored private var assistQuietUntil = Date.distantPast
   private var checksAllowed: Bool { consent?.cameraChecks == true && !cameraPaused }
   /// The worker's inclusive profile (JUN-81).
   private var access: OwlAccess { employee?.access ?? OwlAccess() }
@@ -285,13 +299,16 @@ final class OwlViewModel {
     // The end of the training period: the worker sees the result before anything else, and
     // before the trainer sees it in Studio (JUN-96).
     let training = if let employee { try? await api.training(employeeID: employee.id) } else { nil as OwlTraining? }
+    self.training = training
     guard isCurrent(number) else { return displayViewModel.isConnected }
     if let employee, let training, training.result != nil, !trainingResultSeen(employee.id, training) {
       await showTrainingResult(training, then: { await $0.open() })
       return displayViewModel.isConnected
     }
-    // During training, location is asked once, on its own screen (JUN-97).
-    if let employee, training?.active == true, !locationAsked(employee.id) {
+    // During training, location is asked once, on its own screen (JUN-97), and only when one
+    // of the worker's tasks has a place to go to.
+    let hasCheckpoints = myProcesses.contains { $0.steps.contains { $0.checkpoint != nil } }
+    if let employee, training?.active == true, hasCheckpoints, !locationAsked(employee.id) {
       await askLocationConsent(then: { await $0.open() })
       return displayViewModel.isConnected
     }
@@ -359,6 +376,7 @@ final class OwlViewModel {
 
   private func drawTasks(readAloud: Bool) async {
     let tasks = myProcesses
+    let offersCustomerService = training?.offersCustomerService == true
     let employee = employee
     let offline = isOffline
     statusText = offline ? "Offline: \(tasks.count) saved tasks" : "\(tasks.count) tasks"
@@ -374,7 +392,8 @@ final class OwlViewModel {
         employee: employee, processes: tasks, offline: offline, onSelect: select,
         onRecord: self.action { await $0.startRecording() },
         onProgress: employee == nil ? nil : self.action { await $0.showProgress() },
-        onRetry: self.action { await $0.showTasks() })
+        onRetry: self.action { await $0.showTasks() },
+        onCustomerService: offersCustomerService ? self.action { await $0.startCustomerService() } : nil)
     }
   }
 
@@ -1573,6 +1592,151 @@ final class OwlViewModel {
     var finished = false
   }
 
+  // MARK: - Customer service (JUN-98)
+
+  /// Turns the mode on: the glasses listen until the worker pinches End. Owl says it is on,
+  /// and every screen of the mode shows "Owl is listening".
+  func startCustomerService() async {
+    guard let session = displayViewModel.currentDeviceSession(), employee != nil else { return }
+    stopEverything()
+    let number = newScene()
+    assistScene = number
+    statusText = "Customer service: listening"
+    listener.onPartial = { [weak self] text in
+      guard let self, self.assistScene == number, Date() > self.assistQuietUntil else { return }
+      self.conversation.partial = text
+      // Someone is talking: the question is being answered, no hint needed.
+      self.autoHintTask?.cancel()
+      Task { await self.drawAssist(number, throttle: true) }
+    }
+    listener.onFinal = { [weak self] text in
+      guard let self, self.assistScene == number, Date() > self.assistQuietUntil else { return }
+      self.conversation.append(text)
+      self.autoHintTask?.cancel()
+      if OwlConversation.looksLikeQuestion(text) { self.offerHintLater(number) }
+      Task { await self.drawAssist(number, throttle: true) }
+    }
+    listener.onError = { [weak self] _, message in
+      Task {
+        guard let self, self.assistScene == number else { return }
+        self.endConversation()
+        await self.showProblem(.microphoneNeeded, detail: message)
+      }
+    }
+    do {
+      try await listener.start(on: session, mode: .continuous)
+      guard isCurrent(number) else { return }
+      assistQuietUntil = Date().addingTimeInterval(3)
+      speaker.say(OwlStrings.sayAssistOn)
+      await drawAssist(number)
+    } catch {
+      endConversation()
+      guard isCurrent(number) else { return }
+      await showProblem(kind(of: error), detail: (error as? LocalizedError)?.errorDescription)
+    }
+  }
+
+  /// The stretch goal: a customer's question that nobody answers for about 5 seconds gets a
+  /// hint by itself. Any new words cancel it.
+  private func offerHintLater(_ number: Int) {
+    autoHintTask = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(5))
+      guard let self, !Task.isCancelled, self.assistScene == number, !self.assistBusy else { return }
+      // From here the hint is on its way: new words must not cancel its request.
+      self.autoHintTask = nil
+      await self.hint(auto: true)
+    }
+  }
+
+  /// Hint: suggested answers for the last ~30 seconds, on the display only.
+  func hint(auto: Bool = false) async {
+    guard let employee, let number = assistScene, isCurrent(number), !assistBusy else { return }
+    autoHintTask?.cancel()
+    let transcript = conversation.recent(after: lastHintAt)
+    guard !transcript.isEmpty else {
+      assistHint = nil
+      statusText = OwlStrings.assistNothingHeard
+      await drawAssist(number)
+      return
+    }
+    assistBusy = true
+    assistAuto = auto
+    await drawAssist(number)
+    let started = ContinuousClock.now
+    do {
+      let hint = try await api.assist(employeeID: employee.id, transcript: transcript, language: language)
+      // How fast a hint is (goal: under 3 s). The words themselves are never logged.
+      NSLog("[Owl] perf: hint in \(Int((ContinuousClock.now - started) / .milliseconds(1))) ms, \(hint.bullets.count) bullets\(auto ? ", offered" : "")")
+      assistHint = hint
+      lastHintAt = Date()
+    } catch OwlError.server(let status, _) where status == 409 || status == 403 {
+      // The training period ended, or this is not a customer service role.
+      assistBusy = false
+      endConversation()
+      speaker.say(OwlStrings.assistOnlyInTraining)
+      await showTasks()
+      return
+    } catch {
+      NSLog("[Owl] hint failed: \(error)")
+      assistHint = OwlAssist(bullets: [OwlStrings.assistCouldNot], say: nil, sources: [], unsure: true)
+    }
+    assistBusy = false
+    guard assistScene == number else { return }
+    await drawAssist(number)
+  }
+
+  private func drawAssist(_ number: Int, throttle: Bool = false) async {
+    guard assistScene == number, isCurrent(number) else { return }
+    // Words arrive many times a second; the display is redrawn at most once a second, and
+    // never over a hint or a hint on its way.
+    if throttle {
+      guard !assistBusy, assistHint == nil, Date().timeIntervalSince(assistDrawnAt) > 1 else { return }
+    }
+    assistDrawnAt = Date()
+    let heard = conversation.lastWords()
+    let hint = assistHint
+    let busy = assistBusy
+    let auto = assistAuto
+    // The stage page sees the bullets, never the conversation.
+    let stage = OwlStageScreen(
+      kind: "assist", title: OwlStrings.customerService, text: hint?.bullets.joined(separator: " · "))
+    await showScreen(stage: stage) {
+      OwlScreens.assist(
+        heard: heard, hint: hint, busy: busy, auto: auto,
+        onHint: self.action { await $0.hintAgain() },
+        onEnd: self.action { await $0.endCustomerService() })
+    }
+  }
+
+  /// A new Hint pinch: the last hint is cleared and a new one asked for what was said since.
+  private func hintAgain() async {
+    assistHint = nil
+    await hint()
+  }
+
+  func endCustomerService() async {
+    guard assistScene != nil else { return await showTasks() }
+    endConversation()
+    speaker.say(OwlStrings.sayAssistOff)
+    await showTasks()
+  }
+
+  /// Stops listening and forgets the conversation.
+  private func endConversation() {
+    guard assistScene != nil else { return }
+    assistScene = nil
+    autoHintTask?.cancel()
+    autoHintTask = nil
+    listener.stop()
+    listener.onPartial = nil
+    listener.onFinal = nil
+    conversation = OwlConversation()
+    assistHint = nil
+    assistBusy = false
+    assistAuto = false
+    lastHintAt = nil
+  }
+
   // MARK: - Ask (JUN-31)
 
   func ask() async {
@@ -2126,6 +2290,7 @@ final class OwlViewModel {
   // MARK: - Helpers
 
   private func stopEverything() {
+    endConversation()
     stopCheckLoop()
     stopRecognition()
     helpTask?.cancel()
@@ -2349,6 +2514,9 @@ extension OwlViewModel {
     case "mock": mockCheck = argument.isEmpty ? nil : argument
     // `marker:owl:cp:proc-pick-pack:step-2`: as if the camera saw that marker (JUN-97).
     case "marker": await markerSeen(argument)
+    case "customerservice": await startCustomerService()
+    case "hint": await hintAgain()
+    case "endcustomerservice": await endCustomerService()
     case "allowlocation", "declinelocation":
       if let id = employee?.id { UserDefaults.standard.set(true, forKey: Self.locationAskedKey(id)) }
       await saveConsent(
