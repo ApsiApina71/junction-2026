@@ -433,14 +433,40 @@ body {
   border-radius: var(--uit-corner-radius-xsmall);
 }
 
+/* When the console wraps, each part is as tall as its content and the console scrolls as a whole. */
 @media (max-width: 1400px) {
   .console {
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
     overflow: auto;
+  }
+
+  .console-view,
+  .console-talk,
+  .console-context {
+    min-block-size: auto;
+    overflow: visible;
   }
 
   .console-context {
     grid-column: 1 / -1;
+  }
+
+  .talk-scroll,
+  .context-scroll {
+    flex: none;
+  }
+
+  /* The conversation keeps room for a few messages. */
+  .talk-scroll {
+    block-size: 420px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .console {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1305,19 +1331,16 @@ body {
   opacity: 0.5;
 }
 
-@media (max-width: 900px) {
+/* On a phone the sidebar goes on top; its list of sections scrolls sideways under the owl. */
+@media (max-width: 700px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
 
   .sidebar {
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto minmax(0, 360px) auto;
     border-inline-end: 0;
     border-block-end: 1px solid var(--uit-color-border-primary);
-  }
-
-  .sidebar-foot {
-    display: none;
   }
 }
