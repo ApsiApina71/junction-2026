@@ -41,6 +41,14 @@ Plug and play for a non-technical company:
 
 Plus a personal welcome for each new employee, in their own language.
 
+## The phone stays in the pocket
+
+The new worker never takes out the phone or opens the Meta AI app.
+
+- **Once, by the employer:** pair the glasses, register Owl in Meta AI, grant permissions, install Owl and assign the worker.
+- **At work:** "Hey Meta, start Owl" (DAT voice invocations) opens Owl. Steps and videos on the display, choices with the Neural Band, questions spoken into the glasses (DAT speech on the glasses mic), answers on the display and in the glasses speakers. The phone in the pocket only does the computing.
+- **Platform notes (Meta known issues):** use camera stream frames for checks, not photo capture, together with the display; restart glasses speech recognition after about a minute; test that Owl keeps working with the phone locked.
+
 ## AI engine
 
 - **Vision LLM (Claude):** describes what the camera sees as structured data: products, quantities, whether a step matches its reference.
