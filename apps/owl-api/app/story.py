@@ -42,7 +42,17 @@ def apply(store: Store, name: str = "junction", today: date | None = None) -> No
             store.processes.setdefault(process.id, process)
         seeded = story["employees"][0]["id"]  # the volunteer in training: the story's first person
         if seeded in store.employees and store.employees[seeded].company == company:
-            return  # seeded on an earlier start; keep what Studio changed since
+            # Seeded on an earlier start: keep what Studio changed since, but the other demo companies, which the
+            # fixtures bring back on every start, go again, so Studio shows only Junction.
+            for employee_id in [k for k, e in store.employees.items() if e.company != company]:
+                del store.employees[employee_id]
+                store.consents.pop(employee_id, None)
+            for process_id in [k for k, p in store.processes.items() if p.company != company]:
+                del store.processes[process_id]
+                store.drop_translations(process_id)
+            for doc_id in [k for k, (doc, _) in store.docs.items() if doc.title.split(":")[0].strip() != company]:
+                del store.docs[doc_id]
+            return
 
         # Only the story's people, and only Junction's tasks, plans and documents. A cast from an older version of
         # the story (Laura and Sami as the volunteer, before JUN-102 changed it) goes too.

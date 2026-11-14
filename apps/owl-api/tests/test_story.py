@@ -162,3 +162,16 @@ def test_a_wrong_or_unclear_look_does_not_mark_it_done(store):
     assert look(["no", "no", "yes"]).status in ("checking", "warning")  # over the PLASTIC opening: never done
     assert look(["yes", "yes", "yes"]).step_done is False  # the streak started again
     assert look(["yes", "yes", "yes"], visibility="partial").step_done is False
+
+
+def test_other_companies_stay_out_after_a_restart(tmp_path):
+    """The fixtures bring the other demo companies back on every start; the story removes them again."""
+    s = Store(data_dir=tmp_path)
+    story.apply(s, "junction", today=DAY)
+    persist.save(s, Progress())
+    again = Store(data_dir=tmp_path)
+    persist.load(again, Progress())
+    story.apply(again, "junction", today=DAY)
+    assert {e.company for e in again.employees.values()} == {"Junction 2026"}
+    assert {p.company for p in again.processes.values()} == {"Junction 2026"}
+    assert all(doc.title.startswith("Junction 2026") for doc, _ in again.docs.values())
