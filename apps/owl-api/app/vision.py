@@ -158,7 +158,9 @@ def observe_nemotron(content: list[dict]) -> Observation:
     except (httpx.HTTPError, KeyError, IndexError, ValueError, ValidationError) as e:
         log.warning("Nemotron failed after %.1f s: %s", time.monotonic() - start, type(e).__name__)
         raise VisionError(f"Nemotron gave no usable observation ({type(e).__name__})") from e
-    log.info("Nemotron %.1f s: %s; %s", time.monotonic() - start, obs.visibility, obs.summary)
+    # What the camera saw stays out of the log (no record of a worker's view), unless OWL_DEBUG_LOG=1 for a rehearsal.
+    seen = f"; {obs.summary}" if os.getenv("OWL_DEBUG_LOG") == "1" else ""
+    log.info("Nemotron %.1f s: %s%s", time.monotonic() - start, obs.visibility, seen)
     return obs
 
 

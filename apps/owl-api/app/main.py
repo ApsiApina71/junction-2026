@@ -486,16 +486,9 @@ async def recognize_step(
         result = await run_in_threadpool(lambda: recognizer.recognize(process, clips, data, run_id=run_id or None))
     except jepa.ClipError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    log.info(
-        "recognize %s run %s: %s %s, margin %.3f (%s) %s",
-        process_id,
-        run_id or "-",
-        result.status,
-        result.step_id or "-",
-        result.margin,
-        result.backend,
-        result.action or "",
-    )
+    # Which step and how sure, not what the camera saw: V-JEPA's action words only with OWL_DEBUG_LOG=1 (a rehearsal).
+    seen = f" {result.action}" if os.getenv("OWL_DEBUG_LOG") == "1" and result.action else ""
+    log.info("recognize %s: %s %s, margin %.3f (%s)%s", process_id, result.status, result.step_id or "-", result.margin, result.backend, seen)
     return result.to_dict()
 
 
