@@ -54,6 +54,10 @@ class DisplayViewModel {
   @ObservationIgnored private var displayStateContinuation: AsyncStream<DisplayState>.Continuation?
   @ObservationIgnored private var pendingAction: (() async -> Void)?
   @ObservationIgnored private var activeDeviceIdentifier: DeviceIdentifier?
+  /// The newest view asked for while another was sending; sent next, older ones are dropped.
+  @ObservationIgnored private var queuedSend: (() async -> Void)?
+  /// Owl follows the session (paused by the system, stopped) through this.
+  @ObservationIgnored var onSessionStateChange: ((DeviceSessionState) -> Void)?
 
   init(
     wearables: WearablesInterface,
@@ -111,7 +115,12 @@ class DisplayViewModel {
 
   // MARK: - Public API
 
-  /// The live device session, so Bite can add the camera next to the display.
+  /// The glasses the display session runs on.
+  var activeDevice: DeviceIdentifier? {
+    activeDeviceIdentifier ?? defaultDeviceSelector.activeDevice
+  }
+
+  /// The live device session, so Owl can add the camera and speech next to the display.
   func currentDeviceSession() -> DeviceSession? {
     deviceSession as? DeviceSession
   }
@@ -122,7 +131,10 @@ class DisplayViewModel {
     _ view: some DisplayableView,
     deviceIdentifier: DeviceIdentifier? = nil
   ) async {
-    guard !isSending else { return }
+    guard !isSending else {
+      queuedSend = { [weak self] in await self?.send(view, deviceIdentifier: deviceIdentifier) }
+      return
+    }
     isSending = true
     errorMessage = nil
 
@@ -168,7 +180,13 @@ class DisplayViewModel {
     on capability: Display,
     targetDeviceIdentifier: DeviceIdentifier?
   ) async {
-    defer { isSending = false }
+    defer {
+      isSending = false
+      if let next = queuedSend {
+        queuedSend = nil
+        Task { await next() }
+      }
+    }
 
     do {
       try await capability.send(view)
@@ -205,6 +223,7 @@ class DisplayViewModel {
       coreStateTask = Task { [weak self] in
         for await sessionState in stateStream {
           guard let self, !Task.isCancelled else { return }
+          self.onSessionStateChange?(sessionState)
           switch sessionState {
           case .started:
             self.requiresDATAppUpdate = false
@@ -312,6 +331,32 @@ class DisplayViewModel {
   private func finishDisplayReadinessWait() {
     displayReadinessTimeoutTask?.cancel()
     displayReadinessTimeoutTask = nil
+  }
+
+  // MARK: - Video
+
+  /// Plays an MP4 (https only, one at a time) and calls `onFinish` when it ends, stops or
+  /// fails, so the caller can go back to its screen.
+  func playVideo(url: String, onFinish: @escaping @MainActor (Bool) -> Void) async {
+    display?.onPlaybackEvent = { [weak self] event in
+      guard event.type == .ended || event.type == .stopped || event.type == .error else { return }
+      Task { @MainActor [weak self] in
+        self?.display?.onPlaybackEvent = nil
+        onFinish(event.type != .error)
+      }
+    }
+    await send(
+      VideoPlayer(
+        provider: .uri(url), codec: .mp4,
+        onError: { error in
+          NSLog("[Owl] video error: \(error)")
+          Task { @MainActor in onFinish(false) }
+        }))
+  }
+
+  func stopVideo() async {
+    display?.onPlaybackEvent = nil
+    await display?.sendVideoStop()
   }
 
   // MARK: - Car Maintenance
@@ -439,6 +484,7 @@ class DisplayViewModel {
     lastSentPreviewDeviceIdentifier = nil
     activeDeviceIdentifier = nil
     pendingAction = nil
+    queuedSend = nil
     finishDisplayReadinessWait()
     displayStateTask?.cancel()
     displayStateTask = nil

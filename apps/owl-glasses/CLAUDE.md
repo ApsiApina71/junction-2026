@@ -18,7 +18,17 @@ xcrun simctl install "iPhone 17" /tmp/owl-dd/Build/Products/Debug-iphonesimulato
 SIMCTL_CHILD_OWL_AUTO_PREVIEW=inApp xcrun simctl launch "iPhone 17" fi.junction2026.bossit.owl
 ```
 
-`OWL_AUTO_PREVIEW=inApp|chrome` starts mock Display glasses; `chrome` serves the display at `http://127.0.0.1:9000` for the Chrome "Meta Ray-Ban Display Simulator" extension.
+`OWL_AUTO_PREVIEW=inApp|chrome` starts mock Display glasses; `chrome` serves the display at `http://127.0.0.1:9000` for the Chrome "Meta Ray-Ban Display Simulator" extension. More hooks (prefix each with `SIMCTL_CHILD_`, export values with spaces):
+
+| Variable | Does |
+|---|---|
+| `OWL_AUTO_VOICE=1` | Says "Hey Meta, start Owl" on the mock glasses instead of opening Owl directly |
+| `OWL_AUTO_RUN=1` | Starts the first published task |
+| `OWL_AUTO_ASK=<question>` | Opens Ask and speaks the question into the mock glasses |
+| `OWL_AUTO_RECORD=1` | Records one narrated 4 s step and finishes the recording |
+| `OWL_MOCK_CHECK=ok\|warning\|unsure\|checking` | Sends `mock=` with every `/check` so the mock owl-api returns that answer |
+
+With the preview on, the phone screen also has buttons for "Hey Meta", taking the glasses off, a spoken question and the mock Check answer. Logs: `xcrun simctl spawn "iPhone 17" log stream --predicate 'eventMessage CONTAINS "[Owl]"'`. The mock camera streams `Assets.xcassets/owlDemoFeed` (falls back to `demoMeal`) as a generated HEVC clip, because MockDeviceKit streams video files only.
 
 Unsigned simulator builds (`CODE_SIGNING_ALLOWED=NO`) crash in `Wearables.configure()`; always ad-hoc sign as above.
 

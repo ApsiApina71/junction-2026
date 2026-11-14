@@ -6,27 +6,28 @@ last-updated: 2026-11-14
 
 # owl-glasses
 
-The **Onboarding Owl** iPhone app for **Meta Ray-Ban Display** glasses ([JUN-29](https://linear.app/junction-2026-bossit/issue/JUN-29), spec [docs/specs/onboarding-owl.md](../../docs/specs/onboarding-owl.md)). Built on Meta's open-source DAT `DisplayAccess` sample (see `LICENSE-meta-sample`); it started as `bite-ios` ("Bite with Bo the bear", food tracking on `apps/glasses-api`), whose code is still in `DisplayAccess/Bite/` until the Owl flow replaces it.
+The **Onboarding Owl** iPhone app for **Meta Ray-Ban Display** glasses ([JUN-29](https://linear.app/junction-2026-bossit/issue/JUN-29), spec [docs/specs/onboarding-owl.md](../../docs/specs/onboarding-owl.md)). Built on Meta's open-source DAT `DisplayAccess` sample (see `LICENSE-meta-sample`); it started as `bite-ios` ("Bite with Bo the bear", food tracking on `apps/glasses-api`; that code is in git history before the Owl flow replaced it).
 
-What already works, in the simulator chain (iOS Simulator + MockDeviceKit + Chrome "Meta Ray-Ban Display Simulator"):
+What works in the simulator chain (iOS Simulator + MockDeviceKit + mock owl-api), not yet on real Display glasses:
 
-- A DAT display session with screens built from the Display DSL, buttons selectable with the Neural Band.
-- `GlassesCamera`: a camera stream on the same session, the latest video frame, and `capturePhoto()`.
-- Rich visuals drawn as images (`Bite/BearArt.swift`), since the display only has heading/body/meta text styles.
-- Speech through the glasses (`AVSpeechSynthesizer`).
-- An HTTP client for a local API, with the server address editable in the app.
-
-Not yet tested on real Display glasses.
+- **Phone stays in the pocket:** "Hey Meta, start Owl" (DAT voice invocations) opens Owl on the display; every invocation is answered once.
+- **Learn & Check:** task list → step cards with the expert's reference image; Owl Check sends camera **stream frames** (never photo capture) to `POST /check` every 1.5 s and on the Done pinch, shows ✓/✗ per order line and speaks the server's `say` through the glasses speakers.
+- **Ask:** glasses speech recognition (DAT Speech, restarted after its ~1 min stop) → `POST /ask` → answer and source on the display, spoken.
+- **Help:** stream frames to `POST /help/frames` every 2 s, expert messages spoken once.
+- **Record:** pinch per step → H.264 clip of the stream, one reference frame and the narration → `POST /record/{id}/steps` → finish.
+- **Problems handled:** camera or microphone not allowed (Owl never asks on the worker's glasses; the employer grants once with the phone's Permissions button), glasses taken off (pauses, comes back when put on), no network (cached tasks, steps work without the check), server errors (keeps going without the check).
+- DAT analytics and crash reporting opted out in `Info.plist`.
 
 ## Where things are
 
 | Path | What |
 |---|---|
-| `DisplayAccess/Owl/` | Owl flow, voice, camera and owl-api client (folder-synced group) |
+| `DisplayAccess/Owl/OwlViewModel.swift` | The Owl flow on the glasses |
+| `DisplayAccess/Owl/OwlVoice.swift` | Voice invocations and glasses speech |
+| `DisplayAccess/Owl/OwlCamera.swift` | Stream frames and clip recording |
+| `DisplayAccess/Owl/OwlAPI.swift`, `OwlModels.swift` | owl-api client and contract shapes |
+| `DisplayAccess/Owl/OwlBasicScreens.swift` | Plain screens until JUN-36 lands |
 | `DisplayAccess/Owl/Display/` | Owl glasses screens and art (JUN-36) |
-| `DisplayAccess/Bite/BiteDisplay.swift` | Glasses screens (Display DSL, no SwiftUI) |
-| `DisplayAccess/Bite/BearArt.swift` | Mascot and cards drawn as images |
-| `DisplayAccess/Bite/BiteViewModel.swift` | Flow, `GlassesCamera`, API client |
 | `DisplayAccess/Views/SampleAppsView.swift` | Phone UI and simulator test hooks |
 | `DisplayAccess/ViewModels/` | Meta's session, registration and mock-device code |
 

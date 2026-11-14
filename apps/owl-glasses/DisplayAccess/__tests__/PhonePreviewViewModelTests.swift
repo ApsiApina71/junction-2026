@@ -66,7 +66,10 @@ private final class StubPhonePreviewManager: PhonePreviewManaging {
       display: StubDisplayKit(),
       powerOn: { [weak self] in self?.events.append(.powerOn) },
       don: { [weak self] in self?.events.append(.don) },
-      unpair: { [weak self] in self?.events.append(.unpair) }
+      doff: {},
+      unpair: { [weak self] in self?.events.append(.unpair) },
+      sendLaunchApp: { nil },
+      simulateSpeech: { _ in }
     )
   }
 

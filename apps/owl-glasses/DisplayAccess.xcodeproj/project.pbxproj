@@ -13,9 +13,6 @@
 		DB01000000000004 /* WearablesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02000000000005 /* WearablesViewModel.swift */; };
 		DB01000000000005 /* RegistrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02000000000006 /* RegistrationView.swift */; };
 		DB01000000000006 /* SampleAppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02000000000007 /* SampleAppsView.swift */; };
-		DB0100000000B001 /* BearArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0200000000B001 /* BearArt.swift */; };
-		DB0100000000B002 /* BiteDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0200000000B002 /* BiteDisplay.swift */; };
-		DB0100000000B003 /* BiteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0200000000B003 /* BiteViewModel.swift */; };
 		DB0100000000B004 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = DB0A000000000004 /* MWDATCamera */; };
 		DB01000000000007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02000000000008 /* SettingsView.swift */; };
 		DB01000000000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DB02000000000009 /* Assets.xcassets */; };
@@ -46,9 +43,6 @@
 		DB02000000000005 /* WearablesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WearablesViewModel.swift; sourceTree = "<group>"; };
 		DB02000000000006 /* RegistrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationView.swift; sourceTree = "<group>"; };
 		DB02000000000007 /* SampleAppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleAppsView.swift; sourceTree = "<group>"; };
-		DB0200000000B001 /* BearArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BearArt.swift; sourceTree = "<group>"; };
-		DB0200000000B002 /* BiteDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiteDisplay.swift; sourceTree = "<group>"; };
-		DB0200000000B003 /* BiteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiteViewModel.swift; sourceTree = "<group>"; };
 		DB02000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		DB02000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DB0200000000000A /* DisplayAccess.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DisplayAccess.entitlements; sourceTree = "<group>"; };
@@ -102,23 +96,12 @@
 				DB03000000000005 /* ViewModels */,
 				DB03000000000006 /* Views */,
 				DB0B000000000001 /* Owl */,
-				DB0300000000B000 /* Bite */,
 				DB02000000000009 /* Assets.xcassets */,
 				DB0200000000000A /* DisplayAccess.entitlements */,
 				DB02000000000002 /* DisplayAccessApp.swift */,
 				DB0200000000000B /* Info.plist */,
 			);
 			path = DisplayAccess;
-			sourceTree = "<group>";
-		};
-		DB0300000000B000 /* Bite */ = {
-			isa = PBXGroup;
-			children = (
-				DB0200000000B001 /* BearArt.swift */,
-				DB0200000000B002 /* BiteDisplay.swift */,
-				DB0200000000B003 /* BiteViewModel.swift */,
-			);
-			path = Bite;
 			sourceTree = "<group>";
 		};
 		DB03000000000004 /* Samples */ = {
@@ -236,9 +219,6 @@
 				DB01000000000004 /* WearablesViewModel.swift in Sources */,
 				DB01000000000005 /* RegistrationView.swift in Sources */,
 				DB01000000000006 /* SampleAppsView.swift in Sources */,
-				DB0100000000B001 /* BearArt.swift in Sources */,
-				DB0100000000B002 /* BiteDisplay.swift in Sources */,
-				DB0100000000B003 /* BiteViewModel.swift in Sources */,
 				DB01000000000007 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

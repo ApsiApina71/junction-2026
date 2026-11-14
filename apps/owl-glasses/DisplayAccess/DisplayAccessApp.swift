@@ -25,7 +25,7 @@ private enum AppTab: Hashable {
 struct DisplayAccessApp: App {
   @State private var wearablesViewModel: WearablesViewModel
   @State private var displayViewModel: DisplayViewModel
-  @State private var biteViewModel: BiteViewModel
+  @State private var owlViewModel: OwlViewModel
   @State private var selectedTab: AppTab = .samples
 
   init() {
@@ -41,8 +41,8 @@ struct DisplayAccessApp: App {
     self._wearablesViewModel = State(wrappedValue: WearablesViewModel(wearables: wearables))
     let displayViewModel = DisplayViewModel(wearables: wearables)
     self._displayViewModel = State(wrappedValue: displayViewModel)
-    self._biteViewModel = State(
-      wrappedValue: BiteViewModel(displayViewModel: displayViewModel, wearables: wearables))
+    self._owlViewModel = State(
+      wrappedValue: OwlViewModel(displayViewModel: displayViewModel, wearables: wearables))
   }
 
   var body: some Scene {
@@ -51,7 +51,8 @@ struct DisplayAccessApp: App {
         NavigationStack {
           SampleAppsView(
             displayViewModel: displayViewModel,
-            biteViewModel: biteViewModel,
+            owlViewModel: owlViewModel,
+            phonePreview: wearablesViewModel.phonePreview,
             developerPreviewMode: wearablesViewModel.developerPreviewMode,
             isDeveloperPreviewChanging: wearablesViewModel.isDeveloperPreviewChanging,
             phonePreviewDisplay: wearablesViewModel.phonePreviewDisplay,
@@ -62,7 +63,7 @@ struct DisplayAccessApp: App {
           )
         }
         .tabItem {
-          Label("Bite", systemImage: "fork.knife")
+          Label("Owl", systemImage: "graduationcap")
         }
         .tag(AppTab.samples)
 

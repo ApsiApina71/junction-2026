@@ -18,33 +18,34 @@ enum SampleAppItem: String, CaseIterable, Identifiable {
 
   var title: String {
     switch self {
-    case .carMaintenance: "Bite with Bo"
+    case .carMaintenance: "Onboarding Owl"
     }
   }
 
   var description: String {
     switch self {
     case .carMaintenance:
-      "Bo the bear tracks what you eat. Look at your food and pinch Log meal on your glasses."
+      "Say \u{201C}Hey Meta, start Owl\u{201D}. The worker learns each task on the glasses; the phone stays in the pocket."
     }
   }
 
   var iconName: String {
     switch self {
-    case .carMaintenance: "fork.knife"
+    case .carMaintenance: "graduationcap.fill"
     }
   }
 
   var iconBackground: Color {
     switch self {
-    case .carMaintenance: Color(red: 0.62, green: 0.38, blue: 0.16)
+    case .carMaintenance: Color(red: 0.35, green: 0.27, blue: 0.62)
     }
   }
 }
 
 struct SampleAppsView: View {
   var displayViewModel: DisplayViewModel
-  var biteViewModel: BiteViewModel
+  var owlViewModel: OwlViewModel
+  var phonePreview: PhonePreviewViewModel
   var developerPreviewMode: DeveloperPreviewMode?
   var isDeveloperPreviewChanging: Bool
   var phonePreviewDisplay: (any MockDisplayKit)?
@@ -60,6 +61,9 @@ struct SampleAppsView: View {
   @State private var copiedChromePreviewURL: URL?
   @State private var showServerSettings = false
   @State private var serverURLDraft = ""
+  @State private var employeeIDDraft = ""
+  @State private var testQuestion = "What if an item is out of stock?"
+  @State private var testNote: String?
 
   var body: some View {
     VStack(spacing: 16) {
@@ -80,7 +84,7 @@ struct SampleAppsView: View {
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
 
-      biteTodaySummary
+      owlPanel
 
       Spacer()
 
@@ -342,7 +346,7 @@ struct SampleAppsView: View {
     SwiftUI.Button {
       Task { await sendSample(item, deviceIdentifier: nil) }
     } label: {
-      Text(biteViewModel.isBusy ? biteViewModel.statusText : "Open Bite on glasses")
+      Text("Open Owl on glasses")
         .font(.body.weight(.semibold))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity)
@@ -528,84 +532,134 @@ struct SampleAppsView: View {
   ) async {
     switch item {
     case .carMaintenance:
-      await biteViewModel.showHome(deviceIdentifier: deviceIdentifier)
+      await owlViewModel.open(deviceIdentifier: deviceIdentifier)
     }
   }
 
-  // MARK: - Bite (Junction 2026)
+  // MARK: - Owl (Junction 2026)
 
-  private var biteTodaySummary: some View {
+  /// Phone side, for the employer's one-time setup and for testing. The worker never uses it.
+  private var owlPanel: some View {
     VStack(spacing: 10) {
-      Text("Today: \(biteViewModel.today.kcal) / \(biteViewModel.goalKcal) kcal")
+      Text(owlViewModel.statusText)
         .font(.headline)
-      ForEach(biteViewModel.today.entries.prefix(4)) { entry in
-        HStack {
-          Text(entry.time).foregroundStyle(.secondary)
-          Text(entry.title)
-          if entry.open {
-            Text("eating").font(.caption).foregroundStyle(.orange)
-          }
-          Spacer()
-          Text("\(entry.kcal) kcal").foregroundStyle(.secondary)
-        }
-        .font(.subheadline)
+        .multilineTextAlignment(.center)
+      if let employee = owlViewModel.employee {
+        Text("\(employee.name) · \(employee.company ?? "") · \(owlViewModel.processes.count) tasks")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
       HStack(spacing: 16) {
-        SwiftUI.Button("Log meal") {
-          Task { await biteViewModel.logMeal() }
-        }
-        .disabled(biteViewModel.isBusy)
-        SwiftUI.Button(biteViewModel.isWatching ? "Stop" : "Watch") {
-          Task { await biteViewModel.toggleWatching() }
+        SwiftUI.Button("Permissions") {
+          Task { testNote = await owlViewModel.setUpPermissions() }
         }
         SwiftUI.Button("Server") {
-          serverURLDraft = BiteViewModel.serverURL
+          serverURLDraft = OwlAPI.serverURL
+          employeeIDDraft = OwlViewModel.employeeID
           showServerSettings = true
         }
-        SwiftUI.Button("Reset day", role: .destructive) {
-          Task { await biteViewModel.clearToday() }
+        SwiftUI.Button("Record") {
+          Task { await owlViewModel.startRecording() }
         }
       }
       .font(.subheadline)
-      Text(biteViewModel.statusText)
-        .font(.caption)
-        .foregroundStyle(.secondary)
+      if phonePreview.isEnabled {
+        simulatorControls
+      }
+      if let testNote {
+        Text(testNote)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
     .padding(16)
     .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-    .alert("Bite server", isPresented: $showServerSettings) {
-      TextField("http://172.20.10.x:8000", text: $serverURLDraft)
+    .alert("Owl server", isPresented: $showServerSettings) {
+      TextField("http://10.0.x.x:8000", text: $serverURLDraft)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .keyboardType(.URL)
-      SwiftUI.Button("Save") { BiteViewModel.serverURL = serverURLDraft }
+      TextField("Employee id", text: $employeeIDDraft)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      SwiftUI.Button("Save") {
+        OwlAPI.serverURL = serverURLDraft
+        OwlViewModel.employeeID = employeeIDDraft
+      }
       SwiftUI.Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Address of glasses-api on your Mac.")
+      Text("Address of owl-api on your Mac, and the worker's employee id.")
     }
     .task {
-      await biteViewModel.refreshToday()
-    }
-    .task {
-      // Simulator test hooks: OWL_AUTO_PREVIEW=inApp|chrome starts a mock display, and
-      // OWL_AUTO_LOG=1 logs a meal from the mock camera once the display is up.
+      // Simulator test hooks (see CLAUDE.md): OWL_AUTO_PREVIEW=inApp|chrome starts mock
+      // glasses, OWL_AUTO_VOICE=1 says "Hey Meta, start Owl", OWL_AUTO_RUN=1 starts the
+      // first task, OWL_AUTO_ASK=<question> asks it by voice, OWL_AUTO_RECORD=1 records.
       let env = ProcessInfo.processInfo.environment
       guard developerPreviewMode == nil, let mode = env["OWL_AUTO_PREVIEW"] else { return }
       selectedDeveloperPreviewMode = mode == "chrome" ? .chrome : .inApp
       isDeveloperPreviewPresented = true
-      await startSelectedDeveloperPreview()
-      try? await Task.sleep(for: .seconds(3))
-      if env["OWL_AUTO_LOG"] == "1" {
-        await biteViewModel.logMeal()
+      isDeveloperPreviewTransitioning = true
+      let ready = await setDeveloperPreviewMode(selectedDeveloperPreviewMode)
+      isDeveloperPreviewTransitioning = false
+      guard ready else { return }
+      if env["OWL_AUTO_VOICE"] == "1" {
+        try? await Task.sleep(for: .seconds(2))
+        testNote = phonePreview.sendLaunchApp() ?? "Sent \u{201C}Hey Meta, start Owl\u{201D}"
+      } else {
+        await sendSample(item, deviceIdentifier: phonePreviewDeviceIdentifier)
       }
-      if env["OWL_AUTO_TODAY"] == "1" {
-        try? await Task.sleep(for: .seconds(6))
-        await biteViewModel.showToday()
+      try? await Task.sleep(for: .seconds(4))
+      if env["OWL_AUTO_RUN"] == "1", let first = owlViewModel.processes.first(where: \.isPublished) {
+        await owlViewModel.startProcess(first.id)
       }
-      if env["OWL_AUTO_WATCH"] == "1" {
-        await biteViewModel.toggleWatching()
+      if let question = env["OWL_AUTO_ASK"], !question.isEmpty {
+        await owlViewModel.ask()
+        try? await Task.sleep(for: .seconds(2))
+        phonePreview.simulateSpeech(question)
+      }
+      if env["OWL_AUTO_RECORD"] == "1" {
+        // One narrated 4 s step, then finish.
+        await owlViewModel.startRecording()
+        await owlViewModel.startRecordedStep()
+        try? await Task.sleep(for: .seconds(2))
+        phonePreview.simulateSpeech("Take a medium box and put the order sheet on top.")
+        try? await Task.sleep(for: .seconds(2))
+        await owlViewModel.endRecordedStep()
+        await owlViewModel.finishRecording()
       }
     }
+  }
+
+  /// Simulator only: drive the mock glasses like a worker would.
+  private var simulatorControls: some View {
+    VStack(spacing: 8) {
+      HStack(spacing: 16) {
+        SwiftUI.Button("Hey Meta, start Owl") {
+          testNote = phonePreview.sendLaunchApp() ?? "Sent \u{201C}Hey Meta, start Owl\u{201D}"
+        }
+        SwiftUI.Button(owlViewModel.glassesOn ? "Take off" : "Put on") {
+          phonePreview.setWorn(!owlViewModel.glassesOn)
+        }
+      }
+      HStack {
+        TextField("Spoken question", text: $testQuestion)
+          .textFieldStyle(.roundedBorder)
+        SwiftUI.Button("Speak") {
+          phonePreview.simulateSpeech(testQuestion)
+        }
+      }
+      Picker("Owl Check answer", selection: Binding(
+        get: { owlViewModel.mockCheck ?? "" },
+        set: { owlViewModel.mockCheck = $0.isEmpty ? nil : $0 }
+      )) {
+        Text("Real").tag("")
+        Text("OK").tag("ok")
+        Text("Warning").tag("warning")
+        Text("Unsure").tag("unsure")
+      }
+      .pickerStyle(.segmented)
+    }
+    .font(.subheadline)
   }
 
 }

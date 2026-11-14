@@ -57,7 +57,12 @@ struct PhonePreviewDevice {
   let display: any MockDisplayKit
   let powerOn: () -> Void
   let don: () -> Void
+  let doff: () -> Void
   let unpair: () -> Void
+  /// Simulator: "Hey Meta, start Owl". Returns an error text, or nil when sent.
+  let sendLaunchApp: () -> String?
+  /// Simulator: a final transcription from the glasses microphone.
+  let simulateSpeech: (String) -> Void
 }
 
 @MainActor
@@ -86,16 +91,27 @@ final class LivePhonePreviewManager: PhonePreviewManaging {
 
   func pairGlasses() throws -> PhonePreviewDevice {
     let device = try mockDeviceKit.pairGlasses(model: .metaRayBanDisplay)
-    if let demoMeal = BiteDemoAssets.demoMealURL() {
-      device.services.camera.setCameraFeed(fileURL: demoMeal)
-      device.services.camera.setCapturedImage(fileURL: demoMeal)
+    if let feed = OwlDemoAssets.cameraFeedURL() {
+      device.services.camera.setCameraFeed(fileURL: feed)
+      device.services.camera.setCapturedImage(fileURL: feed)
     }
+    let services = device.services
     return PhonePreviewDevice(
       deviceIdentifier: device.deviceIdentifier,
-      display: device.services.display,
+      display: services.display,
       powerOn: device.powerOn,
       don: device.don,
-      unpair: { [mockDeviceKit] in mockDeviceKit.unpairDevice(device) }
+      doff: device.doff,
+      unpair: { [mockDeviceKit] in mockDeviceKit.unpairDevice(device) },
+      sendLaunchApp: {
+        guard services.voiceInvocation.hasConnectedClients else {
+          return "No voice invocation client is connected."
+        }
+        return services.voiceInvocation.sendLaunchAppAction()
+      },
+      simulateSpeech: { text in
+        services.speech.simulateTranscription(text: text, isFinal: true, confidence: 0.9)
+      }
     )
   }
 
@@ -142,6 +158,20 @@ final class PhonePreviewViewModel {
   private(set) var chromePreviewURL: URL?
 
   var isEnabled: Bool { device != nil }
+
+  /// Simulator: "Hey Meta, start Owl" from the mock glasses.
+  func sendLaunchApp() -> String? {
+    guard let device else { return "Start the developer preview first." }
+    return device.sendLaunchApp()
+  }
+
+  func simulateSpeech(_ text: String) {
+    device?.simulateSpeech(text)
+  }
+
+  func setWorn(_ worn: Bool) {
+    if worn { device?.don() } else { device?.doff() }
+  }
   var inAppPreviewDisplay: (any MockDisplayKit)? {
     developerPreviewMode == .inApp ? display : nil
   }
