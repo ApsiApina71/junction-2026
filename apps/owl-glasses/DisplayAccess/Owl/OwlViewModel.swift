@@ -159,6 +159,9 @@ final class OwlViewModel {
   /// The attempt whose final check is running, or nil.
   @ObservationIgnored private var finishingAttempt: Int?
   @ObservationIgnored private var isPlayingClip = false
+  @ObservationIgnored private var cameraOpening: Task<OwlCamera?, Never>?
+  /// Counts closeCamera calls, so a camera that finishes opening after a close is closed too.
+  @ObservationIgnored private var cameraClosings = 0
   /// Steps whose clip already played by itself in this run (JUN-102): once per run.
   @ObservationIgnored private var clipsPlayed: Set<String> = []
   /// Debug builds: `OWL_AUTOPLAY_CLIP=1` plays clips by itself in every task.
@@ -1938,11 +1941,13 @@ final class OwlViewModel {
   private func callForHelp(to: String?, managerName: String?) async {
     let number = newScene()
     guard let camera = await openCamera() else {
+      NSLog("[Owl] help: the glasses camera did not open (\(cameraDenied ? "permission" : "see camera failed above")), Owl can't help")
       guard isCurrent(number) else { return }
       await showProblem(cameraDenied ? .cameraNeeded : .other, detail: OwlError.noCamera.errorDescription)
       return
     }
     guard isCurrent(number) else { return }
+    NSLog("[Owl] help: camera open, calling \(to ?? "expert")")
     helpID = nil
     lastSpokenExpertMessage = 0
     helpTo = to
@@ -2580,26 +2585,62 @@ final class OwlViewModel {
 
   /// Opens the stream on the display session. Never asks for permission (the employer grants
   /// it once in Meta AI); returns nil when it is not allowed or the camera fails.
+  /// The glasses camera, opened once and shared. Two flows asking at the same moment get the
+  /// same opening. The stream sometimes fails to start right after the last one stopped (Help
+  /// right after a step, JUN-53), so a failed opening is tried again, fresh, up to three times
+  /// within 30 s; each failure says why in the log.
   private func openCamera() async -> OwlCamera? {
     if let camera { return camera }
-    guard let session = displayViewModel.currentDeviceSession() else { return nil }
-    do {
-      guard try await wearables.checkPermissionStatus(.camera) == .granted else {
-        cameraDenied = true
+    if let cameraOpening { return await cameraOpening.value }
+    let closings = cameraClosings
+    let opening = Task { @MainActor [weak self] () -> OwlCamera? in
+      guard let self else { return nil }
+      defer { self.cameraOpening = nil }
+      guard let opened = await self.openCameraTrying() else { return nil }
+      guard self.cameraClosings == closings else {
+        NSLog("[Owl] camera: closed while it was opening")
+        opened.close()
         return nil
       }
-      cameraDenied = false
-      let camera = try await OwlCamera.open(on: session)
-      camera.onError = { message in NSLog("[Owl] camera: \(message)") }
-      self.camera = camera
-      return camera
-    } catch {
-      NSLog("[Owl] camera failed: \(error)")
-      return nil
+      self.camera = opened
+      return opened
     }
+    cameraOpening = opening
+    return await opening.value
+  }
+
+  private func openCameraTrying() async -> OwlCamera? {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(30))
+    for attempt in 1...3 {
+      if attempt > 1 {
+        try? await Task.sleep(for: .seconds(1))
+        guard clock.now < deadline else { break }
+      }
+      guard let session = displayViewModel.currentDeviceSession() else {
+        NSLog("[Owl] camera failed (try \(attempt)/3): no device session")
+        continue
+      }
+      do {
+        guard try await wearables.checkPermissionStatus(.camera) == .granted else {
+          NSLog("[Owl] camera failed: permission not granted")
+          cameraDenied = true
+          return nil
+        }
+        cameraDenied = false
+        let camera = try await OwlCamera.open(on: session)
+        camera.onError = { message in NSLog("[Owl] camera: \(message)") }
+        if attempt > 1 { NSLog("[Owl] camera opened on try \(attempt)") }
+        return camera
+      } catch {
+        NSLog("[Owl] camera failed (try \(attempt)/3): \(error)")
+      }
+    }
+    return nil
   }
 
   private func closeCamera() {
+    cameraClosings += 1
     camera?.close()
     camera = nil
   }

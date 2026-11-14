@@ -57,7 +57,13 @@ final class OwlCamera: @unchecked Sendable {
     let config = StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 15)
     guard let camera = try session.addCamera(config: config) else { throw OwlError.noCamera }
     let owlCamera = OwlCamera(camera: camera)
-    try await owlCamera.start()
+    do {
+      try await owlCamera.start()
+    } catch {
+      // A stopped camera is invalidated: the next try goes through a fresh addCamera (DAT).
+      owlCamera.close()
+      throw error
+    }
     return owlCamera
   }
 
