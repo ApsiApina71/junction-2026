@@ -119,6 +119,16 @@ enum OwlText {
     return lines
   }
 
+  /// "Looks like step N" (JUN-34). When it is the next step, the worker is told how to move on;
+  /// Owl itself never moves on.
+  static func looksLikeStep(_ index: Int, isNext: Bool, language: String?) -> String {
+    let fi = languageCode(language) == "fi"
+    if isNext {
+      return fi ? "Näyttää vaiheelta \(index). Nipistä Done jatkaaksesi." : "Looks like step \(index). Pinch Done to go on."
+    }
+    return fi ? "Näyttää vaiheelta \(index)." : "Looks like step \(index)."
+  }
+
   private static func table(for language: String?) -> [String: String]? {
     switch languageCode(language) {
     case "fi": finnish

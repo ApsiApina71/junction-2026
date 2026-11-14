@@ -56,6 +56,9 @@ final class OwlViewModel {
   /// What the display shows now, for the stage page (JUN-79).
   @ObservationIgnored private var stageScreen = OwlStageScreen(kind: "start", title: "Owl", text: nil)
   @ObservationIgnored private var stageFrameTask: Task<Void, Never>?
+  /// Step recognition (JUN-34): short clips while a step runs, only as a hint.
+  @ObservationIgnored private var recognizeTask: Task<Void, Never>?
+  @ObservationIgnored private var suggestedStepID: String?
   @ObservationIgnored private var images: [String: UIImage] = [:]
   @ObservationIgnored private var welcomed = false
   @ObservationIgnored private var deviceStateToken: AnyListenerToken?
@@ -253,6 +256,7 @@ final class OwlViewModel {
 
   /// Shows the current step, says it and starts Owl Check if the step has one.
   private func openStep() async {
+    stopRecognition()
     guard let process, let step else { return }
     checkFailures = 0
     stepStatus = nil
@@ -264,10 +268,12 @@ final class OwlViewModel {
     if step.check.usesCamera {
       await startCheckLoop()
     } else {
-      // No check in this step: no frames, and the stream is off to save battery (JUN-82).
-      closeCamera()
+      // No check in this step: no frames, and the stream is off to save battery (JUN-82),
+      // unless step recognition needs it.
+      if !recognizes(step) { closeCamera() }
       setStepStatus("Pinch Done when ready.")
     }
+    if recognizes(step) { await startRecognition() }
   }
 
   private func sendStep() async {
@@ -568,6 +574,68 @@ final class OwlViewModel {
     // Skip the caption when the status already says the same thing ("✓ Looks right…").
     if let stepStatus, stepStatus.contains(lastCaption) { return stepStatus }
     return [stepStatus, "“\(lastCaption)”"].compactMap { $0 }.joined(separator: " ")
+  }
+
+  // MARK: - Step recognition (JUN-34)
+
+  /// Steps that have an expert clip to compare with and no order check. Only with consent and
+  /// the camera on.
+  private func recognizes(_ step: OwlStep) -> Bool {
+    step.clipUrl != nil && (step.check.kind == "none" || step.check.kind == "visual") && checksAllowed
+  }
+
+  private func startRecognition() async {
+    stopRecognition()
+    guard let process, let step, let camera = await openCamera() else { return }
+    let stepID = step.id
+    recognizeTask = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(3))
+      while !Task.isCancelled {
+        guard let self, self.step?.id == stepID, self.checksAllowed, self.glassesOn else { return }
+        // About 2 s of the stream, HEVC as it comes from the glasses.
+        try? camera.startClip()
+        try? await Task.sleep(for: .seconds(2))
+        guard !Task.isCancelled, let url = await camera.finishClip(), let clip = try? Data(contentsOf: url) else {
+          try? await Task.sleep(for: .seconds(4))
+          continue
+        }
+        try? FileManager.default.removeItem(at: url)
+        do {
+          let result = try await self.api.recognizeStep(clip: clip, processID: process.id, employeeID: self.employee?.id)
+          NSLog("[Owl] recognize: \(result.status) \(result.stepId ?? "-") margin \(result.margin ?? 0) (\(result.backend ?? "?"))")
+          guard !Task.isCancelled, self.step?.id == stepID else { return }
+          self.showRecognition(result, process: process, current: stepID)
+        } catch OwlError.consentRequired {
+          return
+        } catch {
+          NSLog("[Owl] recognize failed: \(error)")
+        }
+        try? await Task.sleep(for: .seconds(6))
+      }
+    }
+  }
+
+  private func stopRecognition() {
+    recognizeTask?.cancel()
+    recognizeTask = nil
+    suggestedStepID = nil
+    Task { [camera] in _ = await camera?.finishClip() }
+  }
+
+  /// "Looks like step N": a hint on the step card. Owl never moves on by itself; when the
+  /// worker seems to be on the next step, the Done pinch is how they move on.
+  private func showRecognition(_ result: OwlStepRecognition, process: OwlProcess, current: String) {
+    guard result.status == "ok", let id = result.stepId, id != current,
+      let seen = process.steps.first(where: { $0.id == id }),
+      let here = process.steps.first(where: { $0.id == current })
+    else { return }
+    let isNext = seen.index == here.index + 1
+    let text = OwlText.looksLikeStep(seen.index, isNext: isNext, language: language)
+    setStepStatus(text)
+    if isNext, suggestedStepID != id {
+      suggestedStepID = id
+      speaker.say(text)
+    }
   }
 
   // MARK: - Stage view (JUN-79)
@@ -1054,6 +1122,7 @@ final class OwlViewModel {
 
   private func stopEverything() {
     stopCheckLoop()
+    stopRecognition()
     helpTask?.cancel()
     helpTask = nil
     listener.stop()
@@ -1173,6 +1242,7 @@ extension OwlViewModel {
     case "endstep": await endRecordedStep()
     case "finish": await finishRecording()
     case "progress": await showProgress()
+    case "recognize": if let current = self.step, recognizes(current) { await startRecognition() }
     case "allow": await saveConsent(cameraChecks: true, recording: consent?.recording ?? false); await open()
     case "decline": await saveConsent(cameraChecks: false, recording: consent?.recording ?? false); await open()
     case "agreerecord": await saveConsent(cameraChecks: consent?.cameraChecks ?? false, recording: true)

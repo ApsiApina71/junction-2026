@@ -233,3 +233,15 @@ struct OwlStageUpdate: Encodable, Sendable {
   let said: String?
   let step: Step?
 }
+
+/// Which step the worker seems to be doing (`POST /steps/recognize`, JUN-34). It guides;
+/// the glasses never move on by themselves.
+struct OwlStepRecognition: Codable, Equatable, Sendable {
+  /// `ok` or `unsure`.
+  let status: String
+  let stepId: String?
+  let similarities: [String: Double]?
+  let margin: Double?
+  /// `vjepa2` or `baseline`.
+  let backend: String?
+}
