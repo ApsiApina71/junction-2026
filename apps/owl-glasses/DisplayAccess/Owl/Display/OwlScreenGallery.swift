@@ -22,7 +22,7 @@ enum OwlScreenGallery {
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
     "help-connected", "help-marked", "record", "record-step", "status", "problem-camera", "problem-microphone",
     "problem-offline", "problem-server", "problem-not-allowed", "problem-not-assigned", "problem-video",
-    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
+    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
   ]
 
   /// The screen for a gallery name, or nil when the name is unknown.
@@ -169,6 +169,18 @@ enum OwlScreenGallery {
       return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: nil, onOK: none)
     case "training-confirmed":
       return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: "Laura", onOK: none)
+    case "goto":
+      return OwlScreens.goTo(
+        process: process, step: pick, label: data.long ? "Aisle C · Shelf 12 · Bottom row, left end" : "Aisle C · Shelf 12",
+        image: photo, onHelp: none, onHome: none)
+    case "step-tracking":
+      return OwlScreens.step(
+        process: process, step: pick, image: photo, live: .watching, log: log, onDone: none, onWatch: none, onAsk: none,
+        onHelp: none, cameraOn: true, onCamera: none, tracking: OwlStrings.locationIn("Aisle C"))
+    case "location-consent":
+      return OwlScreens.consent(
+        title: OwlStrings.locationTitle, lines: OwlStrings.locationLines, allowLabel: OwlStrings.allowLocation,
+        declineLabel: OwlStrings.noLocation, onAllow: none, onDecline: none)
     case "forget":
       return OwlScreens.confirmForget(onKeep: none, onErase: none)
     case "step-caption":

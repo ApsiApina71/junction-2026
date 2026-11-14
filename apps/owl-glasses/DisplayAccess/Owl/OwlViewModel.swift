@@ -82,6 +82,13 @@ final class OwlViewModel {
   private(set) var consent: OwlConsent?
   /// The worker paused the camera with one pinch; checks stay off until they turn it on.
   private(set) var cameraPaused = false
+  /// Where the worker is during training (JUN-97). Nil or `tracking == false` outside the
+  /// training period or without the worker's consent.
+  @ObservationIgnored private var whereabouts: OwlLocation?
+  @ObservationIgnored private var markerTask: Task<Void, Never>?
+  @ObservationIgnored private var lockTask: Task<Void, Never>?
+  /// The last marker sent, so owl-api hears only changes.
+  @ObservationIgnored private var lastMarker: String?
   private var checksAllowed: Bool { consent?.cameraChecks == true && !cameraPaused }
   /// The worker's inclusive profile (JUN-81).
   private var access: OwlAccess { employee?.access ?? OwlAccess() }
@@ -156,6 +163,8 @@ final class OwlViewModel {
 
   private enum StepCard: Equatable {
     case step
+    /// The step opens only at its checkpoint (JUN-97).
+    case locked
     case correction
     case checking
     case cannotCheck(OwlCheckBlock, String?)
@@ -234,6 +243,7 @@ final class OwlViewModel {
     onStepCard = false
     stopCheckLoop()
     stopRecognition()
+    stopMarkers()
     if isPlayingClip {
       // Playback stops when the worker moves on (JUN-56).
       isPlayingClip = false
@@ -274,13 +284,18 @@ final class OwlViewModel {
     guard isCurrent(number) else { return displayViewModel.isConnected }
     // The end of the training period: the worker sees the result before anything else, and
     // before the trainer sees it in Studio (JUN-96).
-    if let employee, let training = try? await api.training(employeeID: employee.id),
-      training.result != nil, !trainingResultSeen(employee.id, training)
-    {
-      guard isCurrent(number) else { return displayViewModel.isConnected }
+    let training = if let employee { try? await api.training(employeeID: employee.id) } else { nil as OwlTraining? }
+    guard isCurrent(number) else { return displayViewModel.isConnected }
+    if let employee, let training, training.result != nil, !trainingResultSeen(employee.id, training) {
       await showTrainingResult(training, then: { await $0.open() })
       return displayViewModel.isConnected
     }
+    // During training, location is asked once, on its own screen (JUN-97).
+    if let employee, training?.active == true, !locationAsked(employee.id) {
+      await askLocationConsent(then: { await $0.open() })
+      return displayViewModel.isConnected
+    }
+    await refreshLocation()
     guard isCurrent(number) else { return displayViewModel.isConnected }
     if !welcomed, let employee {
       welcomed = true
@@ -489,8 +504,23 @@ final class OwlViewModel {
         sayChoices(OwlStrings.sayStepButtons(others))
       }
     }
+    if step.checkpoint != nil, whereabouts?.tracking == true {
+      // Help or the trainer may have opened it meanwhile.
+      await refreshLocation()
+      guard isCurrent(number) else { return }
+    }
+    if isLocked(step) {
+      card = .locked
+      live = .noCheck
+      statusText = "Step \(step.index) locked: go to \(step.checkpoint?.label ?? "")"
+      await render(number)
+      guard isCurrent(number) else { return }
+      await startLocked(number)
+      return
+    }
     await render(number)
     guard isCurrent(number) else { return }
+    if whereabouts?.tracking == true { startMarkers(number) }
     if step.check.usesCamera {
       await startWatching(number)
     } else if !recognizes(step) {
@@ -515,6 +545,14 @@ final class OwlViewModel {
     if card == .correction, correction == nil { card = .step }
     let place = "Step \(step.index)/\(process.steps.count) · \(step.title)"
     switch card {
+    case .locked:
+      let label = step.checkpoint?.label ?? ""
+      await showScreen(stage: .init(kind: "locked", title: OwlStrings.goTo(label), text: place)) {
+        OwlScreens.goTo(
+          process: process, step: step, label: label, image: image,
+          onHelp: self.cardAction { await $0.startHelp() },
+          onHome: self.action { await $0.showTasks() })
+      }
     case .checking:
       await showScreen(stage: .init(kind: "check", title: OwlStrings.checking, text: place)) {
         OwlScreens.checking(step: step, onBack: self.action { await $0.cancelFinalCheck() })
@@ -549,6 +587,7 @@ final class OwlViewModel {
         kind: "step", title: place,
         text: [step.instruction, OwlScreens.liveLine(live), caption].compactMap { $0 }.joined(separator: " · "))
       let unreal = unrealSource
+      let tracking = trackingLine
       await showScreen(stage: stage) {
         OwlScreens.step(
           process: process, step: step, image: image, live: live, log: log,
@@ -557,7 +596,7 @@ final class OwlViewModel {
           onAsk: self.cardAction { await $0.ask() },
           onHelp: self.cardAction { await $0.startHelp() },
           caption: caption, cameraOn: cameraOn, onCamera: self.cardAction { await $0.toggleCamera() },
-          unreal: unreal)
+          unreal: unreal, tracking: tracking)
       }
       onStepCard = true
     }
@@ -656,7 +695,9 @@ final class OwlViewModel {
   private func checksRefused(_ number: Int) async {
     NSLog("[Owl] check refused: consent required")
     if let employee {
-      consent = OwlConsent(employeeId: employee.id, cameraChecks: false, recording: consent?.recording ?? false, at: consent?.at)
+      consent = OwlConsent(
+        employeeId: employee.id, cameraChecks: false, recording: consent?.recording ?? false, at: consent?.at,
+        location: consent?.location)
     }
     stopCheckLoop()
     closeCamera()
@@ -1235,6 +1276,135 @@ final class OwlViewModel {
     }
   }
 
+  // MARK: - Location during training (JUN-97)
+
+  /// "Location on · Aisle C" while tracking is on, for the step card.
+  private var trackingLine: String? {
+    guard let whereabouts, whereabouts.tracking else { return nil }
+    return whereabouts.zone.map { OwlStrings.locationIn($0.name) } ?? OwlStrings.locationOn
+  }
+
+  private func isLocked(_ step: OwlStep) -> Bool {
+    guard let process, step.checkpoint != nil, let whereabouts, whereabouts.tracking else { return false }
+    return !whereabouts.isUnlocked(processID: process.id, stepID: step.id)
+  }
+
+  /// Asks owl-api whether tracking is on, where the worker is and which steps are open.
+  private func refreshLocation() async {
+    guard let employee, consent?.location != false || whereabouts != nil else { return }
+    do {
+      whereabouts = try await api.location(employeeID: employee.id)
+    } catch {
+      // An older server, or no connection: no tracking, so no step is locked.
+      whereabouts = nil
+    }
+  }
+
+  /// A locked step: the camera reads markers until the checkpoint's marker opens the step,
+  /// and owl-api is asked every few seconds in case the trainer or Help opened it.
+  private func startLocked(_ number: Int) async {
+    if await openCamera() == nil {
+      NSLog("[Owl] location: no camera, the step waits for the trainer or Help")
+    }
+    guard isCurrent(number) else { return }
+    startMarkers(number)
+    lockTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(5))
+        guard let self, !Task.isCancelled, self.isCurrent(number), self.card == .locked else { return }
+        await self.refreshLocation()
+        guard self.isCurrent(number), let step = self.step else { return }
+        if !self.isLocked(step) {
+          await self.openStep(speak: true, after: OwlStrings.youAreThere)
+          return
+        }
+      }
+    }
+  }
+
+  /// Reads Owl's markers from the camera about once a second while it is open.
+  private func startMarkers(_ number: Int) {
+    markerTask?.cancel()
+    markerTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        guard let self, !Task.isCancelled, self.isCurrent(number), self.glassesOn else { return }
+        guard let image = self.camera?.latestImage() else { continue }
+        let markers = await Task.detached(priority: .utility) { OwlMarkers.read(in: image) }.value
+        guard let marker = markers.first, self.isCurrent(number) else { continue }
+        await self.markerSeen(marker)
+      }
+    }
+  }
+
+  private func stopMarkers() {
+    markerTask?.cancel()
+    markerTask = nil
+    lockTask?.cancel()
+    lockTask = nil
+  }
+
+  /// One marker in view. Only a new one goes to owl-api; the answer says where the worker is
+  /// and which steps are open.
+  func markerSeen(_ marker: String) async {
+    guard let employee, OwlMarkers.isOwlMarker(marker), marker != lastMarker else { return }
+    lastMarker = marker
+    let number = scene
+    NSLog("[Owl] location: marker \(marker)")
+    do {
+      whereabouts = try await api.postLocation(employeeID: employee.id, marker: marker)
+    } catch OwlError.notFound {
+      NSLog("[Owl] location: owl-api does not know \(marker)")
+      return
+    } catch OwlError.consentRequired {
+      whereabouts = nil
+    } catch OwlError.server(409, _) {
+      // The training period is over: nothing is tracked and nothing stays locked.
+      whereabouts = nil
+    } catch {
+      // No connection: the same marker is tried again when it is seen next.
+      lastMarker = nil
+      return
+    }
+    guard isCurrent(number), let step else { return }
+    if card == .locked, !isLocked(step) {
+      await openStep(speak: true, after: OwlStrings.youAreThere)
+    } else if card == .step {
+      await render(number)
+    }
+  }
+
+  private static func locationAskedKey(_ employeeID: String) -> String { "owl.locationAsked.\(employeeID)" }
+
+  private func locationAsked(_ employeeID: String) -> Bool {
+    consent?.location == true || UserDefaults.standard.bool(forKey: Self.locationAskedKey(employeeID))
+  }
+
+  /// What location tracking is, who sees it and when it is deleted, before anything is
+  /// tracked. Its own choice, apart from the camera checks.
+  private func askLocationConsent(then next: @escaping @MainActor (OwlViewModel) async -> Void) async {
+    guard let employee else { return }
+    newScene()
+    let lines = OwlStrings.locationLines
+    statusText = "Asking for location consent"
+    speaker.say(([OwlStrings.locationTitle + "."] + lines).joined(separator: " "))
+    sayChoices(OwlStrings.sayTwoChoices(OwlStrings.allowLocation, OwlStrings.noLocation))
+    func answer(_ allowed: Bool) -> OwlAction {
+      action {
+        UserDefaults.standard.set(true, forKey: Self.locationAskedKey(employee.id))
+        await $0.saveConsent(
+          cameraChecks: $0.consent?.cameraChecks ?? false, recording: $0.consent?.recording ?? false, location: allowed)
+        $0.speaker.say(allowed ? OwlStrings.locationThanks : OwlStrings.locationDeclined)
+        await next($0)
+      }
+    }
+    await showScreen(stage: .init(kind: "consent", title: OwlStrings.locationTitle, text: lines.joined(separator: " "))) {
+      OwlScreens.consent(
+        title: OwlStrings.locationTitle, lines: lines, allowLabel: OwlStrings.allowLocation,
+        declineLabel: OwlStrings.noLocation, onAllow: answer(true), onDecline: answer(false))
+    }
+  }
+
   // MARK: - Consent (JUN-80)
 
   private static func consentKey(_ employeeID: String) -> String { "owl.consent.\(employeeID)" }
@@ -1251,7 +1421,8 @@ final class OwlViewModel {
     {
       consent = saved
       // Tell owl-api what the worker already chose, so /check accepts the frames.
-      _ = try? await api.setConsent(employeeID: employee.id, cameraChecks: saved.cameraChecks, recording: saved.recording)
+      _ = try? await api.setConsent(
+        employeeID: employee.id, cameraChecks: saved.cameraChecks, recording: saved.recording, location: saved.location)
       return false
     }
     return true
@@ -1290,12 +1461,14 @@ final class OwlViewModel {
     }
   }
 
-  private func saveConsent(cameraChecks: Bool, recording: Bool) async {
+  private func saveConsent(cameraChecks: Bool, recording: Bool, location: Bool? = nil) async {
     guard let employee else { return }
     let now = ISO8601DateFormatter().string(from: Date())
-    var saved = OwlConsent(employeeId: employee.id, cameraChecks: cameraChecks, recording: recording, at: now)
+    let location = location ?? consent?.location
+    var saved = OwlConsent(employeeId: employee.id, cameraChecks: cameraChecks, recording: recording, at: now, location: location)
     do {
-      saved = try await api.setConsent(employeeID: employee.id, cameraChecks: cameraChecks, recording: recording)
+      saved = try await api.setConsent(
+        employeeID: employee.id, cameraChecks: cameraChecks, recording: recording, location: location)
     } catch {
       NSLog("[Owl] consent not stored on owl-api: \(error)")
     }
@@ -2168,9 +2341,20 @@ extension OwlViewModel {
     case "forgetyes": await forgetMe()
     case "forgetno": await showProgress()
     case "resetconsent":
-      if let id = employee?.id { UserDefaults.standard.removeObject(forKey: Self.consentKey(id)) }
+      if let id = employee?.id {
+        UserDefaults.standard.removeObject(forKey: Self.consentKey(id))
+        UserDefaults.standard.removeObject(forKey: Self.locationAskedKey(id))
+      }
       consent = nil
     case "mock": mockCheck = argument.isEmpty ? nil : argument
+    // `marker:owl:cp:proc-pick-pack:step-2`: as if the camera saw that marker (JUN-97).
+    case "marker": await markerSeen(argument)
+    case "allowlocation", "declinelocation":
+      if let id = employee?.id { UserDefaults.standard.set(true, forKey: Self.locationAskedKey(id)) }
+      await saveConsent(
+        cameraChecks: consent?.cameraChecks ?? false, recording: consent?.recording ?? false,
+        location: name == "allowlocation")
+      await open()
     // `bg:<step>` starts a step and goes on, so the script can act while that step waits.
     case "bg": Task { await self.runTestStep(argument) }
     // "Cancel" while a recorded step is being sent.

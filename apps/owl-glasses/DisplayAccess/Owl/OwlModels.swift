@@ -70,6 +70,15 @@ struct OwlStep: Codable, Equatable, Sendable, Identifiable {
   let clipUrl: String?
   let check: OwlCheck
   let source: OwlSource?
+  /// Where the step is done (JUN-97). While location tracking is on, the step stays locked
+  /// until the worker reaches this checkpoint.
+  var checkpoint: OwlCheckpoint? = nil
+}
+
+struct OwlCheckpoint: Codable, Equatable, Sendable {
+  let zoneId: String
+  /// "Aisle C · Shelf 12".
+  let label: String
 }
 
 struct OwlCheck: Codable, Equatable, Sendable {
@@ -209,6 +218,8 @@ struct OwlConsent: Codable, Equatable, Sendable {
   let cameraChecks: Bool
   let recording: Bool
   let at: String?
+  /// Location tracking during training, by markers (JUN-97). nil from an older server.
+  var location: Bool? = nil
 }
 
 /// What the glasses show, for the stage page (`POST /stage`, JUN-79).
@@ -300,5 +311,30 @@ struct OwlTraining: Codable, Equatable, Sendable {
     guard let ends, let end = try? Date(ends, strategy: Date.ISO8601FormatStyle().year().month().day()) else { return nil }
     let calendar = Calendar.current
     return max(calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: end)).day ?? 0, 0)
+  }
+}
+
+/// Where the worker is during training (`/location`, JUN-97). Only the current zone and
+/// today's zones; deleted when the training period ends.
+struct OwlLocation: Codable, Equatable, Sendable {
+  struct Zone: Codable, Equatable, Sendable {
+    let id: String
+    let name: String
+  }
+
+  struct StepRef: Codable, Equatable, Sendable {
+    let processId: String
+    let stepId: String
+  }
+
+  let employeeId: String?
+  /// On only during the training period and with the worker's consent.
+  let tracking: Bool
+  let zone: Zone?
+  let enteredAt: String?
+  let unlocked: [StepRef]?
+
+  func isUnlocked(processID: String, stepID: String) -> Bool {
+    (unlocked ?? []).contains { $0.processId == processID && $0.stepId == stepID }
   }
 }

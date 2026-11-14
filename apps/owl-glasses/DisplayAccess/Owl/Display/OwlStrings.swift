@@ -336,6 +336,38 @@ enum OwlStrings {
     ready ? t("Result: Ready.", "Tulos: Valmis työhön.") : t("Result: More practice.", "Tulos: Lisää harjoitusta.")
   }
   static var ok: String { t("OK", "OK") }
+  // Location during training (JUN-97). Shown whenever tracking is on.
+  static var locationOn: String { t("Location on", "Sijainti päällä") }
+  static func locationIn(_ zone: String) -> String { t("Location on · \(zone)", "Sijainti päällä · \(zone)") }
+  static func goTo(_ label: String) -> String { t("Go to: \(label)", "Mene: \(label)") }
+  static var goToBody: String {
+    t(
+      "Owl opens this step when it sees the marker there.", "Owl avaa vaiheen, kun se näkee paikan merkin.",
+      easy: "Look at the sign there.", "Katso siellä olevaa merkkiä.")
+  }
+  static var goToNoMarker: String {
+    t("No marker there? Pinch Help.", "Eikö merkkiä löydy? Nipistä Apua.", easy: "No sign? Pinch Help.", "Ei merkkiä? Nipistä Apua.")
+  }
+  static var youAreThere: String { t("You are there. The step is open.", "Olet perillä. Vaihe on auki.") }
+  static var locationTitle: String { t("Location in training", "Sijainti koulutuksessa") }
+  static var locationLines: [String] {
+    [
+      t(
+        "During training, Owl sees where you are from the markers on the shelves.",
+        "Koulutuksen aikana Owl näkee hyllyjen merkeistä, missä olet.",
+        easy: "Owl reads signs on the shelves to see where you are.", "Owl lukee hyllyjen merkit ja näkee, missä olet."),
+      t("Your trainer sees the area you are in.", "Kouluttajasi näkee, millä alueella olet.",
+        easy: "Your trainer sees where you are.", "Kouluttajasi näkee, missä olet."),
+      t("It is deleted when training ends.", "Tieto poistetaan, kun koulutus päättyy.",
+        easy: "Owl deletes it after training.", "Owl poistaa sen koulutuksen jälkeen."),
+    ]
+  }
+  static var allowLocation: String { t("Allow location", "Salli sijainti", easy: "Yes", "Kyllä") }
+  static var noLocation: String { t("No location", "Ei sijaintia", easy: "No", "Ei") }
+  static var locationThanks: String { t("Thank you.", "Kiitos.") }
+  static var locationDeclined: String {
+    t("Okay. Owl does not follow where you are.", "Selvä. Owl ei seuraa, missä olet.", easy: "Okay.", "Selvä.")
+  }
   static var pauseCamera: String { t("Pause camera", "Keskeytä kamera", easy: "Stop camera", "Sammuta kamera") }
   static var cameraOn: String { t("Camera on", "Kamera päälle", easy: "Start camera", "Käynnistä kamera") }
   static func sayFinished(_ summary: OwlRunSummary) -> String {

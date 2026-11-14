@@ -133,7 +133,7 @@ enum OwlScreens {
     process: OwlProcess, step: OwlStep, image: UIImage?, live: OwlLive, log: OwlRunLog?,
     onDone: @escaping OwlAction, onWatch: OwlAction?, onAsk: @escaping OwlAction,
     onHelp: @escaping OwlAction, caption: String? = nil, cameraOn: Bool? = nil, onCamera: OwlAction? = nil,
-    unreal: OwlUnrealSource? = nil
+    unreal: OwlUnrealSource? = nil, tracking: String? = nil
   ) -> FlexBox {
     // Display-first workers read what Owl just said, on its own line under what Owl knows.
     let spoken = caption.map { "\u{201C}\($0)\u{201D}" }
@@ -145,7 +145,11 @@ enum OwlScreens {
       progress: OwlArt.Progress(index: step.index, count: process.steps.count, outcomes: process.steps.map { log?.outcome(of: $0) }),
       photoHeight: photoHeight(title: step.title, instruction: step.instruction, live: lines))
     return screen {
-      header(mood(live), meta: marked(OwlStrings.stepOf(step.index, process.steps.count), unreal), title: step.title)
+      // `tracking`: location is on (JUN-97), said on every step card while it is.
+      header(
+        mood(live),
+        meta: marked([OwlStrings.stepOf(step.index, process.steps.count), tracking].compactMap { $0 }.joined(separator: " · "), unreal),
+        title: step.title)
       Image(image: banner, sizePreset: .fill)
       Text(step.instruction, style: .body)
       Text(liveLine(live), style: .meta, color: .secondary)
@@ -169,6 +173,28 @@ enum OwlScreens {
           label: cameraOn ? OwlStrings.pauseCamera : OwlStrings.cameraOn, style: .secondary,
           iconName: cameraOn ? .videoCameraOff : .videoCamera, onClick: onCamera)
       }
+    }
+  }
+
+  /// A step that opens only at its checkpoint (JUN-97): where to go, the expert's photo of
+  /// the place, and the way out when the marker is missing (Help can unlock it).
+  static func goTo(
+    process: OwlProcess, step: OwlStep, label: String, image: UIImage?,
+    onHelp: @escaping OwlAction, onHome: @escaping OwlAction
+  ) -> FlexBox {
+    screen {
+      header(
+        .watching, meta: "\(OwlStrings.stepOf(step.index, process.steps.count)) · \(OwlStrings.locationOn)",
+        title: OwlStrings.goTo(label))
+      if let image {
+        Image(image: OwlArt.framed(image, height: 200), sizePreset: .fill)
+      }
+      Text(OwlStrings.goToBody, style: .body)
+      Text(OwlStrings.goToNoMarker, style: .meta, color: .secondary)
+    } buttons: {
+      Button(label: OwlStrings.help, style: .primary, iconName: .person, onClick: onHelp)
+        .actionRole(.primary)
+      Button(label: OwlStrings.home, style: .secondary, iconName: .house, onClick: onHome)
     }
   }
 

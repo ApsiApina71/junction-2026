@@ -104,10 +104,24 @@ struct OwlAPI: Sendable {
     try await send(try request("employees/\(employeeID)/consent"))
   }
 
-  func setConsent(employeeID: String, cameraChecks: Bool, recording: Bool) async throws -> OwlConsent {
-    struct Body: Encodable { let cameraChecks: Bool; let recording: Bool }
+  func setConsent(employeeID: String, cameraChecks: Bool, recording: Bool, location: Bool? = nil) async throws -> OwlConsent {
+    struct Body: Encodable { let cameraChecks: Bool; let recording: Bool; let location: Bool? }
     return try await send(
-      try request("employees/\(employeeID)/consent", json: Body(cameraChecks: cameraChecks, recording: recording)))
+      try request(
+        "employees/\(employeeID)/consent",
+        json: Body(cameraChecks: cameraChecks, recording: recording, location: location)))
+  }
+
+  // Location during training (JUN-97)
+
+  /// A marker the camera saw: `owl:zone:<zone_id>` or `owl:cp:<process_id>:<step_id>`.
+  func postLocation(employeeID: String, marker: String) async throws -> OwlLocation {
+    struct Body: Encodable { let employeeId: String; let marker: String }
+    return try await send(try request("location", json: Body(employeeId: employeeID, marker: marker)))
+  }
+
+  func location(employeeID: String) async throws -> OwlLocation {
+    try await send(try request("employees/\(employeeID)/location"))
   }
 
   /// "Forget me": erases the worker's own learning data.
