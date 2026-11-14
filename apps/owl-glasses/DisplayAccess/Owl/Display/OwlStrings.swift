@@ -16,15 +16,24 @@ import Foundation
 enum OwlStrings {
   /// BCP 47 tag of the worker's language. Set when the employee is loaded.
   static var language = "en"
+  /// The easy-language profile (JUN-81): short sentences, everyday words, one thing at a time.
+  /// The same words as `OwlText`'s easy tables use ("helper", "Owl looks", "Good").
+  static var easy = false
 
-  private static func t(_ en: String, _ fi: String) -> String {
-    language.lowercased().hasPrefix("fi") ? fi : en
+  /// The sentence in the worker's language. `easy` and `easyFi` are the easy-language
+  /// versions, given only where the ordinary sentence is not already short and plain.
+  private static func t(_ en: String, _ fi: String, easy easyEn: String? = nil, _ easyFi: String? = nil) -> String {
+    let finnish = language.lowercased().hasPrefix("fi")
+    if easy, let simple = finnish ? easyFi : easyEn { return simple }
+    return finnish ? fi : en
   }
 
   // Buttons
   static var done: String { t("Done", "Valmis") }
-  static var continueUnverified: String { t("Continue unverified", "Jatka tarkistamatta") }
-  static var watchHow: String { t("Watch how", "Katso malli") }
+  static var continueUnverified: String { t(
+    "Continue unverified", "Jatka tarkistamatta",
+    easy: "Go on without a check", "Jatka ilman tarkistusta") }
+  static var watchHow: String { t("Watch how", "Katso malli", easy: "Watch the video", "Katso video") }
   static var ask: String { t("Ask", "Kysy") }
   static var help: String { t("Help", "Apua") }
   static var checkAgain: String { t("Check again", "Tarkista uudelleen") }
@@ -46,20 +55,32 @@ enum OwlStrings {
   static func welcome(_ name: String) -> String { t("Welcome, \(name)", "Tervetuloa, \(name)") }
   static var hello: String { t("Hi, I'm Owl", "Hei, olen Owl") }
   static var welcomeBody: String {
-    t("I'll show you each step of your work.", "Näytän sinulle työn jokaisen vaiheen.")
+    t(
+      "I'll show you each step of your work.", "Näytän sinulle työn jokaisen vaiheen.",
+      easy: "I show you each step.", "Näytän sinulle jokaisen vaiheen.")
   }
   static func firstTask(_ title: String) -> String { t("First task: \(title)", "Ensimmäinen tehtävä: \(title)") }
   static var yourTasks: String { t("Your tasks", "Tehtäväsi") }
   static var noTasks: String {
-    t("No tasks yet. Ask your supervisor.", "Ei vielä tehtäviä. Kysy esihenkilöltäsi.")
+    t(
+      "No tasks yet. Ask your supervisor.", "Ei vielä tehtäviä. Kysy esihenkilöltäsi.",
+      easy: "You have no tasks yet. Ask your boss.", "Sinulla ei ole vielä tehtäviä. Kysy esihenkilöltäsi.")
   }
   /// The list is from the phone's memory: say so, and say what will not work.
   static var savedTasksOnly: String {
-    t("No connection. These are saved tasks, and Owl can't check steps now.", "Ei yhteyttä. Nämä ovat tallennettuja tehtäviä, eikä Owl voi nyt tarkistaa vaiheita.")
+    t(
+      "No connection. These are saved tasks, and Owl can't check steps now.",
+      "Ei yhteyttä. Nämä ovat tallennettuja tehtäviä, eikä Owl voi nyt tarkistaa vaiheita.",
+      easy: "Owl has no connection. You can do these tasks. Owl cannot check them now.",
+      "Owlilla ei ole yhteyttä. Voit tehdä nämä tehtävät. Owl ei voi nyt tarkistaa niitä.")
   }
   /// No connection and nothing saved: the reason is the connection, not the supervisor.
   static var nothingSaved: String {
-    t("Owl can't reach its server, and no tasks are saved on this phone yet.", "Owl ei saa yhteyttä palvelimeensa, eikä puhelimeen ole vielä tallennettu tehtäviä.")
+    t(
+      "Owl can't reach its server, and no tasks are saved on this phone yet.",
+      "Owl ei saa yhteyttä palvelimeensa, eikä puhelimeen ole vielä tallennettu tehtäviä.",
+      easy: "Owl has no connection. There are no tasks on this phone yet.",
+      "Owlilla ei ole yhteyttä. Puhelimessa ei ole vielä tehtäviä.")
   }
   static func steps(_ count: Int) -> String {
     count == 1 ? t("1 step", "1 vaihe") : t("\(count) steps", "\(count) vaihetta")
@@ -71,30 +92,54 @@ enum OwlStrings {
   static func stepOf(_ index: Int, _ count: Int) -> String { t("Step \(index) of \(count)", "Vaihe \(index)/\(count)") }
   static func photoBy(_ name: String) -> String { t("Photo: \(name)", "Kuva: \(name)") }
   static var order: String { t("ORDER", "TILAUS") }
-  static var owlChecks: String { t("OWL CHECKS", "OWL TARKISTAA") }
+  static var owlChecks: String { t("OWL CHECKS", "OWL TARKISTAA", easy: "LOOK FOR", "KATSO") }
   static var notSeenYet: String { t("OWL DID NOT SEE", "OWL EI NÄHNYT") }
   static var liveStarting: String { t("Owl is getting ready", "Owl valmistautuu") }
-  static var liveWatching: String { t("Owl is watching", "Owl katsoo") }
+  static var liveWatching: String { t("Owl is watching", "Owl katsoo", easy: "Owl looks", "Owl katsoo") }
   static var liveChecking: String { t("Owl is checking", "Owl tarkistaa") }
   static var liveLooksRight: String {
-    t("Looks right. Pinch Done and I'll check.", "Näyttää oikealta. Nipistä Valmis, niin tarkistan.")
+    t(
+      "Looks right. Pinch Done and I'll check.", "Näyttää oikealta. Nipistä Valmis, niin tarkistan.",
+      easy: "Good. Pinch Done. Then Owl checks.", "Hyvä. Nipistä Valmis. Sitten Owl tarkistaa.")
   }
-  static var liveCantSee: String { t("Owl can't see it well", "Owl ei näe kunnolla") }
+  static var liveCantSee: String { t(
+    "Owl can't see it well", "Owl ei näe kunnolla",
+    easy: "Owl cannot see your work", "Owl ei näe työtäsi") }
   static var liveNoCheck: String { t("Pinch Done when you are ready", "Nipistä Valmis, kun olet valmis") }
-  static var liveFixed: String { t("That looks right now.", "Nyt näyttää oikealta.") }
-  static func liveNeedsFix(_ what: String) -> String { t("\(what). Pinch Done and I'll check.", "\(what). Nipistä Valmis, niin tarkistan.") }
+  static var liveFixed: String { t(
+    "That looks right now.", "Nyt näyttää oikealta.",
+    easy: "Good. It is right now.", "Hyvä. Nyt se on oikein.") }
+  static func liveNeedsFix(_ what: String) -> String { t(
+    "\(what). Pinch Done and I'll check.", "\(what). Nipistä Valmis, niin tarkistan.",
+    easy: "\(what). Pinch Done. Then Owl checks.", "\(what). Nipistä Valmis. Sitten Owl tarkistaa.") }
 
   /// Why Owl cannot check, as one line on the step card.
   static func blocked(_ why: OwlCheckBlock) -> String {
     switch why {
-    case .cameraOff: t("Camera is off. Owl can't check this step.", "Kamera ei ole käytössä. Owl ei voi tarkistaa tätä vaihetta.")
-    case .cameraFailed: t("The camera did not start. Owl can't check this step.", "Kamera ei käynnistynyt. Owl ei voi tarkistaa tätä vaihetta.")
-    case .offline: t("No connection. Owl can't check this step.", "Ei yhteyttä. Owl ei voi tarkistaa tätä vaihetta.")
-    case .serverError: t("Owl can't check right now.", "Owl ei voi tarkistaa juuri nyt.")
-    case .cantSee: t("Owl can't see it well.", "Owl ei näe kunnolla.")
+    case .cameraOff: t(
+      "Camera is off. Owl can't check this step.", "Kamera ei ole käytössä. Owl ei voi tarkistaa tätä vaihetta.",
+      easy: "The camera is off. Owl cannot check.", "Kamera on pois. Owl ei voi tarkistaa.")
+    case .cameraFailed: t(
+      "The camera did not start. Owl can't check this step.",
+      "Kamera ei käynnistynyt. Owl ei voi tarkistaa tätä vaihetta.",
+      easy: "The camera did not start. Owl cannot check.", "Kamera ei käynnistynyt. Owl ei voi tarkistaa.")
+    case .offline: t(
+      "No connection. Owl can't check this step.", "Ei yhteyttä. Owl ei voi tarkistaa tätä vaihetta.",
+      easy: "Owl has no connection. Owl cannot check.", "Owlilla ei ole yhteyttä. Owl ei voi tarkistaa.")
+    case .serverError: t(
+      "Owl can't check right now.", "Owl ei voi tarkistaa juuri nyt.",
+      easy: "Owl cannot check now.", "Owl ei voi tarkistaa nyt.")
+    case .cantSee: t(
+      "Owl can't see it well.", "Owl ei näe kunnolla.",
+      easy: "Owl cannot see your work.", "Owl ei näe työtäsi.")
     case .timedOut: t("The check took too long.", "Tarkistus kesti liian kauan.")
-    case .checksOff: t("Camera checks are off. Pinch Done when ready.", "Kameratarkistukset ovat pois päältä. Nipistä Valmis, kun olet valmis.")
-    case .cameraPaused: t("Camera paused. Pinch Done when ready.", "Kamera on tauolla. Nipistä Valmis, kun olet valmis.")
+    case .checksOff: t(
+      "Camera checks are off. Pinch Done when ready.",
+      "Kameratarkistukset ovat pois päältä. Nipistä Valmis, kun olet valmis.",
+      easy: "No camera. Pinch Done when you are ready.", "Kamera ei ole päällä. Nipistä Valmis, kun olet valmis.")
+    case .cameraPaused: t(
+      "Camera paused. Pinch Done when ready.", "Kamera on tauolla. Nipistä Valmis, kun olet valmis.",
+      easy: "The camera is off. Pinch Done when you are ready.", "Kamera on pois. Nipistä Valmis, kun olet valmis.")
     }
   }
 
@@ -114,82 +159,141 @@ enum OwlStrings {
       }
     }
     switch result.problem {
-    case "wrong_item": return t("Swap the wrong item", "Vaihda väärä tuote")
+    case "wrong_item": return t(
+      "Swap the wrong item", "Vaihda väärä tuote",
+      easy: "Change the wrong item", "Vaihda väärä tuote")
     case "missing": return t("One item is missing", "Yksi tuote puuttuu")
     case "too_many": return t("Take the extra item out", "Ota ylimääräinen tuote pois")
-    default: return t("Not quite like the photo", "Ei aivan kuten kuvassa")
+    default: return t(
+      "Not quite like the photo", "Ei aivan kuten kuvassa",
+      easy: "This is not like the photo", "Tämä ei ole kuin kuvassa")
     }
   }
   static var onTheOrder: String { t("ON THE ORDER", "TILAUKSESSA") }
   static var inTheBox: String { t("IN THE BOX", "LAATIKOSSA") }
   static func otherLinesRight(_ count: Int) -> String {
-    count == 1 ? t("1 other line is right", "1 muu rivi on oikein") : t("\(count) other lines are right", "\(count) muuta riviä on oikein")
+    count == 1 ? t(
+      "1 other line is right", "1 muu rivi on oikein",
+      easy: "1 other is right", "1 muu on oikein") : t(
+      "\(count) other lines are right", "\(count) muuta riviä on oikein",
+      easy: "\(count) others are right", "\(count) muuta on oikein")
   }
 
   // Checking and cannot check
-  static var checking: String { t("Checking", "Tarkistan") }
-  static var holdStill: String { t("Hold it still for a moment.", "Pidä hetki paikallaan.") }
-  static var cannotCheck: String { t("Owl can't check this step", "Owl ei voi tarkistaa tätä vaihetta") }
+  static var checking: String { t("Checking", "Tarkistan", easy: "Owl checks", "Owl tarkistaa") }
+  static var holdStill: String { t(
+    "Hold it still for a moment.", "Pidä hetki paikallaan.",
+    easy: "Hold still.", "Pidä paikallaan.") }
+  static var cannotCheck: String { t(
+    "Owl can't check this step", "Owl ei voi tarkistaa tätä vaihetta",
+    easy: "Owl cannot check this step", "Owl ei voi tarkistaa tätä vaihetta") }
   static func cannotCheckBody(_ why: OwlCheckBlock) -> String {
     switch why {
     case .cameraOff:
-      t("The camera is not allowed. Your supervisor can allow it on the phone.", "Kameraa ei ole sallittu. Esihenkilösi voi sallia sen puhelimesta.")
-    case .cameraFailed: t("The glasses camera did not start. Try again in a moment.", "Lasien kamera ei käynnistynyt. Yritä hetken päästä uudelleen.")
-    case .offline: t("There is no connection to Owl's server.", "Yhteyttä Owlin palvelimeen ei ole.")
-    case .serverError: t("Owl's server has a problem.", "Owlin palvelimessa on vika.")
-    case .cantSee: t("Hold the work in view and try again.", "Pidä työ näkyvissä ja yritä uudelleen.")
+      t(
+        "The camera is not allowed. Your supervisor can allow it on the phone.",
+        "Kameraa ei ole sallittu. Esihenkilösi voi sallia sen puhelimesta.",
+        easy: "Owl may not use the camera. Your boss can allow it.",
+        "Owl ei saa käyttää kameraa. Esihenkilösi voi sallia sen.")
+    case .cameraFailed: t(
+      "The glasses camera did not start. Try again in a moment.",
+      "Lasien kamera ei käynnistynyt. Yritä hetken päästä uudelleen.",
+      easy: "The camera did not start. Try again soon.", "Kamera ei käynnistynyt. Yritä pian uudelleen.")
+    case .offline: t(
+      "There is no connection to Owl's server.", "Yhteyttä Owlin palvelimeen ei ole.",
+      easy: "Owl has no connection.", "Owlilla ei ole yhteyttä.")
+    case .serverError: t(
+      "Owl's server has a problem.", "Owlin palvelimessa on vika.",
+      easy: "Owl has a problem.", "Owlissa on vika.")
+    case .cantSee: t(
+      "Hold the work in view and try again.", "Pidä työ näkyvissä ja yritä uudelleen.",
+      easy: "Owl cannot see your work. Hold it in front of you.", "Owl ei näe työtäsi. Pidä se edessäsi.")
     case .timedOut: t("The check took too long. Try again.", "Tarkistus kesti liian kauan. Yritä uudelleen.")
-    case .checksOff: t("Camera checks are off.", "Kameratarkistukset ovat pois päältä.")
-    case .cameraPaused: t("The camera is paused.", "Kamera on tauolla.")
+    case .checksOff: t(
+      "Camera checks are off.", "Kameratarkistukset ovat pois päältä.",
+      easy: "The camera is off.", "Kamera on pois.")
+    case .cameraPaused: t("The camera is paused.", "Kamera on tauolla.", easy: "The camera is off.", "Kamera on pois.")
     }
   }
   static var notVerifiedNote: String {
-    t("The summary will say this step was not verified.", "Yhteenvedossa lukee, että tätä vaihetta ei tarkistettu.")
+    t(
+      "The summary will say this step was not verified.", "Yhteenvedossa lukee, että tätä vaihetta ei tarkistettu.",
+      easy: "At the end Owl says: this step was not checked.", "Lopuksi Owl kertoo: tätä vaihetta ei tarkistettu.")
   }
 
   // The summary
-  static var verified: String { t("Verified", "Tarkistettu") }
-  static var notVerified: String { t("Not verified", "Ei tarkistettu") }
+  static var verified: String { t("Verified", "Tarkistettu", easy: "Checked", "Tarkistettu") }
+  static var notVerified: String { t("Not verified", "Ei tarkistettu", easy: "Not checked", "Ei tarkistettu") }
   static var noCheckLabel: String { t("No check", "Ei tarkistusta") }
-  static var wellDone: String { t("Well done", "Hienoa") }
+  static var wellDone: String { t("Well done", "Hienoa", easy: "Good job", "Hyvä") }
   static var finished: String { t("Finished", "Valmis") }
   static func finishedNotVerified(_ count: Int) -> String {
-    t("Finished, \(count) not verified", "Valmis, \(count) tarkistamatta")
+    t(
+      "Finished, \(count) not verified", "Valmis, \(count) tarkistamatta",
+      easy: "Finished. \(count) not checked.", "Valmis. \(count) tarkistamatta.")
   }
   static func allVerifiedBody(_ count: Int) -> String {
     count == 1
-      ? t("Owl verified the checked step.", "Owl tarkisti tarkistettavan vaiheen.")
-      : t("Owl verified all \(count) checked steps.", "Owl tarkisti kaikki \(count) tarkistettavaa vaihetta.")
+      ? t(
+        "Owl verified the checked step.", "Owl tarkisti tarkistettavan vaiheen.",
+        easy: "Owl checked the step. It is right.", "Owl tarkisti vaiheen. Se on oikein.")
+      : t(
+        "Owl verified all \(count) checked steps.", "Owl tarkisti kaikki \(count) tarkistettavaa vaihetta.",
+        easy: "Owl checked \(count) steps. All are right.", "Owl tarkisti \(count) vaihetta. Kaikki ovat oikein.")
   }
   static var notVerifiedBody: String {
-    t("Ask your shift lead to look at the steps Owl could not verify.", "Pyydä vuoropäällikköä katsomaan vaiheet, joita Owl ei voinut tarkistaa.")
+    t(
+      "Ask your shift lead to look at the steps Owl could not verify.",
+      "Pyydä vuoropäällikköä katsomaan vaiheet, joita Owl ei voinut tarkistaa.",
+      easy: "Owl could not check some steps. Ask your boss to look.",
+      "Owl ei voinut tarkistaa kaikkia vaiheita. Pyydä esihenkilöä katsomaan.")
   }
   static var noChecksBody: String { t("This task has no checks.", "Tässä tehtävässä ei ole tarkistuksia.") }
   static var checksOffBody: String {
-    t("Camera checks were off, so Owl did not check these steps.", "Kameratarkistukset olivat pois päältä, joten Owl ei tarkistanut näitä vaiheita.")
+    t(
+      "Camera checks were off, so Owl did not check these steps.",
+      "Kameratarkistukset olivat pois päältä, joten Owl ei tarkistanut näitä vaiheita.",
+      easy: "The camera was off. Owl did not check these steps.", "Kamera oli pois. Owl ei tarkistanut näitä vaiheita.")
   }
   static var myProgress: String { t("My progress", "Edistymiseni") }
-  static var forgetMe: String { t("Forget me", "Unohda minut") }
-  static var pauseCamera: String { t("Pause camera", "Keskeytä kamera") }
-  static var cameraOn: String { t("Camera on", "Kamera päälle") }
+  static var forgetMe: String { t("Forget me", "Unohda minut", easy: "Erase my progress", "Poista edistymiseni") }
+  static var pauseCamera: String { t("Pause camera", "Keskeytä kamera", easy: "Stop camera", "Sammuta kamera") }
+  static var cameraOn: String { t("Camera on", "Kamera päälle", easy: "Start camera", "Käynnistä kamera") }
   static func sayFinished(_ summary: OwlRunSummary) -> String {
-    if summary.allVerified { return t("Well done. Every checked step is verified.", "Hienoa. Kaikki tarkistettavat vaiheet on tarkistettu.") }
+    if summary.allVerified { return t(
+      "Well done. Every checked step is verified.", "Hienoa. Kaikki tarkistettavat vaiheet on tarkistettu.",
+      easy: "Good job. All checks are right.", "Hyvä. Kaikki tarkistukset ovat oikein.") }
     if summary.unverified > 0 {
       return summary.unverified == 1
-        ? t("You finished. One step was not verified.", "Olet valmis. Yhtä vaihetta ei tarkistettu.")
-        : t("You finished. \(summary.unverified) steps were not verified.", "Olet valmis. \(summary.unverified) vaihetta jäi tarkistamatta.")
+        ? t(
+          "You finished. One step was not verified.", "Olet valmis. Yhtä vaihetta ei tarkistettu.",
+          easy: "You finished. Owl could not check one step.", "Olet valmis. Owl ei voinut tarkistaa yhtä vaihetta.")
+        : t(
+          "You finished. \(summary.unverified) steps were not verified.",
+          "Olet valmis. \(summary.unverified) vaihetta jäi tarkistamatta.",
+          easy: "You finished. Owl could not check \(summary.unverified) steps.",
+          "Olet valmis. Owl ei voinut tarkistaa \(summary.unverified) vaihetta.")
     }
     return t("You finished the task.", "Tehtävä on valmis.")
   }
 
   // Watch how
   static var videoPlaying: String { t("Playing the clip", "Toistan videota") }
-  static var videoProblem: String { t("The video can't play right now", "Videota ei voi toistaa juuri nyt") }
+  static var videoProblem: String { t(
+    "The video can't play right now", "Videota ei voi toistaa juuri nyt",
+    easy: "The video cannot play now", "Video ei toimi nyt") }
   static var videoProblemBody: String {
-    t("The step still works. Follow the photo and the instruction.", "Vaihe toimii silti. Seuraa kuvaa ja ohjetta.")
+    t(
+      "The step still works. Follow the photo and the instruction.", "Vaihe toimii silti. Seuraa kuvaa ja ohjetta.",
+      easy: "You can still do the step. Look at the photo and read the text.",
+      "Voit silti tehdä vaiheen. Katso kuvaa ja lue teksti.")
   }
-  static var afterClip: String { t("That is how it is done", "Näin se tehdään") }
-  static var sayVideoProblem: String { t("The video can't play right now.", "Videota ei voi toistaa juuri nyt.") }
+  static var afterClip: String { t(
+    "That is how it is done", "Näin se tehdään",
+    easy: "This is how you do it", "Näin se tehdään") }
+  static var sayVideoProblem: String { t(
+    "The video can't play right now.", "Videota ei voi toistaa juuri nyt.",
+    easy: "The video cannot play now.", "Video ei toimi nyt.") }
 
   // Ask
   static var listening: String { t("Listening", "Kuuntelen") }
@@ -197,21 +301,36 @@ enum OwlStrings {
   static var askOwl: String { t("Ask Owl", "Kysy Owlilta") }
   static var thinking: String { t("Owl is thinking", "Owl miettii") }
   static func source(_ name: String) -> String { t("Source: \(name)", "Lähde: \(name)") }
-  static var notInInstructions: String { t("Not in the instructions", "Ei ohjeissa") }
-  static var fromInstructions: String { t("From your company's instructions", "Yrityksesi ohjeista") }
+  static var notInInstructions: String { t(
+    "Not in the instructions", "Ei ohjeissa",
+    easy: "The instructions do not say this", "Ohjeissa ei kerrota tätä") }
+  static var fromInstructions: String { t(
+    "From your company's instructions", "Yrityksesi ohjeista",
+    easy: "From your workplace's instructions", "Työpaikkasi ohjeista") }
   static var sayYes: String { t("Yes?", "Niin?") }
 
   // Help
   static var helpLabel: String { t("Help", "Apu") }
-  static var callingExpert: String { t("Calling an expert", "Kutsun asiantuntijaa") }
-  static var expertWithYou: String { t("An expert is with you", "Asiantuntija on kanssasi") }
+  static var callingExpert: String { t(
+    "Calling an expert", "Kutsun asiantuntijaa",
+    easy: "Calling a helper", "Soitan auttajalle") }
+  static var expertWithYou: String { t(
+    "An expert is with you", "Asiantuntija on kanssasi",
+    easy: "A helper is with you", "Auttaja on kanssasi") }
   static var helpBody: String {
-    t("They see what you see. Keep the problem in view.", "Hän näkee saman kuin sinä. Pidä ongelma näkyvissä.")
+    t(
+      "They see what you see. Keep the problem in view.", "Hän näkee saman kuin sinä. Pidä ongelma näkyvissä.",
+      easy: "The helper sees what you see. Look at the problem.", "Auttaja näkee saman kuin sinä. Katso ongelmaa.")
   }
   static var sayCallingExpert: String {
-    t("Calling an expert. They will see what you see.", "Kutsun asiantuntijan. Hän näkee saman kuin sinä.")
+    t(
+      "Calling an expert. They will see what you see.", "Kutsun asiantuntijan. Hän näkee saman kuin sinä.",
+      easy: "Owl calls a helper. The helper sees what you see.",
+      "Owl soittaa auttajalle. Auttaja näkee saman kuin sinä.")
   }
-  static var sayHelpEnded: String { t("Help has ended. Your view is no longer shared.", "Apu päättyi. Näkymääsi ei enää jaeta.") }
+  static var sayHelpEnded: String { t(
+    "Help has ended. Your view is no longer shared.", "Apu päättyi. Näkymääsi ei enää jaeta.",
+    easy: "Help has ended. Nobody sees what you see now.", "Apu päättyi. Kukaan ei enää näe, mitä sinä näet.") }
 
   // Record
   static var record: String { t("Record", "Tallennus") }
@@ -236,12 +355,18 @@ enum OwlStrings {
   // When something is in the way (JUN-42)
   static func problemTitle(_ kind: OwlProblemKind) -> String {
     switch kind {
-    case .cameraNeeded: t("Owl can't use the camera", "Owl ei saa käyttää kameraa")
+    case .cameraNeeded: t(
+      "Owl can't use the camera", "Owl ei saa käyttää kameraa",
+      easy: "Owl may not use the camera", "Owl ei saa käyttää kameraa")
     case .microphoneNeeded: t("Owl can't hear you", "Owl ei kuule sinua")
     case .offline: t("No connection", "Ei yhteyttä")
-    case .server: t("Owl can't help right now", "Owl ei voi auttaa juuri nyt")
-    case .notAllowed: t("Ask your supervisor", "Kysy esihenkilöltäsi")
-    case .notAssigned: t("These glasses are not set up yet", "Näitä laseja ei ole vielä otettu käyttöön")
+    case .server: t(
+      "Owl can't help right now", "Owl ei voi auttaa juuri nyt",
+      easy: "Owl cannot help now", "Owl ei voi auttaa nyt")
+    case .notAllowed: t("Ask your supervisor", "Kysy esihenkilöltäsi", easy: "Ask your boss", "Kysy esihenkilöltäsi")
+    case .notAssigned: t(
+      "These glasses are not set up yet", "Näitä laseja ei ole vielä otettu käyttöön",
+      easy: "These glasses are not ready yet", "Nämä lasit eivät ole vielä valmiit")
     case .video: videoProblem
     case .other: t("Something went wrong", "Jokin meni vikaan")
     }
@@ -249,21 +374,82 @@ enum OwlStrings {
   static func problemBody(_ kind: OwlProblemKind) -> String {
     switch kind {
     case .cameraNeeded:
-      t("Your supervisor allows the camera once, on the phone. You can still follow the steps.", "Esihenkilösi sallii kameran kerran puhelimesta. Voit silti seurata vaiheita.")
+      t(
+        "Your supervisor allows the camera once, on the phone. You can still follow the steps.",
+        "Esihenkilösi sallii kameran kerran puhelimesta. Voit silti seurata vaiheita.",
+        easy: "Your boss can allow the camera on the phone. You can still do the steps.",
+        "Esihenkilösi voi sallia kameran puhelimesta. Voit silti tehdä vaiheet.")
     case .microphoneNeeded:
-      t("Your supervisor allows the microphone once, on the phone.", "Esihenkilösi sallii mikrofonin kerran puhelimesta.")
+      t(
+        "Your supervisor allows the microphone once, on the phone.",
+        "Esihenkilösi sallii mikrofonin kerran puhelimesta.",
+        easy: "Your boss can allow the microphone on the phone.", "Esihenkilösi voi sallia mikrofonin puhelimesta.")
     case .offline:
-      t("Saved tasks still work. Owl can't check or answer until the connection is back.", "Tallennetut tehtävät toimivat. Owl ei voi tarkistaa eikä vastata ennen kuin yhteys palaa.")
-    case .server: t("Owl's server has a problem. Try again in a moment.", "Owlin palvelimessa on vika. Yritä hetken päästä uudelleen.")
-    case .notAllowed: t("Owl's server did not accept these glasses.", "Owlin palvelin ei hyväksynyt näitä laseja.")
+      t(
+        "Saved tasks still work. Owl can't check or answer until the connection is back.",
+        "Tallennetut tehtävät toimivat. Owl ei voi tarkistaa eikä vastata ennen kuin yhteys palaa.",
+        easy: "You can still do saved tasks. Owl cannot check now. Owl cannot answer now.",
+        "Voit tehdä tallennetut tehtävät. Owl ei voi nyt tarkistaa. Owl ei voi nyt vastata.")
+    case .server: t(
+      "Owl's server has a problem. Try again in a moment.",
+      "Owlin palvelimessa on vika. Yritä hetken päästä uudelleen.",
+      easy: "Owl has a problem. Try again soon.", "Owlissa on vika. Yritä pian uudelleen.")
+    case .notAllowed: t(
+      "Owl's server did not accept these glasses.", "Owlin palvelin ei hyväksynyt näitä laseja.",
+      easy: "Owl does not know these glasses.", "Owl ei tunne näitä laseja.")
     case .notAssigned:
-      t("Ask your supervisor to give them to you in Owl Studio.", "Pyydä esihenkilöäsi antamaan ne sinulle Owl Studiossa.")
+      t(
+        "Ask your supervisor to give them to you in Owl Studio.",
+        "Pyydä esihenkilöäsi antamaan ne sinulle Owl Studiossa.",
+        easy: "Ask your boss to set them up for you.", "Pyydä esihenkilöä ottamaan ne käyttöön sinulle.")
     case .video: videoProblemBody
-    case .other: t("Try again, or ask your supervisor.", "Yritä uudelleen tai kysy esihenkilöltäsi.")
+    case .other: t(
+      "Try again, or ask your supervisor.", "Yritä uudelleen tai kysy esihenkilöltäsi.",
+      easy: "Try again. Or ask your boss.", "Yritä uudelleen. Tai kysy esihenkilöltäsi.")
     }
   }
   static var sayWelcomeBack: String { t("Welcome back.", "Tervetuloa takaisin.") }
-  static var sayCantHelp: String { t("Owl can't help right now.", "Owl ei voi auttaa juuri nyt.") }
+
+  // Audio first (JUN-81): what a pinch does and what else can be chosen, said aloud for a
+  // worker who cannot read the buttons. A choice is named by its place, not by a gesture.
+  static var sayPinchToStart: String { t("Pinch to start.", "Nipistä, niin aloitetaan.") }
+  static func sayPinchToOpen(_ count: Int) -> String {
+    count == 1
+      ? t("Pinch to open it.", "Nipistä, niin avaan sen.")
+      : t("Pinch to open the first one.", "Nipistä, niin avaan ensimmäisen.")
+  }
+  static func sayStepButtons(_ others: [String]) -> String {
+    let list = others.joined(separator: ", ")
+    return t(
+      "Pinch \(done) when you are ready. The other buttons are: \(list).",
+      "Nipistä \(done), kun olet valmis. Muut painikkeet ovat: \(list).")
+  }
+  static var sayFixThenPinch: String {
+    t("Fix it. Then pinch, and Owl checks again.", "Korjaa se. Nipistä sitten, niin Owl tarkistaa uudelleen.")
+  }
+  static var sayCannotCheckChoices: String {
+    t(
+      "Pinch, and Owl checks again. The other choice is: \(continueUnverified).",
+      "Nipistä, niin Owl tarkistaa uudelleen. Toinen vaihtoehto on: \(continueUnverified).")
+  }
+  static func sayTwoChoices(_ first: String, _ second: String) -> String {
+    t("The first choice is: \(first). The second is: \(second).", "Ensimmäinen vaihtoehto on: \(first). Toinen on: \(second).")
+  }
+  static func sayOutcome(_ row: OwlRunSummary.Row) -> String {
+    let outcome =
+      switch row.outcome {
+      case .verified: verified
+      case .unverified: notVerified
+      case .noCheck: noCheckLabel
+      }
+    return t("Step \(row.index), \(row.title): \(outcome).", "Vaihe \(row.index), \(row.title): \(outcome).")
+  }
+  static var sayPinchForHome: String { t("Pinch to go back to your tasks.", "Nipistä, niin palaat tehtäviisi.") }
+  static var sayPinchToTryAgain: String { t("Pinch to try again.", "Nipistä, niin yritän uudelleen.") }
+  static var sayPinchToGoBack: String { t("Pinch to go back.", "Nipistä, niin palaat takaisin.") }
+  static var sayCantHelp: String { t(
+    "Owl can't help right now.", "Owl ei voi auttaa juuri nyt.",
+    easy: "Owl cannot help now.", "Owl ei voi auttaa nyt.") }
 }
 
 /// What is in the way, so each case gets its own screen (JUN-42).

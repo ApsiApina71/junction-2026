@@ -164,9 +164,10 @@ final class OwlViewModel {
     OwlCamera.removeLeftoverClips()
     // The first screen is drawn before owl-api has said who wears the glasses: the last
     // worker's language if there was one, otherwise the phone's.
-    if let last = savedTasks()?.employee.language {
-      speaker.language = last
-      OwlStrings.language = last
+    if let last = savedTasks()?.employee {
+      speaker.language = last.language
+      OwlStrings.language = last.language
+      OwlStrings.easy = last.access?.easyLanguage == true
     } else {
       usePhoneLanguage()
     }
@@ -270,6 +271,7 @@ final class OwlViewModel {
       welcomed = true
       statusText = "Welcome, \(employee.name)"
       speaker.say(employee.welcome ?? OwlStrings.welcomeBody)
+      sayChoices(OwlStrings.sayPinchToStart)
       await showScreen(stage: .init(kind: "welcome", title: OwlStrings.welcome(employee.name), text: employee.welcome)) {
         OwlScreens.welcome(employee: employee, onStart: self.action { await $0.showTasks(refresh: false) })
       }
@@ -320,6 +322,7 @@ final class OwlViewModel {
     statusText = offline ? "Offline: \(tasks.count) saved tasks" : "\(tasks.count) tasks"
     if readAloud, access.audioFirst, !tasks.isEmpty {
       speaker.say(OwlStrings.yourTasks + ": " + tasks.map(\.title).joined(separator: ". ") + ".", interrupt: false)
+      sayChoices(OwlStrings.sayPinchToOpen(tasks.count))
     }
     let select: @Sendable (String) -> Void = { [weak self] id in
       Task { @MainActor in await self?.startProcess(id) }
@@ -392,6 +395,8 @@ final class OwlViewModel {
   private func use(_ employee: OwlEmployee) {
     speaker.language = employee.language
     OwlStrings.language = employee.language
+    // The screens' own words follow the easy-language profile too, not only what Owl says.
+    OwlStrings.easy = employee.access?.easyLanguage == true
     applyProfile(employee)
   }
 
@@ -401,6 +406,7 @@ final class OwlViewModel {
     let language = Locale.preferredLanguages.first?.hasPrefix("fi") == true ? "fi" : "en"
     speaker.language = language
     OwlStrings.language = language
+    OwlStrings.easy = false
   }
 
   // MARK: - Learn & Check
@@ -445,7 +451,17 @@ final class OwlViewModel {
     statusText = "Step \(step.index)/\(process.steps.count): \(step.title)"
     let words = [after, speak ? step.say : nil].compactMap { $0 }.joined(separator: " ")
     if !words.isEmpty { speaker.say(words) }
-    if speak, access.audioFirst { speaker.say(readAloud(step), interrupt: false) }
+    if speak, access.audioFirst {
+      speaker.say(readAloud(step), interrupt: false)
+      // On the first step of a task the buttons are named once.
+      if stepIndex == 0 {
+        let others = [
+          step.clipUrl == nil ? nil : OwlStrings.watchHow, OwlStrings.ask, OwlStrings.help,
+          consent?.cameraChecks == true && step.check.usesCamera ? OwlStrings.pauseCamera : nil,
+        ].compactMap { $0 }
+        sayChoices(OwlStrings.sayStepButtons(others))
+      }
+    }
     await render(number)
     guard isCurrent(number) else { return }
     if step.check.usesCamera {
@@ -687,6 +703,7 @@ final class OwlViewModel {
       let rows = lines.map { "\($0.name): \($0.seen) / \($0.expected)\($0.note.map { ", \($0)" } ?? "")." }
       speaker.say(rows.joined(separator: " "), interrupt: false)
     }
+    if result.status == "warning" { sayChoices(OwlStrings.sayFixThenPinch) }
   }
 
   /// "Back" on a correction or a cannot-check card: back to the step card, same task, same
@@ -776,6 +793,12 @@ final class OwlViewModel {
       }
       // The hint is spoken only now, on the check the worker asked for.
       speaker.say(result?.say ?? result?.hint ?? OwlStrings.cannotCheck)
+      if access.audioFirst {
+        // The card's own words and its two choices, for a worker who cannot read them.
+        if result?.say != nil || result?.hint != nil { speaker.say(OwlStrings.cannotCheck + ".", interrupt: false) }
+        if result?.hint == nil { speaker.say(OwlStrings.cannotCheckBody(why), interrupt: false) }
+        sayChoices(OwlStrings.sayCannotCheckChoices)
+      }
       card = .cannotCheck(why, result?.hint)
       statusText = "Owl can't check step \(step.index): \(why.rawValue)"
       await render(number)
@@ -854,6 +877,11 @@ final class OwlViewModel {
       ? "Finished \(process.title): \(summary.unverified) of \(summary.checked) checks not verified"
       : "Finished \(process.title): \(summary.verified) checks verified"
     speaker.say([after, OwlStrings.sayFinished(summary)].compactMap { $0 }.joined(separator: " "))
+    if access.audioFirst {
+      // The list on the display, step by step, then what the pinch does.
+      speaker.say(summary.rows.map(OwlStrings.sayOutcome).joined(separator: " "), interrupt: false)
+      sayChoices(OwlStrings.sayPinchForHome)
+    }
     let rows = summary.rows.map { "\($0.outcome == .verified ? "✓" : ($0.outcome == .unverified ? "○" : "–")) \($0.title)" }
     let hasEmployee = employee != nil
     await showScreen(stage: .init(kind: "done", title: statusText, text: rows.joined(separator: " · "))) {
@@ -925,6 +953,13 @@ final class OwlViewModel {
   }
 
   /// Audio-first: the instruction and what Owl checks, read aloud after the step's own line.
+  /// Audio first: what the pinch does and what else can be chosen, after whatever Owl is
+  /// saying. Nothing a worker has to choose between is only on the display.
+  private func sayChoices(_ text: String) {
+    guard access.audioFirst else { return }
+    speaker.say(text, interrupt: false)
+  }
+
   private func readAloud(_ step: OwlStep) -> String {
     var parts = [step.instruction]
     if let criteria = step.check.criteria, !criteria.isEmpty, step.check.usesCamera {
@@ -1093,6 +1128,7 @@ final class OwlViewModel {
     let title = t("Owl's camera")
     let allow = t("Allow checks")
     let decline = t("No checks")
+    sayChoices(OwlStrings.sayTwoChoices(allow, decline))
     await showScreen(stage: .init(kind: "consent", title: title, text: lines.joined(separator: " "))) {
       OwlScreens.consent(
         title: title, lines: lines, allowLabel: allow, declineLabel: decline,
@@ -1512,7 +1548,8 @@ final class OwlViewModel {
       await sendDroppedSteps(of: recording.id)
       NSLog("[Owl] step upload given up; owl-api \(droppedSteps.isEmpty ? "has dropped the step" : "will be told before the next step")")
       speaker.say(OwlStrings.stepNotSaved)
-      await showRecord()
+      // On the display too: a Deaf expert must not take the old count for a saved step.
+      await showRecord(narration: OwlStrings.stepNotSaved)
     }
   }
 
@@ -1695,6 +1732,11 @@ final class OwlViewModel {
     statusText = state.title
     phoneState = state
     speaker.say(kind == .server || kind == .other ? OwlStrings.sayCantHelp : OwlStrings.problemTitle(kind))
+    if access.audioFirst {
+      // What still works and what to do is on the display: said aloud too, with what the pinch does.
+      speaker.say(OwlStrings.problemBody(kind), interrupt: false)
+      sayChoices(retry != nil ? OwlStrings.sayPinchToTryAgain : OwlStrings.sayPinchToGoBack)
+    }
     let inTask = process != nil
     // Glasses that belong to no one have nowhere to go back to.
     let home: OwlAction? =

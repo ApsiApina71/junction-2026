@@ -32,7 +32,11 @@ enum OwlScreenGallery {
     if long { name.removeLast(5) }
     let finnish = name.hasSuffix("-fi")
     if finnish { name.removeLast(3) }
+    // `-easy`: the easy-language profile's words, e.g. `cannot-check-easy`, `done-unverified-easy-fi`.
+    let easy = name.hasSuffix("-easy")
+    if easy { name.removeLast(5) }
     OwlStrings.language = finnish ? "fi" : "en"
+    OwlStrings.easy = easy
 
     let data = Sample(finnish: finnish, long: long)
     let process = data.process
