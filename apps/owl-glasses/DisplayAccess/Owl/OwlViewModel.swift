@@ -67,6 +67,11 @@ final class OwlViewModel {
   @ObservationIgnored let invocations: OwlInvocations
   @ObservationIgnored private let listener: OwlListener
   @ObservationIgnored private var camera: OwlCamera?
+  /// The upload of the step that was just recorded, so the expert can give it up (Record).
+  @ObservationIgnored private var stepUpload: Task<OwlRecording, Error>?
+  /// Step uploads the expert gave up that owl-api has not been told about yet. They are sent
+  /// before anything else of the recording, so a step that was taken back is never in the task.
+  @ObservationIgnored private var droppedSteps: [String] = []
   @ObservationIgnored private var cameraDenied = false
   /// What the worker agreed to (JUN-80). Without camera checks Owl is a guide without checks.
   private(set) var consent: OwlConsent?
@@ -156,12 +161,12 @@ final class OwlViewModel {
     self.wearables = wearables
     self.invocations = OwlInvocations(wearables: wearables)
     self.listener = OwlListener(wearables: wearables)
+    OwlCamera.removeLeftoverClips()
 
     invocations.onLaunch = { [weak self] device in
       await self?.open(deviceIdentifier: device) ?? false
     }
     // The glasses recognise speech in their own language setting (DAT Speech `locale`); the
-    OwlCamera.removeLeftoverClips()
     // app cannot choose it. The voice follows the worker's language instead.
     listener.onLocale = { locale in NSLog("[Owl] glasses speech locale: \(locale)") }
     speaker.onSpoken = { [weak self] text in
@@ -235,7 +240,11 @@ final class OwlViewModel {
   func open(deviceIdentifier: DeviceIdentifier? = nil) async -> Bool {
     stopEverything()
     let number = newScene()
-    await show(OwlScreens.status("Owl", detail: OwlStrings.gettingTasks, mood: .listening), deviceIdentifier: deviceIdentifier)
+    await show(
+      OwlScreens.status(
+        "Owl", detail: OwlStrings.gettingTasks, mood: .listening, leave: OwlStrings.tryAgain,
+        leaveIcon: .twoArrowsClockwise, onCancel: waitAction { await $0.open() }),
+      deviceIdentifier: deviceIdentifier)
     watchGlasses()
     await loadTasks()
     guard isCurrent(number) else { return displayViewModel.isConnected }
@@ -1306,13 +1315,20 @@ final class OwlViewModel {
       }
       return
     }
-    await showScreen { OwlScreens.status(OwlStrings.record, detail: OwlStrings.takesAMoment, mood: .listening) }
+    // A recording left with Back is opened again, with the steps it already has.
+    if recording != nil { return await showRecord() }
+    await showScreen {
+      OwlScreens.status(
+        OwlStrings.record, detail: OwlStrings.takesAMoment, mood: .listening,
+        onCancel: self.waitAction { await $0.showTasks(refresh: false) })
+    }
     do {
       let started = try await api.startRecording(
         title: "New task \(Date().formatted(date: .omitted, time: .shortened))",
         expert: employee?.name ?? "Expert")
       guard isCurrent(number) else { return }
       recording = started
+      droppedSteps = []
       speaker.say(OwlStrings.recordHintFirst)
       await showRecord()
     } catch {
@@ -1325,18 +1341,21 @@ final class OwlViewModel {
     guard let recording else { return }
     let stepCount = recording.steps.count
     let isRecordingStep = isRecordingStep
+    if !isRecordingStep { statusText = "Record: \(recording.title), \(stepCount) steps" }
     await showScreen(stage: .init(kind: "record", title: isRecordingStep ? "Recording step \(stepCount + 1)" : "Record: \(recording.title)", text: text)) {
       OwlScreens.record(
         title: recording.title, stepCount: stepCount, isRecordingStep: isRecordingStep,
         narration: text,
         onStartStep: self.action { await $0.startRecordedStep() },
         onEndStep: self.action { await $0.endRecordedStep() },
-        onFinish: self.action { await $0.finishRecording() })
+        onFinish: self.action { await $0.finishRecording() },
+        onBack: self.action { await $0.showTasks(refresh: false) })
     }
   }
 
   func startRecordedStep() async {
-    guard !isRecordingStep, let session = displayViewModel.currentDeviceSession() else { return }
+    // Only inside a recording: a step clip that no recording waits for would never be ended.
+    guard !isRecordingStep, recording != nil, let session = displayViewModel.currentDeviceSession() else { return }
     guard let camera = await openCamera() else {
       await showProblem(cameraDenied ? .cameraNeeded : .other, detail: OwlError.noCamera.errorDescription)
       return
@@ -1372,37 +1391,85 @@ final class OwlViewModel {
     listener.stop()
     let photo = camera.photoJPEG(maxSide: 1280)
     let clip = await camera.finishClip()
-    await showScreen { OwlScreens.status(OwlStrings.savingStep, detail: OwlStrings.uploadingClip) }
+    // Sent or not, the clip does not stay on the phone: a step that failed is recorded again.
+    defer { if let clip { try? FileManager.default.removeItem(at: clip) } }
     guard let photo else {
       await showProblem(.other, detail: OwlError.noCamera.errorDescription, retry: { await $0.showRecord() })
       return
     }
+    let text = narration.joined(separator: " ")
+    let api = api
+    let key = UUID().uuidString
+    let dropped = droppedSteps
+    let upload = Task {
+      for key in dropped { _ = try await api.dropRecordedStep(recordingID: recording.id, key: key) }
+      return try await api.addRecordedStep(recordingID: recording.id, key: key, narration: text, photo: photo, clip: clip)
+    }
+    stepUpload = upload
+    defer { stepUpload = nil }
+    statusText = "Saving step \(recording.steps.count + 1)"
+    // A slow connection must not hold the expert here: Cancel gives this step up.
+    await showScreen {
+      OwlScreens.status(
+        OwlStrings.savingStep, detail: OwlStrings.uploadingClip, leave: OwlStrings.cancel, leaveIcon: .x,
+        onCancel: self.waitAction { $0.stepUpload?.cancel() })
+    }
     do {
-      let text = narration.joined(separator: " ")
-      self.recording = try await api.addRecordedStep(
-        recordingID: recording.id, narration: text, photo: photo, clip: clip)
+      self.recording = try await upload.value
+      droppedSteps.removeAll { dropped.contains($0) }
       NSLog("[Owl] recorded step \(self.recording?.steps.count ?? 0) of \(recording.id): clip \(clip != nil), narration \"\(text)\"")
-      if let clip { try? FileManager.default.removeItem(at: clip) }
       speaker.say("Step saved.")
       await showRecord()
     } catch {
-      await showProblem(kind(of: error), detail: (error as? LocalizedError)?.errorDescription, retry: { await $0.showRecord() })
+      guard upload.isCancelled else {
+        await showProblem(kind(of: error), detail: (error as? LocalizedError)?.errorDescription, retry: { await $0.showRecord() })
+        return
+      }
+      // owl-api may store the step although the upload was given up, so the step is taken back by
+      // its key: now if owl-api answers, otherwise before the next step or the finish.
+      droppedSteps.append(key)
+      await sendDroppedSteps(of: recording.id)
+      NSLog("[Owl] step upload given up; owl-api \(droppedSteps.isEmpty ? "has dropped the step" : "will be told before the next step")")
+      speaker.say(OwlStrings.stepNotSaved)
+      await showRecord()
+    }
+  }
+
+  /// Tells owl-api which step uploads were given up. What cannot be sent now stays for later.
+  private func sendDroppedSteps(of recordingID: String) async {
+    while let key = droppedSteps.first {
+      guard let current = try? await api.dropRecordedStep(recordingID: recordingID, key: key) else { return }
+      droppedSteps.removeFirst()
+      if recording?.id == recordingID { recording = current }
     }
   }
 
   func finishRecording() async {
-    guard let recording else { return }
+    guard let recording, !isRecordingStep else { return }
+    let number = newScene()
     closeCamera()
-    await showScreen { OwlScreens.status(OwlStrings.writingSteps, detail: OwlStrings.takesAMoment) }
+    statusText = "Writing the steps of \(recording.title)"
+    // Back ends only the waiting: owl-api goes on writing, and the draft waits in Owl Studio.
+    await showScreen {
+      OwlScreens.status(
+        OwlStrings.writingSteps, detail: OwlStrings.takesAMoment,
+        onCancel: self.waitAction { await $0.showTasks(refresh: false) })
+    }
     do {
+      for key in droppedSteps { _ = try await api.dropRecordedStep(recordingID: recording.id, key: key) }
+      droppedSteps = []
       var current = try await api.finishRecording(recording.id)
+      // owl-api has the recording now. It is over for the glasses, also when the worker has left this wait.
+      self.recording = nil
       for _ in 0..<45 where current.status == "processing" || current.status == "recording" {
         try await Task.sleep(for: .seconds(2))
+        guard isCurrent(number) else { return }
         current = try await api.recording(recording.id)
       }
-      self.recording = nil
       NSLog("[Owl] recording \(current.id): \(current.status), process \(current.processId ?? "-")")
+      guard isCurrent(number) else { return }
       if current.status == "done" {
+        statusText = "Recorded: \(current.title)"
         speaker.say("Done. Review the new task in Owl Studio.")
         let title = current.title
         await showScreen(stage: .init(kind: "record", title: OwlStrings.recorded, text: OwlStrings.reviewInStudio(title))) {
@@ -1414,7 +1481,11 @@ final class OwlViewModel {
         await showProblem(.server, detail: "Owl couldn't write the steps.")
       }
     } catch {
-      await showProblem(kind(of: error), detail: (error as? LocalizedError)?.errorDescription, retry: { await $0.finishRecording() })
+      guard isCurrent(number) else { return }
+      // Finishing again is only possible while the glasses still hold the recording.
+      var again: (@MainActor (OwlViewModel) async -> Void)?
+      if self.recording != nil { again = { await $0.finishRecording() } }
+      await showProblem(kind(of: error), detail: (error as? LocalizedError)?.errorDescription, retry: again)
     }
   }
 
@@ -1657,6 +1728,16 @@ final class OwlViewModel {
       }
     }
   }
+
+  /// The way out of a waiting screen. A pinch in its first moment is ignored: it is the second
+  /// half of a double pinch on the button that led to the wait, not a wish to leave it.
+  private func waitAction(_ body: @escaping @MainActor (OwlViewModel) async -> Void) -> OwlAction {
+    let shown = ContinuousClock.now
+    return action { model in
+      guard ContinuousClock.now - shown > .milliseconds(1200) else { return }
+      await body(model)
+    }
+  }
 }
 
 /// The last employee and processes, so a known task still works without network.
@@ -1722,13 +1803,20 @@ extension OwlViewModel {
     case "recognize": if let current = self.step, recognizes(current) { await startRecognition(scene) }
     case "allow": await saveConsent(cameraChecks: true, recording: consent?.recording ?? false); await open()
     case "decline": await saveConsent(cameraChecks: false, recording: consent?.recording ?? false); await open()
-    case "agreerecord": await saveConsent(cameraChecks: consent?.cameraChecks ?? false, recording: true)
+    case "agreerecord":
+      // What the "I agree" button does: the consent is saved and the recording starts.
+      await saveConsent(cameraChecks: consent?.cameraChecks ?? false, recording: true)
+      await startRecording()
     case "camera": await toggleCamera()
     case "forget": await forgetMe()
     case "resetconsent":
       if let id = employee?.id { UserDefaults.standard.removeObject(forKey: Self.consentKey(id)) }
       consent = nil
     case "mock": mockCheck = argument.isEmpty ? nil : argument
+    // `bg:<step>` starts a step and goes on, so the script can act while that step waits.
+    case "bg": Task { await self.runTestStep(argument) }
+    // "Cancel" while a recorded step is being sent.
+    case "cancelsave": stepUpload?.cancel()
     case "wait": try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
     default: NSLog("[Owl] test: unknown step \(name)")
     }

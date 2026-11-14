@@ -202,6 +202,8 @@ class RecordedStep(BaseModel):
     narration: str
     photo_url: str | None = None
     clip_url: str | None = None
+    # The glasses' own name for this upload, so they can take the step back (DELETE /record/{id}/steps/{key}).
+    key: str | None = None
 
 
 class Recording(BaseModel):
@@ -211,6 +213,8 @@ class Recording(BaseModel):
     status: Literal["recording", "processing", "done", "failed"]
     steps: list[RecordedStep] = []
     process_id: str | None = None
+    # Keys of step uploads the expert gave up: removed if they arrived, ignored if they arrive later.
+    dropped: list[str] = []
 
 
 class TranslateRequest(BaseModel):

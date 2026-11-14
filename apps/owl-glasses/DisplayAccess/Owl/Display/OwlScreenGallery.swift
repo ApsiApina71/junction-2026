@@ -117,11 +117,11 @@ enum OwlScreenGallery {
     case "record":
       return OwlScreens.record(
         title: process.title, stepCount: 2, isRecordingStep: false, narration: nil, onStartStep: none, onEndStep: none,
-        onFinish: none)
+        onFinish: none, onBack: none)
     case "record-step":
       return OwlScreens.record(
         title: process.title, stepCount: 2, isRecordingStep: true, narration: data.narration, onStartStep: none,
-        onEndStep: none, onFinish: none)
+        onEndStep: none, onFinish: none, onBack: none)
     case "status":
       return OwlScreens.status(OwlStrings.writingSteps, detail: OwlStrings.takesAMoment, onCancel: none)
     case "problem-camera":

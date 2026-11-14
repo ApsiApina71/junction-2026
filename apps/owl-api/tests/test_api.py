@@ -174,6 +174,68 @@ def test_record_flow(client, monkeypatch):
     assert [r["id"] for r in client.get("/record").json()["recordings"]] == [second["id"], rec["id"]]
 
 
+def test_a_recorded_step_without_narration_is_kept(client, monkeypatch):
+    """The glasses send an empty narration when the expert said nothing or speech recognition heard nothing.
+
+    The step was lost with a 422 before; now it is a draft step that a person has to write and review.
+    """
+    monkeypatch.setattr(main, "MOCK_RECORD", True)
+    rec = client.post("/record", json={"title": "Seal the box", "expert": "Laura"}).json()
+    files = {"photo": ("p.jpg", jpeg(), "image/jpeg")}
+    assert client.post(f"/record/{rec['id']}/steps", data={"narration": "Tape the box shut."}, files=files).status_code == 200
+    silent = client.post(f"/record/{rec['id']}/steps", data={"narration": ""}, files=files)
+    assert silent.status_code == 200
+    assert silent.json()["steps"][1]["narration"] == ""
+    assert client.post(f"/record/{rec['id']}/steps", files=files).status_code == 200  # no narration field at all
+    client.post(f"/record/{rec['id']}/finish")
+    done = client.get(f"/record/{rec['id']}").json()
+    process = client.get(f"/processes/{done['process_id']}").json()
+    assert [s["title"] for s in process["steps"]] == ["Tape the box shut.", "Step 2", "Step 3"]
+    assert process["steps"][1]["source"] is None  # nothing was said, so there is no quote to show the reviewer
+    assert all(s["reviewed"] is False for s in process["steps"])
+    # A step nobody has written cannot reach a learner: publishing is refused until a person has reviewed it.
+    assert client.put(f"/processes/{process['id']}", json={**process, "status": "published"}).status_code == 422
+
+
+def test_a_given_up_step_upload_is_taken_back(client, monkeypatch):
+    """The expert cancels a slow upload on the glasses, and the glasses say "Step not saved".
+
+    That has to be true whether the upload had already arrived or arrives afterwards.
+    """
+    monkeypatch.setattr(main, "MOCK_RECORD", True)
+    rec = client.post("/record", json={"title": "Seal the box", "expert": "Laura"}).json()
+    steps = f"/record/{rec['id']}/steps"
+    files = {"photo": ("p.jpg", jpeg(), "image/jpeg")}
+    assert client.post(steps, data={"narration": "Fold the flaps.", "key": "step-a"}, files=files).status_code == 200
+
+    # It arrived before the glasses gave up: the step and its picture are removed.
+    arrived = client.post(steps, data={"narration": "Wrong take.", "key": "step-b"}, files=files).json()["steps"][1]
+    assert client.get(arrived["photo_url"]).status_code == 200
+    after = client.delete(f"{steps}/step-b")
+    assert after.status_code == 200
+    assert [s["narration"] for s in after.json()["steps"]] == ["Fold the flaps."]
+    assert client.get(arrived["photo_url"]).status_code == 404
+
+    # It arrives after the glasses gave up: nothing of it is kept.
+    assert client.delete(f"{steps}/step-c").status_code == 200
+    late = client.post(steps, data={"narration": "Late take.", "key": "step-c"}, files=files)
+    assert late.status_code == 200
+    assert [s["narration"] for s in late.json()["steps"]] == ["Fold the flaps."]
+
+    # The next step is step 2, and its picture never replaces a picture that is still in use.
+    again = client.post(steps, data={"narration": "Tape it shut.", "key": "step-d"}, files=files).json()["steps"]
+    assert [(s["index"], s["narration"]) for s in again] == [(1, "Fold the flaps."), (2, "Tape it shut.")]
+    assert len({s["photo_url"] for s in again}) == 2
+    assert all(client.get(s["photo_url"]).status_code == 200 for s in again)
+
+    assert client.delete(f"{steps}/not%20a%20key").status_code == 422
+    assert client.delete("/record/rec-999/steps/step-a").status_code == 404
+    client.post(f"/record/{rec['id']}/finish")
+    assert client.delete(f"{steps}/step-a").status_code == 409  # a finished recording is not changed any more
+    process = client.get(f"/processes/proc-{rec['id']}").json()
+    assert [s["title"] for s in process["steps"]] == ["Fold the flaps.", "Tape it shut."]
+
+
 def test_help_flow(client):
     files = {"image": ("f.jpg", jpeg(), "image/jpeg")}
     session = client.post("/help/frames", data={"employee_id": "emp-sami", "process_id": "proc-pick-pack", "step_id": "step-2"}, files=files).json()

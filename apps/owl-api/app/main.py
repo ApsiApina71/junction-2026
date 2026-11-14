@@ -16,6 +16,7 @@ from typing import Annotated, Any
 
 import anthropic
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
+from fastapi import Path as PathParam
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
@@ -589,6 +590,11 @@ def delete_doc(doc_id: str) -> Response:
 # Record
 
 
+# The glasses name each step upload (a UUID), so a given-up upload can be taken back.
+STEP_KEY = r"^[A-Za-z0-9-]{0,64}$"
+MAX_DROPPED_STEPS = 200
+
+
 def get_recording(record_id: str) -> Recording:
     rec = store.recordings.get(record_id)
     if rec is None:
@@ -607,9 +613,13 @@ def record_start(body: RecordStart, request: Request):
 async def record_step(
     record_id: str,
     request: Request,
-    narration: Annotated[str, Form(max_length=4000)],
     photo: Annotated[UploadFile, File()],
+    # Empty when the expert said nothing or the glasses heard nothing: the step is still kept, with its photo
+    # and clip, and the reviewer writes the words in Owl Studio.
+    narration: Annotated[str, Form(max_length=4000)] = "",
     clip: Annotated[UploadFile | None, File()] = None,
+    # The glasses' own name for this upload. With it they can take the step back when the expert gives the upload up.
+    key: Annotated[str, Form(pattern=STEP_KEY)] = "",
 ):
     rec = get_recording(record_id)
     if rec.status != "recording":
@@ -627,10 +637,36 @@ async def record_step(
     except media_engine.MediaError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     with store.lock:
-        index = len(rec.steps) + 1
-        photo_url = store.save_media(f"{rec.id}/{index}.jpg", photo_jpeg)
-        clip_url = store.save_media(f"{rec.id}/{index}.mp4", clip_mp4) if clip_mp4 else None
-        rec.steps.append(RecordedStep(index=index, narration=narration.strip(), photo_url=photo_url, clip_url=clip_url))
+        if key and key in rec.dropped:
+            # The expert gave this upload up while it was on its way: nothing of it is kept.
+            return out(request, rec)
+        # A file name no step of this recording has had, also after a step was taken back.
+        number = len(rec.steps) + len(rec.dropped) + 1
+        photo_url = store.save_media(f"{rec.id}/{number}.jpg", photo_jpeg)
+        clip_url = store.save_media(f"{rec.id}/{number}.mp4", clip_mp4) if clip_mp4 else None
+        rec.steps.append(RecordedStep(index=len(rec.steps) + 1, narration=narration.strip(), photo_url=photo_url, clip_url=clip_url, key=key or None))
+    return out(request, rec)
+
+
+@app.delete("/record/{record_id}/steps/{key}", response_model=Recording, dependencies=[Auth])
+def record_drop_step(record_id: str, key: Annotated[str, PathParam(pattern=STEP_KEY, min_length=1)], request: Request):
+    """The expert gave up a step upload: the step is removed if it arrived, and ignored if it arrives later.
+
+    A slow upload can be cancelled on the glasses while owl-api is still storing it. Without this the step would
+    be in the task although the glasses said it was not saved.
+    """
+    rec = get_recording(record_id)
+    with store.lock:
+        if rec.status != "recording":
+            raise HTTPException(status_code=409, detail="This recording is already finished.")
+        if key not in rec.dropped and len(rec.dropped) < MAX_DROPPED_STEPS:
+            rec.dropped.append(key)
+        for step in [s for s in rec.steps if s.key == key]:
+            rec.steps.remove(step)
+            store.remove_media(step.photo_url)
+            store.remove_media(step.clip_url)
+        for number, step in enumerate(rec.steps, start=1):
+            step.index = number
     return out(request, rec)
 
 

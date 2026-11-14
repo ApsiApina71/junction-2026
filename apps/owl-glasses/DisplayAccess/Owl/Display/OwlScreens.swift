@@ -372,7 +372,8 @@ enum OwlScreens {
   /// Record mode for experts: one step at a time.
   static func record(
     title: String, stepCount: Int, isRecordingStep: Bool, narration: String?,
-    onStartStep: @escaping OwlAction, onEndStep: @escaping OwlAction, onFinish: @escaping OwlAction
+    onStartStep: @escaping OwlAction, onEndStep: @escaping OwlAction, onFinish: @escaping OwlAction,
+    onBack: @escaping OwlAction
   ) -> FlexBox {
     screen {
       header(
@@ -393,26 +394,29 @@ enum OwlScreens {
         if stepCount > 0 {
           Button(label: OwlStrings.finish, style: .secondary, iconName: .checkmarkCircle, onClick: onFinish)
         }
+        // Record opened by mistake, or a break in the middle: the way back to the tasks. The
+        // recording is kept, and Record opens it again.
+        Button(label: OwlStrings.back, style: .secondary, iconName: .arrowLeft, onClick: onBack)
       }
     }
   }
 
   // MARK: - Waiting and problems
 
-  /// Owl is working on something. With `onCancel` there is a way out that keeps the task.
+  /// Owl is working on something. Every wait has a way out: the touchpad pauses or stops the
+  /// session when nothing interactive is shown, and no wait may hold the worker.
   static func status(
-    _ title: String, detail: String, mood: OwlMood = .thinking, onCancel: OwlAction? = nil
+    _ title: String, detail: String, mood: OwlMood = .thinking, leave: String? = nil,
+    leaveIcon: IconName = .arrowLeft, onCancel: @escaping OwlAction
   ) -> FlexBox {
     FlexBox(direction: .column, spacing: 10) {
       card {
         header(mood, meta: nil, title: title)
         Text(detail, style: .body, color: .secondary)
       }
-      if let onCancel {
-        buttonRow {
-          Button(label: OwlStrings.back, style: .secondary, iconName: .arrowLeft, onClick: onCancel)
-            .actionRole(.primary)
-        }
+      buttonRow {
+        Button(label: leave ?? OwlStrings.back, style: .secondary, iconName: leaveIcon, onClick: onCancel)
+          .actionRole(.primary)
       }
     }
   }

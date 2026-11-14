@@ -231,16 +231,26 @@ struct OwlAPI: Sendable {
     return try await send(try request("record", json: Body(title: title, expert: expert)))
   }
 
+  /// `key` names this upload, so `dropRecordedStep` can take the step back.
   func addRecordedStep(
-    recordingID: String, narration: String, photo jpeg: Data, clip: URL?
+    recordingID: String, key: String, narration: String, photo jpeg: Data, clip: URL?
   ) async throws -> OwlRecording {
     var form = MultipartForm()
+    form.addField("key", key)
     form.addField("narration", narration)
     form.addFile("photo", filename: "photo.jpg", contentType: "image/jpeg", data: jpeg)
     if let clip, let data = try? Data(contentsOf: clip) {
       form.addFile("clip", filename: clip.lastPathComponent, contentType: "video/mp4", data: data)
     }
     return try await send(try request("record/\(recordingID)/steps", form: form, timeout: 120))
+  }
+
+  /// Takes a step upload back: owl-api removes the step if it arrived and ignores it if it
+  /// arrives later.
+  func dropRecordedStep(recordingID: String, key: String) async throws -> OwlRecording {
+    var drop = try request("record/\(recordingID)/steps/\(key)")
+    drop.httpMethod = "DELETE"
+    return try await send(drop)
   }
 
   func finishRecording(_ id: String) async throws -> OwlRecording {

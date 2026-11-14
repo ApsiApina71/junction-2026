@@ -219,6 +219,7 @@ enum OwlStrings {
   static var writingSteps: String { t("Owl is writing the steps", "Owl kirjoittaa vaiheita") }
   static var takesAMoment: String { t("This takes a moment.", "Tämä kestää hetken.") }
   static var recorded: String { t("Recorded", "Tallennettu") }
+  static var stepNotSaved: String { t("Step not saved. Record it again.", "Vaihetta ei tallennettu. Tallenna se uudelleen.") }
   static func reviewInStudio(_ title: String) -> String {
     t("A person reviews \(title) in Owl Studio before anyone learns from it.", "Tehtävä \(title) tarkistetaan Owl Studiossa ennen kuin kukaan oppii siitä.")
   }

@@ -210,13 +210,15 @@ Answer to one camera frame during a step.
   "expert": "Laura",
   "status": "recording",
   "steps": [
-    {"index": 1, "narration": "First take a medium box...", "photo_url": "https://.../rec-1/1.jpg", "clip_url": "https://.../rec-1/1.mp4"}
+    {"index": 1, "narration": "First take a medium box...", "photo_url": "https://.../rec-1/1.jpg", "clip_url": "https://.../rec-1/1.mp4", "key": "6F1C…"}
   ],
-  "process_id": null
+  "process_id": null,
+  "dropped": []
 }
 ```
 
 - `status`: `recording`, `processing` (the AI is writing the steps), `done` (`process_id` is set), `failed`.
+- `key` is the glasses' own name for a step upload (or `null`), and `dropped` lists the keys of uploads the expert gave up; see `DELETE /record/{id}/steps/{key}`.
 
 ## Endpoints
 
@@ -252,6 +254,7 @@ Answer to one camera frame during a step.
 | `DELETE /docs/{id}` | none | `204`, no body | Studio |
 | `POST /record` | JSON `{"title", "expert"}` | `Recording` | glasses |
 | `POST /record/{id}/steps` | multipart (below) | `Recording` | glasses |
+| `DELETE /record/{id}/steps/{key}` | none | `Recording` | glasses |
 | `POST /record/{id}/finish` | none | `Recording` (`processing`, then `done`) | glasses |
 | `GET /record` | none | `{"recordings": [Recording]}` (newest first) | Studio |
 | `GET /record/{id}` | none | `Recording` | glasses, Studio |
@@ -393,7 +396,11 @@ Ask answers without a model: the best sentence of the best handbook section, quo
 
 ### `POST /record/{id}/steps`
 
-Multipart form: `narration` (text, the expert's words for this step), `photo` (JPEG, one reference frame), `clip` (optional, the step's video as `.mp4` or `.mov`, HEVC or H.264, ≤ 80 MB).
+Multipart form: `narration` (text, the expert's words for this step; may be empty or left out when nothing was said or heard, and the step is then drafted as "Step N" with no `source` for a person to write in Owl Studio), `photo` (JPEG, one reference frame), `clip` (optional, the step's video as `.mp4` or `.mov`, HEVC or H.264, ≤ 80 MB).
+
+Optional form field `key` (letters, digits and `-`, at most 64): the glasses' own name for this upload, a UUID.
+
+`DELETE /record/{id}/steps/{key}` takes a step upload back. The expert can cancel a slow upload on the glasses, and the glasses then say "Step not saved"; this call makes that true. The step with that `key` is removed with its photo and clip if it has arrived, and an upload with that `key` that arrives later answers `200` and stores nothing. `409` when the recording is already finished. The glasses send it when the expert cancels, and again before the next step or `finish` if it could not be sent then.
 
 Before anything is stored, the server blurs faces in the photo and the clip, and converts the clip for the DAT `VideoPlayer`: H.264 MP4 with faststart, at most 400 px per side and 70 000 pixels (a 720×540 clip becomes 304×228), 15 fps, no audio, the first 10 s. A clip that cannot be read answers `400`.
 

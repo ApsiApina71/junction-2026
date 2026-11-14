@@ -152,6 +152,15 @@ class Store:
                 return candidate
         return None
 
+    def remove_media(self, url: str | None) -> None:
+        """Deletes one uploaded file, given its /media path. Fixture media is never touched."""
+        if not url or not url.startswith("/media/"):
+            return
+        root = (self.data_dir / "media").resolve()
+        path = (root / url.removeprefix("/media/")).resolve()
+        if path.is_relative_to(root) and path.is_file():
+            path.unlink()
+
     def save_media(self, rel: str, data: bytes) -> str:
         """Writes a file under DATA_DIR/media and returns its /media path."""
         root = (self.data_dir / "media").resolve()
