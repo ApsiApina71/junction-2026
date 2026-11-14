@@ -475,6 +475,56 @@ enum OwlStrings {
       easy: "Owl calls a helper. The helper sees what you see.",
       "Owl soittaa auttajalle. Auttaja näkee saman kuin sinä.")
   }
+  // Help from the shift manager's own glasses (JUN-100). Names stand alone, so Finnish needs
+  // no inflection.
+  static var whoHelps: String { t("Who can help?", "Kuka auttaa?") }
+  static func callShiftManager(_ name: String?) -> String {
+    name.map { t("Call \($0), shift manager", "Soita: \($0), vuoropäällikkö") }
+      ?? t("Call the shift manager", "Soita vuoropäällikölle")
+  }
+  static var managerSeesView: String {
+    t("They see your view and talk you through it.", "Hän näkee näkymäsi ja neuvoo puheella.",
+      easy: "They see what you see and help you.", "Hän näkee saman kuin sinä ja auttaa.")
+  }
+  static var askStudioExpert: String { t("Ask an expert in Owl Studio", "Kysy asiantuntijalta Owl Studiossa",
+    easy: "Ask an expert", "Kysy asiantuntijalta") }
+  static func callingManager(_ name: String) -> String {
+    t("Calling \(name), shift manager…", "Soitan: \(name), vuoropäällikkö…")
+  }
+  static func managerWillSee(_ name: String) -> String {
+    t("\(name) sees your view when they answer.", "\(name) näkee näkymäsi, kun hän vastaa.")
+  }
+  /// Shown the whole call (the rule of JUN-100: the worker always sees who is watching).
+  static func isWatching(_ name: String) -> String { t("\(name) is watching your view", "\(name) näkee näkymäsi") }
+  static func noAnswer(_ name: String) -> String {
+    t("\(name) didn't answer. An expert in Owl Studio will help.", "\(name) ei vastannut. Asiantuntija Owl Studiossa auttaa.",
+      easy: "\(name) did not answer. Owl asks an expert.", "\(name) ei vastannut. Owl kysyy asiantuntijalta.")
+  }
+  static var noManagerOnShift: String {
+    t("No shift manager is on shift now. An expert in Owl Studio will help.",
+      "Vuoropäällikkö ei ole nyt vuorossa. Asiantuntija Owl Studiossa auttaa.")
+  }
+  static var answer: String { t("Answer", "Vastaa") }
+  static var talk: String { t("Talk", "Puhu") }
+  static var speakNow: String { t("Speak now…", "Puhu nyt…") }
+  static func youSaid(_ text: String) -> String { t("You: \(text)", "Sinä: \(text)") }
+  static var shiftManager: String { t("Shift manager", "Vuoropäällikkö") }
+  static var managerIdle: String {
+    t("Owl tells you when someone needs help.", "Owl kertoo, kun joku tarvitsee apua.")
+  }
+  static func needsHelp(_ name: String) -> String { t("Help: \(name)", "Apua: \(name)") }
+  static func sayNeedsHelp(_ name: String) -> String { t("\(name) needs help.", "\(name) tarvitsee apua.") }
+  static var accept: String { t("Accept", "Vastaa") }
+  static var later: String { t("Later", "Myöhemmin") }
+  static func viewOf(_ name: String) -> String { t("\(name)'s view", "Näkymä: \(name)") }
+  static var waitingForPicture: String { t("Waiting for the picture…", "Odotan kuvaa…") }
+  static var pinchTalk: String { t("Pinch Talk and say what to do.", "Nipistä Puhu ja kerro, mitä tehdä.") }
+  static func theySaid(_ name: String, _ text: String) -> String { "\(name): \(text)" }
+  static func stepNamed(_ index: Int, _ title: String?) -> String {
+    t("Step \(index)", "Vaihe \(index)") + (title.map { " · \($0)" } ?? "")
+  }
+  static var callEnded: String { t("The call ended.", "Puhelu päättyi.") }
+  static var myTasks: String { t("My tasks", "Tehtäväni") }
   static var sayHelpEnded: String { t(
     "Help has ended. Your view is no longer shared.", "Apu päättyi. Näkymääsi ei enää jaeta.",
     easy: "Help has ended. Nobody sees what you see now.", "Apu päättyi. Kukaan ei enää näe, mitä sinä näet.") }

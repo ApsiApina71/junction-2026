@@ -504,20 +504,122 @@ enum OwlScreens {
 
   /// The remote expert sees the glasses view. `marked` is the worker's own view with the
   /// expert's ring on it, shown with the expert's words.
-  static func help(session: OwlHelpSession?, marked: UIImage?, onEnd: @escaping OwlAction) -> FlexBox {
-    let lastExpert = session?.messages.last { $0.from == "expert" }
+  /// `watcher` (JUN-100): the shift manager who is in the call. Their name is on the screen
+  /// the whole call, and Answer lets the worker reply by voice.
+  static func help(
+    session: OwlHelpSession?, marked: UIImage?, onEnd: @escaping OwlAction, watcher: String? = nil,
+    heard: String? = nil, onAnswer: OwlAction? = nil
+  ) -> FlexBox {
+    let lastHelper = session?.messages.last { $0.from != "worker" }
     let connected = session?.isConnected == true
+    let title =
+      watcher.map(OwlStrings.isWatching) ?? (connected ? OwlStrings.expertWithYou : OwlStrings.callingExpert)
     return screen {
-      header(
-        connected ? .listening : .thinking, meta: OwlStrings.helpLabel,
-        title: connected ? OwlStrings.expertWithYou : OwlStrings.callingExpert)
+      header(connected || watcher != nil ? .listening : .thinking, meta: OwlStrings.helpLabel, title: title)
       if let marked {
         Image(image: OwlArt.framed(marked), sizePreset: .fill)
       }
-      Text(lastExpert?.text ?? OwlStrings.helpBody, style: .body)
+      Text(lastHelper?.text ?? OwlStrings.helpBody, style: .body)
+      if let heard {
+        Text(OwlStrings.youSaid(heard), style: .meta, color: .secondary)
+      }
     } buttons: {
       Button(label: OwlStrings.endHelp, style: .primary, iconName: .phoneSlash, onClick: onEnd)
         .actionRole(.primary)
+      if let onAnswer {
+        Button(label: OwlStrings.answer, style: .secondary, iconName: .speechBubble, onClick: onAnswer)
+      }
+    }
+  }
+
+  // MARK: - Help from the shift manager (JUN-100)
+
+  /// Help: the shift manager on their own glasses, or an expert in Owl Studio.
+  static func helpChoice(
+    managerName: String?, onManager: @escaping OwlAction, onExpert: @escaping OwlAction, onBack: @escaping OwlAction
+  ) -> FlexBox {
+    FlexBox(direction: .column, spacing: 10) {
+      card {
+        header(.listening, meta: OwlStrings.helpLabel, title: OwlStrings.whoHelps)
+      }
+      FlexBox(direction: .column, spacing: 2) {
+        Text(OwlStrings.callShiftManager(managerName), style: .body)
+        Text(OwlStrings.managerSeesView, style: .meta, color: .secondary)
+      }
+      .padding(18)
+      .background(.card)
+      .onTap(onManager)
+      choice(OwlStrings.askStudioExpert, onExpert)
+      buttonRow {
+        Button(label: OwlStrings.back, style: .secondary, iconName: .arrowLeft, onClick: onBack)
+      }
+    }
+  }
+
+  /// Ringing on the manager's glasses.
+  static func calling(managerName: String, onEnd: @escaping OwlAction) -> FlexBox {
+    screen {
+      header(.thinking, meta: OwlStrings.helpLabel, title: OwlStrings.callingManager(managerName))
+      Text(OwlStrings.managerWillSee(managerName), style: .body)
+    } buttons: {
+      Button(label: OwlStrings.endHelp, style: .primary, iconName: .phoneSlash, onClick: onEnd)
+        .actionRole(.primary)
+    }
+  }
+
+  /// The manager's glasses between calls.
+  static func managerHome(name: String?, onTasks: OwlAction?) -> FlexBox {
+    screen {
+      header(.listening, meta: [name, OwlStrings.shiftManager].compactMap { $0 }.joined(separator: " · "), title: OwlStrings.shiftManager)
+      Text(OwlStrings.managerIdle, style: .body, color: .secondary)
+    } buttons: {
+      Button(label: OwlStrings.myTasks, style: .secondary, iconName: .threeHorizontalLines, onClick: onTasks ?? {})
+    }
+  }
+
+  /// A worker asks for help: who, which task and step. Accept leads, Later leaves it ringing
+  /// for 30 s more before owl-api sends it to Owl Studio.
+  static func incoming(
+    worker: String, task: String?, place: String?, onAccept: @escaping OwlAction, onLater: @escaping OwlAction
+  ) -> FlexBox {
+    screen {
+      header(.alert, meta: task, title: OwlStrings.needsHelp(worker))
+      if let place {
+        Text(place, style: .body)
+      }
+    } buttons: {
+      Button(label: OwlStrings.accept, style: .primary, iconName: .phoneHandsetArrowDownLeft, onClick: onAccept)
+        .actionRole(.primary)
+      Button(label: OwlStrings.later, style: .secondary, iconName: .clock, onClick: onLater)
+    }
+  }
+
+  /// The worker's live view on the manager's display, about once a second, with the step and
+  /// what the worker said last. Talk is one pinch: the manager speaks and it ends by itself.
+  static func liveView(
+    worker: String, place: String?, frame: UIImage?, workerSaid: String?, listening: Bool, heard: String?,
+    onTalk: @escaping OwlAction, onEnd: @escaping OwlAction
+  ) -> FlexBox {
+    screen {
+      header(listening ? .listening : .watching, meta: place, title: OwlStrings.viewOf(worker))
+      if let frame {
+        // The picture gives way to a long sentence, so everything fits without scrolling.
+        let words = (listening ? heard : workerSaid)?.count ?? 0
+        Image(image: OwlArt.framed(frame, height: words > 90 ? 150 : words > 45 ? 190 : 230), sizePreset: .fill)
+      } else {
+        Text(OwlStrings.waitingForPicture, style: .body, color: .secondary)
+      }
+      if listening {
+        Text(heard ?? OwlStrings.speakNow, style: .body, color: heard == nil ? .secondary : .primary)
+      } else if let workerSaid {
+        Text(OwlStrings.theySaid(worker, workerSaid), style: .body)
+      } else {
+        Text(OwlStrings.pinchTalk, style: .meta, color: .secondary)
+      }
+    } buttons: {
+      Button(label: OwlStrings.talk, style: .primary, iconName: .speechBubble, onClick: onTalk)
+        .actionRole(.primary)
+      Button(label: OwlStrings.endHelp, style: .secondary, iconName: .phoneSlash, onClick: onEnd)
     }
   }
 

@@ -21,6 +21,14 @@ struct OwlEmployee: Codable, Equatable, Sendable {
   let glassesId: String?
   /// How Owl talks to this worker (JUN-81). Nil means every option off.
   let access: OwlAccess?
+  /// A shift manager: the glasses show the manager screens and ring for help (JUN-100).
+  var shiftManager: Bool? = nil
+}
+
+/// The manager on shift in the worker's company (`GET /shift/manager`, JUN-100).
+struct OwlShiftManager: Codable, Equatable, Sendable {
+  let employeeId: String
+  let name: String
 }
 
 /// Inclusive profiles (JUN-81), set in Owl Studio. All off by default.
@@ -154,14 +162,34 @@ struct OwlHelpSession: Codable, Equatable, Sendable, Identifiable {
   let frameAt: String?
   let updatedAt: String?
   let messages: [OwlHelpMessage]
+  // JUN-100: help from the shift manager's own glasses.
+  /// The manager who is rung, and their name (kept after a fallback to Studio).
+  var assignee: String? = nil
+  var assigneeName: String? = nil
+  /// `manager` or `studio`.
+  var routed: String? = nil
+  /// Why it went to Studio: `no_answer` or `later`.
+  var fallback: String? = nil
+  // Only in `GET /help/incoming`, for the manager's glasses.
+  var employeeName: String? = nil
+  var processTitle: String? = nil
+  var stepIndex: Int? = nil
+  var stepTitle: String? = nil
 
   var isEnded: Bool { status == "ended" }
-  var isConnected: Bool { status == "connected" }
+  /// Someone helps: an expert in Studio or the manager who accepted.
+  var isConnected: Bool { status == "connected" || status == "accepted" }
+  var isRinging: Bool { status == "ringing" }
+  var isWithManager: Bool { routed == "manager" }
+}
+
+struct OwlIncomingHelp: Codable, Sendable {
+  let sessions: [OwlHelpSession]
 }
 
 struct OwlHelpMessage: Codable, Equatable, Sendable, Identifiable {
   let id: Int
-  /// `worker` or `expert`.
+  /// `worker`, `expert` or `manager`.
   let from: String
   let text: String
   let at: String?

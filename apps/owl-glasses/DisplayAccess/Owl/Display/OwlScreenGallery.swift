@@ -22,7 +22,7 @@ enum OwlScreenGallery {
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
     "help-connected", "help-marked", "record", "record-step", "status", "problem-camera", "problem-microphone",
     "problem-offline", "problem-server", "problem-not-allowed", "problem-not-assigned", "problem-video",
-    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "customer-service", "assist", "assist-heard", "assist-busy", "assist-hint", "assist-unsure", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
+    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "help-choice", "help-calling", "help-manager", "help-manager-answer", "manager-home", "manager-incoming", "manager-live", "manager-live-talk", "manager-live-said", "customer-service", "assist", "assist-heard", "assist-busy", "assist-hint", "assist-unsure", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
   ]
 
   /// The screen for a gallery name, or nil when the name is unknown.
@@ -169,6 +169,25 @@ enum OwlScreenGallery {
       return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: nil, onOK: none)
     case "training-confirmed":
       return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: "Laura", onOK: none)
+    case "help-choice":
+      return OwlScreens.helpChoice(managerName: "Mika", onManager: none, onExpert: none, onBack: none)
+    case "help-calling":
+      return OwlScreens.calling(managerName: "Mika", onEnd: none)
+    case "help-manager", "help-manager-answer":
+      return OwlScreens.help(
+        session: data.managerHelp, marked: nil, onEnd: none, watcher: "Mika",
+        heard: name == "help-manager-answer" ? data.workerAnswer : nil, onAnswer: none)
+    case "manager-home":
+      return OwlScreens.managerHome(name: "Mika", onTasks: none)
+    case "manager-incoming":
+      return OwlScreens.incoming(
+        worker: "Sami", task: process.title, place: "\(OwlStrings.stepOf(pick.index, process.steps.count)) · \(pick.title)",
+        onAccept: none, onLater: none)
+    case "manager-live", "manager-live-talk", "manager-live-said":
+      return OwlScreens.liveView(
+        worker: "Sami", place: "\(OwlStrings.stepOf(pick.index, process.steps.count)) · \(pick.title)", frame: photo,
+        workerSaid: name == "manager-live-said" ? data.workerAnswer : nil, listening: name == "manager-live-talk",
+        heard: name == "manager-live-talk" ? data.managerSays : nil, onTalk: none, onEnd: none)
     case "customer-service":
       return OwlScreens.taskList(
         employee: data.employee, processes: [], onSelect: { _ in }, onRecord: none, onProgress: none, onCustomerService: none)
@@ -456,6 +475,28 @@ private struct Sample {
     finnish
       ? ["Olet tehnyt 3 tehtävää.", "Korjasit 2 ongelmaa, jotka Owl huomasi.", "Nopeammin kuin ensimmäisellä kerralla."]
       : ["You have finished 3 tasks.", "You fixed 2 problems Owl caught.", "Faster than your first time."]
+  }
+
+  /// JUN-100 demo: Mika, the shift manager, helps Sami from his own glasses.
+  var managerSays: String {
+    long
+      ? t("The oat drink is the blue carton on the top shelf, left of the coffee. Take two, and check that it says one litre.",
+          "Kaurajuoma on sininen tölkki ylähyllyllä kahvin vasemmalla puolella. Ota kaksi ja tarkista, että siinä lukee yksi litra.")
+      : t("Blue carton, top shelf. Take two.", "Sininen tölkki, ylähylly. Ota kaksi.")
+  }
+
+  var workerAnswer: String {
+    long
+      ? t("I found them but there is only one left on the shelf, should I take the 0.5 litre ones instead?",
+          "Löysin ne, mutta hyllyssä on vain yksi, otanko puolen litran tölkit?")
+      : t("Found it, thanks!", "Löytyi, kiitos!")
+  }
+
+  var managerHelp: OwlHelpSession {
+    OwlHelpSession(
+      id: "help-2", status: "connected", employeeId: "emp-sami", processId: "proc-pick-pack", stepId: "step-2",
+      latestFrameUrl: nil, frameAt: nil, updatedAt: nil,
+      messages: [OwlHelpMessage(id: 1, from: "manager", text: managerSays, at: nil, imageUrl: nil)])
   }
 
   /// JUN-98 demo: Noa at the counter of Café Kide.

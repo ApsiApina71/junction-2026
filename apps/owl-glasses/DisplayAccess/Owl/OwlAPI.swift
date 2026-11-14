@@ -316,11 +316,13 @@ struct OwlAPI: Sendable {
 
   // Help (JUN-33)
 
+  /// `to`: `manager` rings the shift manager's glasses (JUN-100); nil goes to Owl Studio.
   func sendHelpFrame(
-    _ frame: OwlFrame, helpID: String?, employeeID: String?, processID: String?, stepID: String?
+    _ frame: OwlFrame, helpID: String?, employeeID: String?, processID: String?, stepID: String?, to: String? = nil
   ) async throws -> OwlHelpSession {
     var form = MultipartForm()
     frame.add(to: &form)
+    if let to { form.addField("to", to) }
     form.addField("employee_id", employeeID ?? "")
     form.addField("process_id", processID ?? "")
     form.addField("step_id", stepID ?? "")
@@ -332,9 +334,38 @@ struct OwlAPI: Sendable {
     try await send(try request("help/\(id)"))
   }
 
-  func sayToHelp(_ id: String, text: String) async throws -> OwlHelpSession {
+  /// `from`: `worker`, or `manager` on the shift manager's glasses (JUN-100).
+  func sayToHelp(_ id: String, text: String, from: String = "worker") async throws -> OwlHelpSession {
     struct Body: Encodable { let from: String; let text: String }
-    return try await send(try request("help/\(id)/say", json: Body(from: "worker", text: text)))
+    return try await send(try request("help/\(id)/say", json: Body(from: from, text: text)))
+  }
+
+  // Help from the shift manager (JUN-100)
+
+  /// The manager on shift for this worker, or nil when nobody is (then only Studio helps).
+  func shiftManager(forWorker employeeID: String) async throws -> OwlShiftManager? {
+    do {
+      return try await send(try request("shift/manager", query: ["employee_id": employeeID]))
+    } catch OwlError.notFound {
+      return nil
+    }
+  }
+
+  /// Help requests ringing for this manager, and the one they accepted. Newest first.
+  func incomingHelp(managerID: String) async throws -> [OwlHelpSession] {
+    let incoming: OwlIncomingHelp = try await send(try request("help/incoming", query: ["employee_id": managerID]))
+    return incoming.sessions
+  }
+
+  func acceptHelp(_ id: String, managerID: String) async throws -> OwlHelpSession {
+    struct Body: Encodable { let employeeId: String }
+    return try await send(try request("help/\(id)/accept", json: Body(employeeId: managerID)))
+  }
+
+  /// Later: the request goes to Owl Studio at once.
+  func laterHelp(_ id: String, managerID: String) async throws -> OwlHelpSession {
+    struct Body: Encodable { let employeeId: String }
+    return try await send(try request("help/\(id)/later", json: Body(employeeId: managerID)))
   }
 
   func endHelp(_ id: String) async throws -> OwlHelpSession {
@@ -381,6 +412,15 @@ struct OwlAPI: Sendable {
     }
     var request = URLRequest(url: base.appendingPathComponent(path), timeoutInterval: timeout)
     authorize(&request)
+    return request
+  }
+
+  private func request(_ path: String, query: [String: String]) throws -> URLRequest {
+    var request = try request(path)
+    if let url = request.url, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+      components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+      request.url = components.url
+    }
     return request
   }
 

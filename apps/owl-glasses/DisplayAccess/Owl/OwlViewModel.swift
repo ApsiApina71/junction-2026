@@ -162,6 +162,29 @@ final class OwlViewModel {
   @ObservationIgnored private var helpID: String?
   @ObservationIgnored private var helpTask: Task<Void, Never>?
   @ObservationIgnored private var lastSpokenExpertMessage = 0
+  // Help from the shift manager (JUN-100), the worker's side.
+  /// `manager` while the call goes to the shift manager's glasses.
+  @ObservationIgnored private var helpTo: String?
+  @ObservationIgnored private var helpManagerName: String?
+  @ObservationIgnored private var helpDrawn: String?
+  @ObservationIgnored private var saidNoAnswer = false
+  /// What the worker said back, shown under the manager's words.
+  @ObservationIgnored private var helpHeard: String?
+  @ObservationIgnored private var helpSession: OwlHelpSession?
+  @ObservationIgnored private var helpMarked: UIImage?
+  // The manager's side.
+  @ObservationIgnored private var incomingTask: Task<Void, Never>?
+  @ObservationIgnored private var ringingShown: String?
+  @ObservationIgnored private var incomingScene: Int?
+  @ObservationIgnored private var callID: String?
+  @ObservationIgnored private var callTask: Task<Void, Never>?
+  @ObservationIgnored private var callWorker = ""
+  @ObservationIgnored private var callPlace: String?
+  @ObservationIgnored private var callFrame: UIImage?
+  @ObservationIgnored private var callFrameAt: String?
+  @ObservationIgnored private var callWorkerSaid: String?
+  @ObservationIgnored private var callListening = false
+  @ObservationIgnored private var callHeard: String?
   @ObservationIgnored private var helpEndedWhileOff = false
 
   // Record
@@ -285,6 +308,12 @@ final class OwlViewModel {
     guard isCurrent(number) else { return displayViewModel.isConnected }
     if glassesNotAssigned {
       await showProblem(.notAssigned, retry: { await $0.open() })
+      return displayViewModel.isConnected
+    }
+    // A shift manager's glasses wait for help requests (JUN-100).
+    if employee?.shiftManager == true {
+      startIncomingPoll()
+      await showManagerHome()
       return displayViewModel.isConnected
     }
     if let employee, await needsConsent(employee) {
@@ -824,6 +853,7 @@ final class OwlViewModel {
   /// final check on a picture taken after this pinch passes. When Owl cannot check, the
   /// worker chooses between checking again and continuing unverified.
   private func finishStep() async {
+    NSLog("[Owl] finish step \(step?.id ?? "")")
     guard let step, finishingAttempt == nil else { return }
     let number = scene
     guard step.check.usesCamera else {
@@ -1801,7 +1831,31 @@ final class OwlViewModel {
 
   // MARK: - Help (JUN-33)
 
+  /// Help: with a shift manager on shift, the worker chooses between the manager's glasses
+  /// and an expert in Owl Studio (JUN-100); otherwise Owl calls Studio at once.
   private func startHelp() async {
+    let number = newScene()
+    if let employee, let manager = try? await api.shiftManager(forWorker: employee.id) {
+      guard isCurrent(number) else { return }
+      statusText = "Help: who helps?"
+      speaker.say(OwlStrings.whoHelps)
+      sayChoices(OwlStrings.sayTwoChoices(OwlStrings.callShiftManager(manager.name), OwlStrings.askStudioExpert))
+      await showScreen(stage: .init(kind: "help", title: OwlStrings.whoHelps, text: OwlStrings.callShiftManager(manager.name))) {
+        OwlScreens.helpChoice(
+          managerName: manager.name,
+          onManager: self.action { await $0.callForHelp(to: "manager", managerName: manager.name) },
+          onExpert: self.action { await $0.callForHelp(to: nil, managerName: nil) },
+          onBack: self.action { await $0.endHelp() })
+      }
+      return
+    }
+    guard isCurrent(number) else { return }
+    await callForHelp(to: nil, managerName: nil)
+  }
+
+  /// Shares the glasses view: with the shift manager's glasses (`to: "manager"`) or with an
+  /// expert in Owl Studio.
+  private func callForHelp(to: String?, managerName: String?) async {
     let number = newScene()
     guard let camera = await openCamera() else {
       guard isCurrent(number) else { return }
@@ -1811,16 +1865,33 @@ final class OwlViewModel {
     guard isCurrent(number) else { return }
     helpID = nil
     lastSpokenExpertMessage = 0
-    speaker.say(OwlStrings.sayCallingExpert)
-    await showScreen(stage: .init(kind: "help", title: OwlStrings.callingExpert, text: OwlStrings.helpBody)) {
-      OwlScreens.help(session: nil, marked: nil, onEnd: self.action { await $0.endHelp() })
+    helpTo = to
+    helpManagerName = managerName
+    helpDrawn = nil
+    saidNoAnswer = false
+    helpHeard = nil
+    helpSession = nil
+    helpMarked = nil
+    if let managerName, to == "manager" {
+      statusText = "Calling \(managerName)"
+      speaker.say(OwlStrings.callingManager(managerName))
+      await showScreen(stage: .init(kind: "help", title: OwlStrings.callingManager(managerName), text: OwlStrings.managerWillSee(managerName))) {
+        OwlScreens.calling(managerName: managerName, onEnd: self.action { await $0.endHelp() })
+      }
+    } else {
+      speaker.say(OwlStrings.sayCallingExpert)
+      await showScreen(stage: .init(kind: "help", title: OwlStrings.callingExpert, text: OwlStrings.helpBody)) {
+        OwlScreens.help(session: nil, marked: nil, onEnd: self.action { await $0.endHelp() })
+      }
     }
     helpTask = Task { [weak self] in
       while !Task.isCancelled {
         guard let self, self.isCurrent(number) else { return }
         // Nothing is shared while the glasses are off.
         if self.glassesOn { await self.helpTick(camera: camera, number) }
-        try? await Task.sleep(for: Self.helpInterval)
+        // The manager's live view is about one picture a second (JUN-100).
+        let live = self.helpSession?.isWithManager == true && self.helpSession?.isConnected == true
+        try? await Task.sleep(for: live ? .seconds(1) : Self.helpInterval)
       }
     }
   }
@@ -1830,7 +1901,8 @@ final class OwlViewModel {
       let session: OwlHelpSession
       if let frame = camera.latestJPEG(maxSide: 800) {
         session = try await api.sendHelpFrame(
-          frame, helpID: helpID, employeeID: employee?.id, processID: process?.id, stepID: step?.id)
+          frame, helpID: helpID, employeeID: employee?.id, processID: process?.id, stepID: step?.id,
+          to: helpID == nil ? helpTo : nil)
       } else if let helpID {
         session = try await api.help(helpID)
       } else {
@@ -1838,39 +1910,297 @@ final class OwlViewModel {
       }
       guard !Task.isCancelled, isCurrent(number) else { return }
       helpID = session.id
-      let newMessages = session.messages.filter { $0.from == "expert" && $0.id > lastSpokenExpertMessage }
+      helpSession = session
+      // The manager's or the expert's words are spoken and shown.
+      let newMessages = session.messages.filter { $0.from != "worker" && $0.id > lastSpokenExpertMessage }
       for message in newMessages {
         speaker.say(message.text)
         lastSpokenExpertMessage = message.id
       }
-      statusText = session.isConnected ? "Expert connected" : "Waiting for an expert"
       if session.isEnded {
+        speaker.say(OwlStrings.sayHelpEnded)
         await endHelp()
-      } else if !newMessages.isEmpty || session.isConnected {
-        // The expert can point: their latest marked picture of the worker's own view.
-        let lastExpert = session.messages.last { $0.from == "expert" }
-        let marked = await image(lastExpert?.imageUrl)
-        guard isCurrent(number) else { return }
-        await showScreen(stage: .init(kind: "help", title: OwlStrings.expertWithYou, text: lastExpert?.text)) {
-          OwlScreens.help(session: session, marked: marked, onEnd: self.action { await $0.endHelp() })
-        }
+        return
       }
+      // Rung, but nobody answered or the manager chose Later: Studio takes over, and the
+      // worker hears why.
+      if helpTo == "manager", !session.isWithManager, !saidNoAnswer {
+        saidNoAnswer = true
+        let name = session.assigneeName ?? helpManagerName ?? OwlStrings.shiftManager
+        speaker.say(session.fallback == "no_manager" ? OwlStrings.noManagerOnShift : OwlStrings.noAnswer(name))
+      }
+      statusText =
+        session.isRinging ? "Ringing \(session.assigneeName ?? "the shift manager")"
+        : session.isWithManager && session.isConnected ? "\(session.assigneeName ?? "Manager") is watching"
+        : session.isConnected ? "Expert connected" : "Waiting for an expert"
+      if !newMessages.isEmpty {
+        let lastExpert = session.messages.last { $0.from == "expert" }
+        helpMarked = await image(lastExpert?.imageUrl)
+        guard isCurrent(number) else { return }
+      }
+      await drawHelp(number)
+    } catch OwlError.server(409, _) {
+      // The other side ended the call (or owl-api did): stop sharing at once.
+      guard isCurrent(number) else { return }
+      speaker.say(OwlStrings.sayHelpEnded)
+      await endHelp()
     } catch {
       NSLog("[Owl] help failed: \(error)")
       statusText = "Help: \((error as? LocalizedError)?.errorDescription ?? "\(error)")"
     }
   }
 
+  /// Draws the help screen when what it shows has changed: the calling screen while the
+  /// manager's glasses ring, "Mika is watching your view" the whole call, else Studio help.
+  private func drawHelp(_ number: Int) async {
+    guard isCurrent(number), let session = helpSession else { return }
+    let key = "\(session.status)|\(session.routed ?? "")|\(session.messages.last?.id ?? 0)|\(helpHeard ?? "")"
+    guard key != helpDrawn else { return }
+    helpDrawn = key
+    if session.isWithManager, session.isRinging {
+      let name = session.assigneeName ?? helpManagerName ?? OwlStrings.shiftManager
+      await showScreen(stage: .init(kind: "help", title: OwlStrings.callingManager(name), text: nil)) {
+        OwlScreens.calling(managerName: name, onEnd: self.action { await $0.endHelp() })
+      }
+      return
+    }
+    let watcher = session.isWithManager ? session.assigneeName ?? helpManagerName : nil
+    let marked = helpMarked
+    let heard = helpHeard
+    let last = session.messages.last { $0.from != "worker" }
+    let title = watcher.map(OwlStrings.isWatching) ?? (session.isConnected ? OwlStrings.expertWithYou : OwlStrings.callingExpert)
+    await showScreen(stage: .init(kind: "help", title: title, text: last?.text)) {
+      OwlScreens.help(
+        session: session, marked: marked, onEnd: self.action { await $0.endHelp() }, watcher: watcher, heard: heard,
+        onAnswer: session.isConnected ? self.action { await $0.answerHelp() } : nil)
+    }
+  }
+
+  /// The worker answers by voice: one sentence, sent to whoever helps.
+  private func answerHelp() async {
+    guard let session = displayViewModel.currentDeviceSession(), let helpID else { return }
+    let number = scene
+    listener.onPartial = nil
+    listener.onFinal = { [weak self] text in
+      Task {
+        guard let self, self.isCurrent(number) else { return }
+        self.helpHeard = text
+        _ = try? await self.api.sayToHelp(helpID, text: text)
+        await self.drawHelp(number)
+      }
+    }
+    listener.onError = { _, message in NSLog("[Owl] help answer: \(message)") }
+    do {
+      try await listener.start(on: session, mode: .utterance)
+      speaker.say(OwlStrings.sayYes)
+    } catch {
+      NSLog("[Owl] help answer: \(error)")
+    }
+  }
+
   /// Ends Help: sharing stops at once, and owl-api deletes the shared pictures.
   private func endHelp() async {
+    if helpID != nil { NSLog("[Owl] help: ending \(helpID ?? ""), glasses on \(glassesOn)") }
     helpTask?.cancel()
     helpTask = nil
+    listener.stop()
     if let helpID {
       let api = api
       Task { _ = try? await api.endHelp(helpID) }
     }
     helpID = nil
+    helpTo = nil
+    helpSession = nil
+    helpMarked = nil
     if process != nil { await backToStep() } else { await showTasks(refresh: false) }
+  }
+
+  // MARK: - The shift manager's glasses (JUN-100)
+
+  private func showManagerHome() async {
+    let number = newScene()
+    incomingScene = nil
+    statusText = "Shift manager: waiting for help requests"
+    let name = employee?.name
+    await showScreen(stage: .init(kind: "manager", title: OwlStrings.shiftManager, text: OwlStrings.managerIdle)) {
+      OwlScreens.managerHome(name: name, onTasks: self.action { await $0.showTasks(refresh: false) })
+    }
+    _ = number
+  }
+
+  /// Every 2 s, while no call is on: a request ringing for this manager is shown at once.
+  private func startIncomingPoll() {
+    guard incomingTask == nil else { return }
+    incomingTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(2))
+        guard let self else { return }
+        guard let manager = self.employee, manager.shiftManager == true else {
+          self.incomingTask = nil
+          return
+        }
+        guard self.callID == nil, self.glassesOn else { continue }
+        guard let sessions = try? await self.api.incomingHelp(managerID: manager.id), self.callID == nil else { continue }
+        if let ringing = sessions.first(where: \.isRinging) {
+          if self.ringingShown != ringing.id { await self.showIncoming(ringing) }
+        } else if self.ringingShown != nil {
+          // The worker hung up, or the request went to Studio.
+          self.ringingShown = nil
+          if let shown = self.incomingScene, self.isCurrent(shown) { await self.showManagerHome() }
+        }
+      }
+    }
+  }
+
+  private func showIncoming(_ request: OwlHelpSession) async {
+    let number = newScene()
+    incomingScene = number
+    ringingShown = request.id
+    let worker = request.employeeName ?? OwlStrings.helpLabel
+    let place = request.stepIndex.map { OwlStrings.stepNamed($0, request.stepTitle) }
+    statusText = "Help request from \(worker)"
+    speaker.say(OwlStrings.sayNeedsHelp(worker))
+    sayChoices(OwlStrings.sayTwoChoices(OwlStrings.accept, OwlStrings.later))
+    await showScreen(stage: .init(kind: "manager", title: OwlStrings.needsHelp(worker), text: place)) {
+      OwlScreens.incoming(
+        worker: worker, task: request.processTitle, place: place,
+        onAccept: self.action { await $0.acceptCall(request, place: place) },
+        onLater: self.action { await $0.laterCall(request.id) })
+    }
+  }
+
+  private func acceptCall(_ request: OwlHelpSession, place: String?) async {
+    guard let manager = employee, callID == nil else { return }
+    do {
+      _ = try await api.acceptHelp(request.id, managerID: manager.id)
+    } catch {
+      // Gone meanwhile: the worker ended it, or it went to Studio.
+      NSLog("[Owl] accept: \(error)")
+      speaker.say(OwlStrings.callEnded)
+      return await showManagerHome()
+    }
+    let number = newScene()
+    callID = request.id
+    ringingShown = nil
+    callWorker = request.employeeName ?? OwlStrings.helpLabel
+    // The step only: the task's name as well would take two lines over the picture.
+    callPlace = place ?? request.processTitle
+    callFrame = nil
+    callFrameAt = nil
+    callWorkerSaid = nil
+    callListening = false
+    callHeard = nil
+    statusText = "In a call with \(callWorker)"
+    await drawCall(number)
+    callTask = Task { [weak self] in
+      while !Task.isCancelled {
+        guard let self, self.isCurrent(number), let id = self.callID else { return }
+        if let session = try? await self.api.help(id) {
+          guard self.isCurrent(number) else { return }
+          if session.isEnded {
+            await self.closeCall(sayEnded: true)
+            return
+          }
+          var changed = false
+          if session.frameAt != self.callFrameAt, let url = session.latestFrameUrl,
+            let picture = try? await self.api.image(url)
+          {
+            // Not cached: every picture is new, and none is kept after the call.
+            self.callFrame = picture.owlScaled(maxSide: 480)
+            self.callFrameAt = session.frameAt
+            changed = true
+          }
+          let said = session.messages.last { $0.from == "worker" }?.text
+          if said != self.callWorkerSaid {
+            self.callWorkerSaid = said
+            changed = true
+          }
+          if changed { await self.drawCall(number) }
+        }
+        try? await Task.sleep(for: .seconds(1))
+      }
+    }
+  }
+
+  private func drawCall(_ number: Int) async {
+    guard isCurrent(number), callID != nil else { return }
+    let worker = callWorker
+    let place = callPlace
+    let frame = callFrame
+    let said = callWorkerSaid
+    let listening = callListening
+    let heard = callHeard
+    await showScreen(stage: .init(kind: "manager", title: OwlStrings.viewOf(worker), text: said)) {
+      OwlScreens.liveView(
+        worker: worker, place: place, frame: frame, workerSaid: said, listening: listening, heard: heard,
+        onTalk: self.action { await $0.talk() }, onEnd: self.action { await $0.endCall() })
+    }
+  }
+
+  /// Talk: one pinch, the manager speaks, recognition ends with the sentence, and the
+  /// worker's glasses speak and show it.
+  private func talk() async {
+    guard let session = displayViewModel.currentDeviceSession(), let id = callID, !callListening else { return }
+    let number = scene
+    callListening = true
+    callHeard = nil
+    listener.onPartial = { [weak self] text in
+      guard let self, self.isCurrent(number) else { return }
+      self.callHeard = text
+      Task { await self.drawCall(number) }
+    }
+    listener.onFinal = { [weak self] text in
+      Task {
+        guard let self, self.isCurrent(number) else { return }
+        self.callListening = false
+        self.callHeard = nil
+        _ = try? await self.api.sayToHelp(id, text: text, from: "manager")
+        await self.drawCall(number)
+      }
+    }
+    listener.onError = { [weak self] _, message in
+      NSLog("[Owl] talk: \(message)")
+      Task { @MainActor in
+        self?.callListening = false
+        await self?.drawCall(number)
+      }
+    }
+    await drawCall(number)
+    do {
+      try await listener.start(on: session, mode: .utterance)
+    } catch {
+      callListening = false
+      await drawCall(number)
+    }
+  }
+
+  private func laterCall(_ id: String) async {
+    guard let manager = employee else { return }
+    _ = try? await api.laterHelp(id, managerID: manager.id)
+    ringingShown = nil
+    await showManagerHome()
+  }
+
+  private func endCall() async {
+    if let id = callID {
+      let api = api
+      Task { _ = try? await api.endHelp(id) }
+    }
+    await closeCall(sayEnded: false)
+  }
+
+  /// The call is over: the last picture is dropped from memory.
+  private func closeCall(sayEnded: Bool) async {
+    callTask?.cancel()
+    callTask = nil
+    listener.stop()
+    callID = nil
+    callFrame = nil
+    callFrameAt = nil
+    callWorkerSaid = nil
+    callListening = false
+    if sayEnded { speaker.say(OwlStrings.callEnded) }
+    await showManagerHome()
   }
 
   // MARK: - Record (JUN-32)
@@ -2469,6 +2799,23 @@ extension OwlViewModel {
     case "endask": await endAsk()
     case "help": await startHelp()
     case "endhelp": await endHelp()
+    // JUN-100: the worker's two choices, and their spoken answer.
+    case "callmanager":
+      if let id = employee?.id, let manager = try? await api.shiftManager(forWorker: id) {
+        await callForHelp(to: "manager", managerName: manager.name)
+      }
+    case "callexpert": await callForHelp(to: nil, managerName: nil)
+    case "reply": await answerHelp()
+    // The manager's glasses.
+    case "accept":
+      if let id = ringingShown, let manager = employee,
+        let request = try? await api.incomingHelp(managerID: manager.id).first(where: { $0.id == id })
+      {
+        await acceptCall(request, place: request.stepIndex.map { OwlStrings.stepNamed($0, request.stepTitle) })
+      }
+    case "later": if let id = ringingShown { await laterCall(id) }
+    case "talk": await talk()
+    case "endcall": await endCall()
     case "record": await startRecording()
     case "recordstep": await startRecordedStep()
     case "endstep": await endRecordedStep()
