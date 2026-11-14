@@ -19,8 +19,8 @@ from .vision import MODEL_ID, VisionError, client
 
 # About 30 seconds of speech: people say some 2.5 words a second.
 TAIL_WORDS = int(os.getenv("ASSIST_TAIL_WORDS", "80"))
-# The customer's question is usually at the end: these last words count twice in the local search.
-QUESTION_WORDS = 25
+# The local search tries the newest words first, then wider: the customer's newest question is at the end.
+WORD_WINDOWS = (12, 25, TAIL_WORDS)
 MAX_BULLET = 80
 # The local search needs this many of the conversation's words in a section before it suggests anything.
 MIN_SHARED_WORDS = 2
@@ -56,6 +56,17 @@ def tail(transcript: str, words: int = TAIL_WORDS) -> str:
     return " ".join(transcript.split()[-words:])
 
 
+def windows(text: str) -> list[str]:
+    """The end of the conversation, from narrow to wide: the last sentence, two, three, then the last 12, 25, 80 words.
+    Speech recognition may give no punctuation; then only the word windows are left."""
+    sentences = [x for x in re.split(r"(?<=[.!?])\s+", text.strip()) if x]
+    found: list[str] = []
+    if len(sentences) > 1:
+        found += [" ".join(sentences[-k:]) for k in (1, 2, 3) if k <= len(sentences)]
+    found += [tail(text, w) for w in WORD_WINDOWS]
+    return list(dict.fromkeys(found))
+
+
 def unsure(language: str) -> AssistAnswer:
     return AssistAnswer(bullets=[UNSURE.get(language.split("-")[0].lower(), UNSURE["en"])], sources=[], unsure=True)
 
@@ -74,25 +85,29 @@ def _ranked_sentences(query: str, section: search.Section) -> list[str]:
 
 
 def local_answer(transcript: str, docs: list[tuple[str, str]], language: str) -> AssistAnswer:
-    """Demo mode and OWL_MOCK_ASSIST: the best section's best sentences, as they stand in the document."""
+    """Demo mode and OWL_MOCK_ASSIST: the best section's best sentences, as they stand in the document.
+
+    The customer's newest question is at the end, so the search starts from the last words and widens only when they
+    find nothing: an answered question earlier in the half minute must not win over the new one.
+    """
     text = tail(transcript)
     if not text or not docs:
         return unsure(language)
-    question = tail(text, QUESTION_WORDS)
-    query = f"{text} {question}"
     ask.INDEX.update([(title, title, body) for title, body in docs])
-    hits = ask.INDEX.search(query, limit=1)
-    if not hits or hits[0][0] < ask.DEMO_MIN_SCORE:
-        return unsure(language)
-    section = hits[0][1]
-    shared = set(search.tokens(text)) & set(search.tokens(f"{section.heading} {section.text}"))
-    if len(shared) < MIN_SHARED_WORDS:
+    for n, window in enumerate(windows(text)):
+        hits = ask.INDEX.search(window, limit=1)
+        section = hits[0][1] if hits and hits[0][0] >= ask.DEMO_MIN_SCORE else None
         # One shared word ("yesterday") is a coincidence, not an answer.
-        return unsure(language)
-    bullets = [_clip(s) for s in _ranked_sentences(question, section)[:3]] or [_clip(s) for s in _ranked_sentences(query, section)[:3]]
-    if not bullets:
-        return unsure(language)
-    return AssistAnswer(bullets=bullets, sources=[AssistSource(doc=section.doc_title, section=section.heading or None)], unsure=False)
+        if section and len(set(search.tokens(window)) & set(search.tokens(f"{section.heading} {section.text}"))) >= MIN_SHARED_WORDS:
+            bullets = [_clip(s) for s in _ranked_sentences(window, section)[:3]]
+            if bullets:
+                return AssistAnswer(bullets=bullets, sources=[AssistSource(doc=section.doc_title, section=section.heading or None)], unsure=False)
+        asked = window.rstrip().endswith("?") or not re.search(r"[.!?]", text)
+        if n == 0 and asked and len(set(search.tokens(window))) >= 3:
+            # The newest words are a question of their own that the handbook does not answer: an older question
+            # earlier in the half minute is not the answer to it. A statement ("They're unopened.") widens instead.
+            break
+    return unsure(language)
 
 
 def answer(transcript: str, docs: list[tuple[str, str]], language: str) -> AssistAnswer:

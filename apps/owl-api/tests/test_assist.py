@@ -157,3 +157,24 @@ def test_demo_script_questions(client, said, section, word):
     a = suggest(client, said).json()
     assert a["sources"][0]["section"] == section
     assert any(word.lower() in b.lower() for b in a["bullets"]), a["bullets"]
+
+
+def test_the_newest_question_wins(client):
+    said = ""
+    expected = []
+    for customer, worker, section in [
+        ("Hi! One latte please. With oat milk, is that extra?", "No, oat milk is free. That's four fifty.", "Prices"),
+        (
+            "Oh, and these coffee beans I bought yesterday, can I still return them? They're unopened.",
+            "Yes, with the receipt. Anything else?",
+            "Returns and refunds",
+        ),
+        ("Is there gluten in the cinnamon bun? My son has an allergy.", "Let me check.", "Allergens"),
+        ("And are you open on Sunday?", "We're closed on Sundays.", "Opening hours"),
+        ("Who won the football match last night?", "", None),
+    ]:
+        said += f" {customer}"
+        sources = suggest(client, said).json()["sources"]
+        expected.append((section, sources[0]["section"] if sources else None))
+        said += f" {worker}"
+    assert [want for want, _ in expected] == [got for _, got in expected]

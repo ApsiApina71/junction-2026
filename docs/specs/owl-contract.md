@@ -503,7 +503,7 @@ A new worker at a counter (a shop, a café, a reception). During training, and o
 
 `GET /assist/sign` → `{"text": "Our trainee wears Owl glasses. Owl listens to suggest answers from our handbook. Nothing is recorded."}`: the sign at the desk. Studio edits it with `PUT /assist/sign` `{"text"}` (≤ 300 characters).
 
-Demo mode or `OWL_MOCK_ASSIST=1`: no model. The local BM25 search picks the best section of the worker's company documents for the conversation (the last 25 words count twice, since the question is usually at the end) and shows its best sentences as they stand in the document; fewer than two shared words means `unsure`. Demo worker: Noa (`emp-noa`, Café Kide, `glasses-6`), on day 2 of 5 of training, with `fixtures/docs/cafe-handbook.md` (opening hours, prices, returns, allergens, loyalty card, payment, Wi-Fi).
+Demo mode or `OWL_MOCK_ASSIST=1`: no model. The local BM25 search looks at the newest sentence first, then two and three sentences, then the last 12, 25 and 80 words, and shows the best sentences of the first section that shares at least two words with it, as they stand in the document. A newest sentence that is a question the documents do not answer gives `unsure`, so an older, answered question never comes back. The scene for the stage: [`docs/runbooks/owl-cafe-script.md`](../runbooks/owl-cafe-script.md). Demo worker: Noa (`emp-noa`, Café Kide, `glasses-6`), on day 2 of 5 of training, with `fixtures/docs/cafe-handbook.md` (opening hours, prices, returns, allergens, loyalty card, payment, Wi-Fi).
 
 ### Demo mode (`OWL_DEMO=1`)
 
