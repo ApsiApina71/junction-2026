@@ -23,15 +23,20 @@ How to set up the software for the demo video. Owl trains Jose, a new Junction v
 cd apps/owl-api
 # .env needs the real models: ANTHROPIC_API_KEY (Hint, Record, fallback) and, for Nemotron, VISION_BACKEND=nemotron + VERDA_INFERENCE_KEY
 OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
+  LLM_BACKEND=nemotron JEPA_BACKEND=vjepa21 JEPA_CONFIRM_DONE=0.6 \
   PUBLIC_BASE_URL=https://<tunnel>.trycloudflare.com \
   uv run --extra jepa --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-- Without `ANTHROPIC_API_KEY`, set `ASSIST_BACKEND=nemotron`: Nemotron writes the Hint bullets from the handbook, and each one must quote it word for word (0.5–1.5 s; 10 of 11 info-desk questions right in the test, including both script lines). If Nemotron fails, the local search (BM25) answers. `OWL_MOCK_ASSIST=1` uses only the local search.
+- **Only the Verda key is needed** (`VERDA_INFERENCE_KEY` in `.env`). `LLM_BACKEND=nemotron` puts every model call on Nemotron 3.5 Super VL: Owl Check, Hint, Ask and **Record**. Sami's recording becomes a real draft with the warning line and `done_when`; tested with the venue footage: "Put cans in CANS opening", "That's a deposit can. It goes in the round CANS opening, not the plastic.", and the scene ran on that recorded task. Do not set `OWL_MOCK_RECORD` or `OWL_MOCK_ASSIST`.
+- `JEPA_CONFIRM_DONE=0.6`: Owl's own ✓ also needs V-JEPA to see the step (the second opinion). Optional: `JEPA_ORDER_PRIOR=1`, and `JEPA_LEARN_FROM_USE=1` (every check teaches V-JEPA one more example, tokens only).
+- **The stage view shows both models:** each V-JEPA answer as "Step 1: Sort the cans (79 %)" by V-JEPA 2.1, and each check as "seen by Nemotron 3.5 VL · decided by rules". Record it for the split screen.
+
+- Hint: Nemotron writes the bullets from the handbook, and each one must quote it word for word (0.5–1.5 s; 10 of 11 info-desk questions right in the test, including both script lines). If Nemotron fails, the local search (BM25) answers. `OWL_MOCK_ASSIST=1` uses only the local search.
 - `OWL_RESET=1` only for the first start. Without it, a restart keeps what Studio changed (Sami's recording, the place photo).
 - `DATA_DIR=data/junction` keeps the story apart from the usual demo state.
 - `--extra jepa` and `JEPA_BACKEND=vjepa21` are needed for V-JEPA. `vjepa21` is Meta's V-JEPA 2.1 (March 2026) with an attentive probe trained on Sami's clips and on clips of not doing the step (put them in `data/junction/jepa-other/`, e.g. walking or the info desk). On the venue footage it recognised "Sort the cans" on every held-out window and said "unsure" for other work. Without it, the VO line about V-JEPA is cut. VO wording that is true: "Meta's V-JEPA 2.1 recognises the step from Sami's clips".
-- `GET /health` tells which models really run (`vision_model`, `step_recognition`). Screenshot it for Lauri.
+- `GET /health` tells which models really run (`model_id`, `vision_model`, `step_recognition`): all three should say Nemotron or V-JEPA 2.1. Screenshot it for Lauri.
 - Tunnel and glasses: see [owl-demo.md](owl-demo.md).
 
 ## Before filming
