@@ -117,7 +117,7 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
 - `reviewed` (default `true`): `false` on a step that Owl wrote from a recording or a document and that no person has checked yet. Owl Studio sets it to `true` when the reviewer has read the step against the narration. `PUT /processes/{id}` answers `422` when the body is `published` and a step is not reviewed; saving a draft is always allowed.
 - `source` is where the step comes from, or `null`: the document quote for a process written from documents, the expert's whole narration for a recorded one.
 - `rule`: the company rule from the handbooks that backs this step (`{doc, section, quote}`, quoted word for word), or `null`. Owl finds it locally for recorded steps (JUN-70). Show it as "Company rule".
-- `checkpoint`: where the step happens, `{"zone_id": "zone-c", "label": "Aisle C · Shelf 12"}` (label ≤ 40 characters), or `null`. During training the step is locked until the worker reaches it (JUN-97, see Location). A translation has the same checkpoints as the original.
+- `checkpoint`: where the step happens, `{"zone_id": "zone-c", "label": "Aisle C · Shelf 12", "photo_urls": []}` (label ≤ 40 characters, up to 8 extra photos of the place), or `null`. During training the step is locked until Owl recognises the place in the camera picture (JUN-97, see Location). A translation has the same checkpoints as the original.
 
 ### CheckResult
 
@@ -358,7 +358,7 @@ Only the wearer sees the display, so `GET /stage` shows the audience the glasses
 
 ### Consent and data practices (JUN-80)
 
-`Consent`: `{"camera_checks": bool, "recording": bool, "location": bool, "at": "<time>" | null}`. `location` (JUN-97): during training, Owl follows which area the worker is in from the markers the camera sees. The glasses ask on the first start, on the display and in the worker's language, and can ask again any time. Without `camera_checks`, Owl still guides but does not check (`/check` answers `403`). `recording` is the expert's agreement that Record keeps their clips.
+`Consent`: `{"camera_checks": bool, "recording": bool, "location": bool, "at": "<time>" | null}`. `location` (JUN-97): during training, Owl recognises from the camera picture which place the worker has reached. The picture is not stored. The glasses ask on the first start, on the display and in the worker's language, and can ask again any time. Without `camera_checks`, Owl still guides but does not check (`/check` answers `403`). `recording` is the expert's agreement that Record keeps their clips.
 
 | Data | Kept |
 |---|---|
@@ -442,11 +442,11 @@ Demo mode: Sami is on day 5 of 5 with four earlier runs (`fixtures/training.json
 
 ### Location during training (JUN-97)
 
-GPS does not work indoors, so the glasses read printed QR markers with the camera. A marker's text is `owl:zone:<zone_id>` (an area) or `owl:cp:<process_id>:<step_id>` (the spot of a step, inside an area).
+GPS does not work indoors, and there are no markers or codes to put up. **Owl recognises the place in the camera picture.** A step with a `checkpoint` is locked during training; while it is locked, the glasses send a picture now and then, and the step opens when Owl has recognised its place twice in a row.
 
-Rules the server enforces: only during the worker's training period (JUN-96) and only with `Consent.location`. Today's history only, in memory: never written to disk, and dropped when training ends or the consent is taken back. No location goes into the training result.
+Rules the server enforces: only during the worker's training period (JUN-96) and only with `Consent.location`. Today's history only, in memory: never written to disk, and dropped when training ends or the consent is taken back. **The camera picture is never stored** and never leaves the server: it is turned into a row of numbers, compared with the places, and dropped. No location goes into the training result.
 
-`POST /location` `{"employee_id": "emp-sami", "marker": "owl:cp:proc-pick-pack:step-2"}`, or `"zone": "zone-c"`, or `"checkpoint": {"process_id", "step_id"}` instead of `marker`. Send it when the marker or area changes, not for every frame. Answers a Location:
+`POST /location/frame` (multipart): `image` (JPEG) or `clip` (as for `/check`), `employee_id`, `process_id`, `step_id` (the locked step the worker is going to). One picture about every `next_check_ms`. Answers a Location with three more fields:
 
 ```json
 {
@@ -454,21 +454,31 @@ Rules the server enforces: only during the worker's training period (JUN-96) and
   "zone": {"id": "zone-c", "name": "Aisle C"}, "entered_at": "<time>",
   "history": [{"zone_id": "zone-a", "name": "Aisle A", "entered_at": "<time>", "left_at": "<time>"},
               {"zone_id": "zone-c", "name": "Aisle C", "entered_at": "<time>", "left_at": null}],
-  "unlocked": [{"process_id": "proc-pick-pack", "step_id": "step-2"}]
+  "unlocked": [{"process_id": "proc-pick-pack", "step_id": "step-2"}],
+  "match": {"zone_id": "zone-c", "process_id": "proc-pick-pack", "step_id": "step-2", "score": 0.91, "decided_by": "model"},
+  "can_recognize": true,
+  "next_check_ms": 2000
 }
 ```
 
-Errors: `403 consent_required`, `409 not_in_training`, `404` for text that is not an Owl marker, an unknown area or a step without a checkpoint.
+- `match`: this picture looked like the step's place, or `null`. `decided_by`: `"model"` (DINOv2), `"baseline"` (without the optional extra) or `"demo"`. `score` is a similarity, never shown as a percentage.
+- The step is in `unlocked` once two pictures in a row, within 10 s, matched (`PLACE_LOOKS`, `PLACE_WINDOW_S`). Then `zone` is the checkpoint's zone too.
+- `can_recognize: false`: the step has no picture of its place yet. The glasses keep showing "Go to", and the trainer or a Help call opens it.
+- Errors: `403 consent_required`, `409 not_in_training`, `404` unknown worker or a step without a checkpoint.
 
-`GET /employees/{id}/location` → the same Location. Outside training or without consent: `tracking: false`, `zone: null` and empty lists.
+**How a place is recognised** (`app/place.py`): the pictures of a step's place are its `reference_image_url` (the expert's photo from the recording) and `checkpoint.photo_urls` (added in Studio). Every other step photo of the worker's tasks is a place too, so there is always something else a picture could look like. A picture matches when the target place is the closest of all and its similarity is at least `PLACE_MIN_SIM` (0.65 for DINOv2). Backend: `PLACE_BACKEND=auto` uses Meta's DINOv2-small (`uv sync --extra jepa`), else a colour-layout baseline that tells rooms apart but not aisles. Measured on a stand-in (20 videos as 20 places, the expert's photo early in a video and the worker's look later, from another angle): DINOv2 picks the right place in 90 % of looks, the baseline in 83 %. Aisles that look alike are harder: add place photos from more angles, and measure on the real site.
 
-`POST /employees/{id}/unlock` `{"process_id", "step_id", "by": "trainer" | "help"}` → Location. For a missing or damaged marker.
+`GET /employees/{id}/location` → the same Location without the three extra fields. Outside training or without consent: `tracking: false`, `zone: null` and empty lists.
 
-**Locked steps (glasses):** a step is locked when `tracking` is true, the step has a `checkpoint`, and it is not in `unlocked`. The glasses show "Go to: <label>" with the step's picture until it unlocks. An unlock is used up when `/check` answers `step_done` for that step, so the next run asks for the spot again.
+`POST /employees/{id}/unlock` `{"process_id", "step_id", "by": "trainer" | "help"}` → Location. When Owl does not recognise the place (new shelves, bad light).
 
-Studio: `GET /zones` → `{"zones": [{"id", "name", "kind": "aisle" | "packing" | "loading" | "other", "x", "y", "w", "h"}]}` (x, y, w, h are shares of the map, from the top left). `PUT /zones/{id}` saves one, `DELETE /zones/{id}` removes it. Checkpoints are set on steps with `PUT /processes/{id}`. `GET /markers` → `{"markers": [{"payload", "kind": "zone" | "checkpoint", "label", "zone_id", "process_id", "step_id", "svg"}]}`, an SVG QR code per area and per checkpoint, for printing. `GET /locations` → `{"trainees": [{"employee_id", "name", "zone", "entered_at"}]}`: the live map, only workers in training who agreed.
+`POST /location` `{"employee_id", "zone"}` or `{"employee_id", "checkpoint": {"process_id", "step_id"}}`: the worker is there, from another source than the camera (later: BLE beacons). Same Location and errors.
 
-Demo: Kide Logistics has Aisles A–C, Packing and Loading. Pick and pack step 2 is at "Aisle C · Shelf 12" (zone-c), step 4 at "Packing station" (zone-pack).
+**Locked steps (glasses):** a step is locked when `tracking` is true, the step has a `checkpoint`, and it is not in `unlocked`. The glasses show "Go to: <label>" with the step's picture and send pictures to `/location/frame` until it opens. An unlock is used up when `/check` answers `step_done` for that step, so the next run asks for the place again.
+
+Studio: `GET /zones` → `{"zones": [{"id", "name", "kind": "aisle" | "packing" | "loading" | "other", "x", "y", "w", "h"}]}` (x, y, w, h are shares of the map, from the top left). `PUT /zones/{id}` saves one, `DELETE /zones/{id}` removes it. Checkpoints are set on steps with `PUT /processes/{id}` (`checkpoint: {"zone_id", "label", "photo_urls"}`). `POST /processes/{id}/steps/{step_id}/place-photos` (multipart `image`) adds a picture of the place, faces blurred first, at most 8. `GET /locations` → `{"trainees": [{"employee_id", "name", "zone", "entered_at"}]}`: the live map, only workers in training who agreed.
+
+Demo: Kide Logistics has Aisles A–C, Packing and Loading. Pick and pack step 2 is at "Aisle C · Shelf 12" (zone-c), step 4 at "Packing station" (zone-pack). In demo mode the camera's eyes are scripted: the second picture of a locked step opens it (`decided_by: "demo"`).
 
 ### Customer service mode (JUN-98)
 

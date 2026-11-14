@@ -1,30 +1,27 @@
-"""Location during training (JUN-97): Owl follows which area the worker is in, and a step unlocks at the right spot.
+"""Location during training (JUN-97): Owl follows which area the worker is in, and a step opens at the right spot.
 
-GPS does not work indoors, so the glasses read printed QR markers ("owl:zone:<zone>", "owl:cp:<process>:<step>").
+GPS does not work indoors and there are no markers: the glasses send a camera picture now and then while a step is
+locked, and Owl recognises the place (app/place.py) from the expert's photo of the step and the place photos added in
+Studio.
 
 Rules, enforced here:
 - Only during the worker's training period (JUN-96), and only after they agreed (`Consent.location`).
 - Today's history only, kept in memory: never written to disk, gone on restart, and dropped as soon as the training
-  period is over.
-- An unlock is used up when Owl verifies the step, so the next run of the task asks for the spot again.
+  period is over. Camera pictures are never stored.
+- An unlock is used up when Owl verifies the step, so the next run of the task asks for the place again.
 """
 
-import io
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-import segno
 from fastapi import APIRouter, HTTPException
 
 from . import training
-from .models import Employee, LocationReport, StepRef, Unlock, Zone
+from .models import Employee, LocationReport, Unlock, Zone
 from .store import TIMEZONE, Store
-
-ZONE_PREFIX = "owl:zone:"
-CHECKPOINT_PREFIX = "owl:cp:"
 
 
 @dataclass
@@ -119,35 +116,6 @@ def view(store: Store, locations: Locations, employee_id: str) -> dict:
     }
 
 
-def qr_svg(payload: str) -> str:
-    out = io.BytesIO()
-    segno.make(payload, error="m").save(out, kind="svg", border=2, xmldecl=False, omitsize=True, dark="#000", light="#fff")
-    return out.getvalue().decode()
-
-
-def markers(store: Store) -> list[dict]:
-    """Every marker to print: one per zone, one per step with a checkpoint."""
-    found = [
-        {"payload": f"{ZONE_PREFIX}{z.id}", "kind": "zone", "label": z.name, "zone_id": z.id, "process_id": None, "step_id": None} for z in store.zones.values()
-    ]
-    for process in store.processes.values():
-        for step in sorted(process.steps, key=lambda s: s.index):
-            if step.checkpoint:
-                found.append(
-                    {
-                        "payload": f"{CHECKPOINT_PREFIX}{process.id}:{step.id}",
-                        "kind": "checkpoint",
-                        "label": step.checkpoint.label,
-                        "zone_id": step.checkpoint.zone_id,
-                        "process_id": process.id,
-                        "step_id": step.id,
-                        "step_title": step.title,
-                        "task": process.title,
-                    }
-                )
-    return [{**m, "svg": qr_svg(m["payload"])} for m in found]
-
-
 def router(get_store: Callable[[], Store], get_locations: Callable[[], Locations], auth: Any) -> APIRouter:
     api = APIRouter(dependencies=[auth])
 
@@ -184,10 +152,6 @@ def router(get_store: Callable[[], Store], get_locations: Callable[[], Locations
             if store.zones.pop(zone_id, None) is None:
                 raise HTTPException(status_code=404, detail=f"No zone {zone_id}.")
 
-    @api.get("/markers")
-    def print_markers() -> dict:
-        return {"markers": markers(get_store())}
-
     @api.post("/location")
     def report(body: LocationReport) -> dict:
         store, locations = get_store(), get_locations()
@@ -198,14 +162,6 @@ def router(get_store: Callable[[], Store], get_locations: Callable[[], Locations
             raise HTTPException(status_code=409, detail="not_in_training")
         checkpoint = body.checkpoint
         zone_id = body.zone
-        if body.marker:
-            if body.marker.startswith(ZONE_PREFIX):
-                zone_id = body.marker[len(ZONE_PREFIX) :]
-            elif body.marker.startswith(CHECKPOINT_PREFIX) and body.marker.count(":") == 3:
-                process_id, step_id = body.marker[len(CHECKPOINT_PREFIX) :].split(":")
-                checkpoint = StepRef(process_id=process_id, step_id=step_id)
-            else:
-                raise HTTPException(status_code=404, detail="Not an Owl marker.")
         if checkpoint is not None:
             zone_id = checkpoint_zone(checkpoint.process_id, checkpoint.step_id)
         if not zone_id or zone_id not in store.zones:
@@ -222,7 +178,7 @@ def router(get_store: Callable[[], Store], get_locations: Callable[[], Locations
 
     @api.post("/employees/{employee_id}/unlock")
     def unlock(employee_id: str, body: Unlock) -> dict:
-        """The marker is missing or damaged: the trainer or a Help call opens the step."""
+        """Owl does not recognise the place (new shelves, bad light): the trainer or a Help call opens the step."""
         get_employee(employee_id)
         checkpoint_zone(body.process_id, body.step_id)
         get_locations().unlock(employee_id, body.process_id, body.step_id)

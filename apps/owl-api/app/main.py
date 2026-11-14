@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import secrets
+import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,7 +28,7 @@ from . import ask as ask_engine
 from . import assist as assist_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
-from . import jepa, location, people, persist, training, verifier, vision
+from . import jepa, location, people, persist, place, training, verifier, vision
 from . import media as media_engine
 from . import progress as progress_engine
 from . import record as record_engine
@@ -84,6 +85,7 @@ recognizer = jepa.Recognizer(store.data_dir / "jepa")
 stage = stage_engine.Stage()
 progress = progress_engine.Progress()
 locations = location.Locations()  # JUN-97: in memory only, today only
+places = place.Places()  # JUN-97: recognises a step's place in a camera picture
 # JUN-78: state survives restarts. OWL_RESET=1 starts clean from the fixtures (rehearsals).
 if os.getenv("OWL_RESET", "") != "1":
     persist.load(store, progress)
@@ -135,7 +137,16 @@ def base_url(request: Request) -> str:
 def absolute(value: Any, base: str) -> Any:
     """Turns every /media/... path in *_url fields into an absolute URL."""
     if isinstance(value, dict):
-        return {k: (base + v if k.endswith("_url") and isinstance(v, str) and v.startswith("/") else absolute(v, base)) for k, v in value.items()}
+        return {
+            k: (
+                base + v
+                if k.endswith("_url") and isinstance(v, str) and v.startswith("/")
+                else [base + u if isinstance(u, str) and u.startswith("/") else u for u in v]
+                if k.endswith("_urls") and isinstance(v, list)
+                else absolute(v, base)
+            )
+            for k, v in value.items()
+        }
     if isinstance(value, list):
         return [absolute(v, base) for v in value]
     return value
@@ -255,6 +266,8 @@ def update_process(process_id: str, body: Process, request: Request, language: L
         for key in ("reference_image_url", "clip_url"):
             if step[key] and step[key].startswith(base + "/media/"):
                 step[key] = step[key][len(base) :]
+        if step.get("checkpoint"):
+            step["checkpoint"]["photo_urls"] = [u[len(base) :] if u.startswith(base + "/media/") else u for u in step["checkpoint"]["photo_urls"]]
     updated = Process.model_validate(data)
     waiting = [step.index for step in updated.steps if not step.reviewed]
     if updated.status == "published" and waiting:
@@ -556,6 +569,74 @@ def stage_answer(employee: Employee | None, question: str, answer: Answer) -> An
         )
         stage.event(employee.glasses_id, "ask", employee_id=employee.id, question=question, answer=answer.text, source=source)
     return answer
+
+
+# Place recognition (JUN-97): a locked step opens when Owl recognises its place in the camera picture.
+
+
+@app.post("/location/frame", dependencies=[Auth])
+async def location_frame(
+    employee_id: Annotated[str, Form(min_length=1, max_length=80)],
+    process_id: Annotated[str, Form()],
+    step_id: Annotated[str, Form()],
+    image: Annotated[UploadFile | None, File()] = None,
+    clip: Annotated[UploadFile | None, File()] = None,
+) -> dict:
+    """One look from the glasses while a step is locked. The picture is compared and dropped, never stored."""
+    worker = store.employees.get(employee_id)
+    if worker is None:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    if not store.consents.get(worker.id, {}).get("location"):
+        raise HTTPException(status_code=403, detail="consent_required")
+    if not training.in_training(store, worker.id):
+        raise HTTPException(status_code=409, detail="not_in_training")
+    process = get_process(process_id)
+    step = get_step(process, step_id)
+    if step.checkpoint is None:
+        raise HTTPException(status_code=404, detail=f"Step {step_id} has no place.")
+    frame = await read_frame(image, clip, REFERENCE_SIDE)
+    target = place.target_key(process_id, step_id)
+    if DEMO:
+        # The camera's eyes are scripted in demo mode: every look is at the place, so the second one opens the step.
+        look = place.Look(matched=True, score=1.0, best=target, backend="demo")
+        reached, can = places.count(worker.id, target, True, time.monotonic()), True
+    else:
+        gallery = await run_in_threadpool(places.gallery, place.worker_processes(store.processes, worker) or [process], store.media_path)
+        can = target in gallery
+        look, reached = await run_in_threadpool(places.look, worker.id, target, frame, gallery)
+    if reached:
+        locations.enter(worker.id, step.checkpoint.zone_id)
+        locations.unlock(worker.id, process_id, step_id)
+    answer = location.view(store, locations, worker.id)
+    decided_by = {"demo": "demo", "baseline": "baseline"}.get(look.backend, "model")
+    answer["match"] = (
+        {"zone_id": step.checkpoint.zone_id, "process_id": process_id, "step_id": step_id, "score": look.score, "decided_by": decided_by}
+        if look.matched
+        else None
+    )
+    answer["can_recognize"] = can
+    answer["next_check_ms"] = 2000
+    return answer
+
+
+@app.post("/processes/{process_id}/steps/{step_id}/place-photos", response_model=Process, dependencies=[Auth])
+async def add_place_photo(process_id: str, step_id: str, request: Request, image: Annotated[UploadFile, File()]):
+    """Studio adds a picture of a step's place, so Owl recognises it from more angles. Faces are blurred first."""
+    process = get_process(process_id)
+    step = get_step(process, step_id)
+    if step.checkpoint is None:
+        raise HTTPException(status_code=422, detail="Give the step a place first.")
+    if len(step.checkpoint.photo_urls) >= 8:
+        raise HTTPException(status_code=422, detail="A place has at most 8 photos. Remove one first.")
+    try:
+        photo = await run_in_threadpool(media_engine.blur_faces, await read_image(image, REFERENCE_SIDE))
+    except media_engine.MediaError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    folder = f"places/{process_id}-{secrets.token_urlsafe(9)}"
+    url = store.save_media(f"{folder}/{step_id}-{len(step.checkpoint.photo_urls) + 1}.jpg", photo)
+    with store.lock:
+        step.checkpoint.photo_urls.append(url)
+    return out(request, process)
 
 
 # Customer service mode (JUN-98). The transcript is used for one answer: never stored, logged or staged.

@@ -86,10 +86,12 @@ class Source(BaseModel):
 
 
 class Checkpoint(BaseModel):
-    """Where a step happens (JUN-97). The step unlocks when the worker's glasses see the checkpoint's marker."""
+    """Where a step happens (JUN-97). The step unlocks when Owl recognises the place in the worker's camera picture."""
 
     zone_id: str
     label: str = Field(min_length=1, max_length=40)  # "Aisle C · Shelf 12"
+    # More pictures of the place, added in Studio. The step's own reference photo is always one of them.
+    photo_urls: list[str] = Field(default=[], max_length=8)
 
 
 class Step(BaseModel):
@@ -300,10 +302,9 @@ class StepRef(BaseModel):
 
 
 class LocationReport(BaseModel):
-    """What the glasses saw: a marker's text ("owl:zone:<zone>" or "owl:cp:<process>:<step>"), or the zone or checkpoint."""
+    """The worker is in this zone or at this checkpoint, from another source than the camera (later: BLE beacons)."""
 
     employee_id: str
-    marker: str | None = Field(default=None, max_length=200)
     zone: str | None = None
     checkpoint: StepRef | None = None
 
