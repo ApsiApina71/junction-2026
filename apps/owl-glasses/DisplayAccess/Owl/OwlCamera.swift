@@ -27,12 +27,16 @@ final class OwlCamera: @unchecked Sendable {
   private let lock = NSLock()
   /// Compressed frames from the last key frame on, enough to decode the newest one.
   private var gop: [CMSampleBuffer] = []
+  /// The last few compressed frames, for the clip fallback (at least a few frames long).
+  private var recent: [CMSampleBuffer] = []
   /// The newest decoded frame, when the stream delivers decoded frames (the simulator can).
   private var latestPixels: CVPixelBuffer?
   private var latestFrameAt: Date?
   private var recorder: ClipRecorder?
   private var frameCount = 0
   private let decoder = FrameDecoder()
+  /// Simulator testing: always send clips, as if the phone could not decode (OWL_FORCE_CLIP=1).
+  private static let forceClip = ProcessInfo.processInfo.environment["OWL_FORCE_CLIP"] == "1"
 
   /// Called on stream errors after the camera has started (glasses taken off, link lost).
   var onError: (@Sendable (String) -> Void)?
@@ -83,19 +87,38 @@ final class OwlCamera: @unchecked Sendable {
       latestFrameAt = Date()
       if let pixels {
         latestPixels = pixels
-      } else if sample.owlIsKeyFrame {
-        gop = [sample]
-      } else if !gop.isEmpty, gop.count < 300 {
-        gop.append(sample)
+      } else {
+        if sample.owlIsKeyFrame {
+          gop = [sample]
+        } else if !gop.isEmpty, gop.count < 300 {
+          gop.append(sample)
+        }
+        recent.append(sample)
+        if recent.count > 15 { recent.removeFirst(recent.count - 15) }
       }
       return self.recorder
     }
     recorder?.append(sample)
   }
 
-  /// The newest stream frame as JPEG, scaled so its longest side is at most `maxSide`.
+  /// The newest stream frame for owl-api: a JPEG whose longest side is at most `maxSide`,
+  /// or the frames since the last key frame as a short HEVC clip when decoding fails.
   /// Nil when no frame arrived in the last `maxAge` seconds (stream stalled or glasses off).
-  func latestJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3) -> Data? {
+  func latestJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3) -> OwlFrame? {
+    if !Self.forceClip, let jpeg = photoJPEG(maxSide: maxSide, maxAge: maxAge) { return .jpeg(jpeg) }
+    let (gop, recent, at) = lock.withLock { (gop, recent, latestFrameAt) }
+    // From the earliest key frame among the recent frames, or the whole group of pictures.
+    let fromRecent = recent.firstIndex(where: \.owlIsKeyFrame).map { Array(recent[$0...]) } ?? []
+    let frames = fromRecent.count > gop.count ? fromRecent : gop
+    guard let at, Date().timeIntervalSince(at) <= maxAge, frames.count >= 2,
+      let clip = ClipRecorder.writeSync(frames)
+    else { return nil }
+    NSLog("[Owl] sending a \(frames.count)-frame clip instead of a JPEG")
+    return .clip(clip)
+  }
+
+  /// The newest stream frame decoded on the phone, as JPEG. Nil when it cannot be decoded.
+  func photoJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3) -> Data? {
     let (gop, pixels, at) = lock.withLock { (gop, latestPixels, latestFrameAt) }
     guard let at, Date().timeIntervalSince(at) <= maxAge else { return nil }
     guard let frame = pixels ?? decoder.decodeLast(of: gop) else { return nil }
@@ -103,7 +126,7 @@ final class OwlCamera: @unchecked Sendable {
   }
 
   /// Waits up to `timeout` for a fresh frame (the stream needs a moment after opening).
-  func nextJPEG(timeout: Duration = .seconds(4)) async -> Data? {
+  func nextJPEG(timeout: Duration = .seconds(4)) async -> OwlFrame? {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: timeout)
     while clock.now < deadline {
@@ -136,6 +159,7 @@ final class OwlCamera: @unchecked Sendable {
     lock.withLock {
       recorder = nil
       gop = []
+      recent = []
       latestPixels = nil
     }
     tokens.clear()
@@ -224,6 +248,7 @@ final class ClipRecorder: @unchecked Sendable {
   private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
   private var frames = 0
   private var failed = false
+  private var lastTime = CMTime.invalid
 
   init(url: URL) {
     self.url = url
@@ -241,9 +266,10 @@ final class ClipRecorder: @unchecked Sendable {
       }
       guard let input, input.isReadyForMoreMediaData else { return }
       if let pixels, let adaptor {
-        if adaptor.append(pixels, withPresentationTime: time) { frames += 1 }
+        if adaptor.append(pixels, withPresentationTime: time) { frames += 1; lastTime = time }
       } else if pixels == nil, input.append(sample) {
         frames += 1
+        lastTime = time
       }
     }
   }
@@ -285,10 +311,32 @@ final class ClipRecorder: @unchecked Sendable {
     }
   }
 
+  /// Writes HEVC `samples` (starting at a key frame) to a temporary MP4 and returns its bytes.
+  static func writeSync(_ samples: [CMSampleBuffer]) -> Data? {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("owl-frame-\(UUID().uuidString).mp4")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let recorder = ClipRecorder(url: url)
+    for sample in samples { recorder.append(sample) }
+    let done = DispatchSemaphore(value: 0)
+    let box = ResultBox()
+    Task.detached {
+      box.url = await recorder.finish()
+      done.signal()
+    }
+    guard done.wait(timeout: .now() + 2) == .success, let written = box.url else { return nil }
+    return try? Data(contentsOf: written)
+  }
+
+  private final class ResultBox: @unchecked Sendable {
+    var url: URL?
+  }
+
   func finish() async -> URL? {
-    let (writer, input, frames) = lock.withLock { (self.writer, self.input, self.frames) }
+    let (writer, input, frames, lastTime) = lock.withLock { (self.writer, self.input, self.frames, self.lastTime) }
     guard let writer, let input, frames > 0 else { return nil }
     input.markAsFinished()
+    // Give the last frame a duration (1/15 s), so a short clip is not empty.
+    if lastTime.isValid { writer.endSession(atSourceTime: lastTime + CMTime(value: 1, timescale: 15)) }
     await writer.finishWriting()
     NSLog("[Owl] clip: \(frames) frames, \(writer.status == .completed ? "ok" : "failed \(String(describing: writer.error))")")
     return writer.status == .completed ? url : nil

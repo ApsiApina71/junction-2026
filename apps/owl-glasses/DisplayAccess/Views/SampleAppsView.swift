@@ -62,6 +62,7 @@ struct SampleAppsView: View {
   @State private var showServerSettings = false
   @State private var serverURLDraft = ""
   @State private var employeeIDDraft = ""
+  @State private var glassesIDDraft = ""
   @State private var tokenDraft = ""
   @State private var testQuestion = "What if an item is out of stock?"
   @State private var testNote: String?
@@ -557,6 +558,7 @@ struct SampleAppsView: View {
         SwiftUI.Button("Server") {
           serverURLDraft = OwlAPI.serverURL
           employeeIDDraft = OwlViewModel.employeeID
+          glassesIDDraft = OwlViewModel.glassesID
           tokenDraft = OwlAPI.token
           showServerSettings = true
         }
@@ -581,18 +583,22 @@ struct SampleAppsView: View {
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .keyboardType(.URL)
-      TextField("Employee id", text: $employeeIDDraft)
+      TextField("Glasses id (glasses-1)", text: $glassesIDDraft)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      TextField("Employee id (testing only)", text: $employeeIDDraft)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
       SecureField("API token (optional)", text: $tokenDraft)
       SwiftUI.Button("Save") {
         OwlAPI.serverURL = serverURLDraft
         OwlViewModel.employeeID = employeeIDDraft
+        OwlViewModel.glassesID = glassesIDDraft
         OwlAPI.token = tokenDraft
       }
       SwiftUI.Button("Cancel", role: .cancel) {}
     } message: {
-      Text("owl-api address (LAN or the https tunnel), the worker's employee id and the API token.")
+      Text("owl-api address (LAN or the https tunnel), the name of these glasses in Owl Studio, and the API token. Leave the employee id empty: owl-api says who wears the glasses.")
     }
     .task {
       // Simulator test hooks (see CLAUDE.md): OWL_AUTO_PREVIEW=inApp|chrome starts mock

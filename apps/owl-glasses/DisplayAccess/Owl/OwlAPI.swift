@@ -10,6 +10,7 @@ import UIKit
 
 enum OwlError: LocalizedError, Equatable {
   case noGlasses
+  case glassesNotAssigned
   case noCamera
   case cameraPermissionDenied
   case microphonePermissionDenied
@@ -26,6 +27,7 @@ enum OwlError: LocalizedError, Equatable {
   var errorDescription: String? {
     switch self {
     case .noGlasses: "Glasses are not connected."
+    case .glassesNotAssigned: "These glasses are not assigned to anyone yet. Ask your supervisor."
     case .noCamera: "Couldn't open the glasses camera."
     case .cameraPermissionDenied: "Camera is not allowed for Owl. Ask your supervisor."
     case .microphonePermissionDenied: "Microphone is not allowed for Owl. Ask your supervisor."
@@ -94,23 +96,33 @@ struct OwlAPI: Sendable {
     try await send(try request("employees/\(id)"))
   }
 
-  func processes() async throws -> [OwlProcess] {
+  /// Who wears this pair of glasses. `glassesNotAssigned` when no one does.
+  func employee(forGlasses glassesID: String) async throws -> OwlEmployee {
+    do {
+      return try await send(try request("glasses/\(glassesID)/employee"))
+    } catch OwlError.notFound {
+      throw OwlError.glassesNotAssigned
+    }
+  }
+
+  /// The processes in `language` where a translation exists, otherwise in the original.
+  func processes(language: String? = nil) async throws -> [OwlProcess] {
     struct List: Decodable { let processes: [OwlProcess] }
-    let list: List = try await send(try request("processes"))
+    let list: List = try await send(try request("processes", language: language))
     return list.processes
   }
 
-  func process(_ id: String) async throws -> OwlProcess {
-    try await send(try request("processes/\(id)"))
+  func process(_ id: String, language: String? = nil) async throws -> OwlProcess {
+    try await send(try request("processes/\(id)", language: language))
   }
 
   /// One camera stream frame for the current step. `final` is the worker's "Done" pinch.
   func check(
-    frame jpeg: Data, processID: String, stepID: String, runID: String, final: Bool,
+    frame: OwlFrame, processID: String, stepID: String, runID: String, final: Bool,
     language: String?, mock: String? = nil
   ) async throws -> OwlCheckResult {
     var form = MultipartForm()
-    form.addFile("image", filename: "frame.jpg", contentType: "image/jpeg", data: jpeg)
+    frame.add(to: &form)
     form.addField("process_id", processID)
     form.addField("step_id", stepID)
     form.addField("run_id", runID)
@@ -171,10 +183,10 @@ struct OwlAPI: Sendable {
   // Help (JUN-33)
 
   func sendHelpFrame(
-    _ jpeg: Data, helpID: String?, employeeID: String?, processID: String?, stepID: String?
+    _ frame: OwlFrame, helpID: String?, employeeID: String?, processID: String?, stepID: String?
   ) async throws -> OwlHelpSession {
     var form = MultipartForm()
-    form.addFile("image", filename: "frame.jpg", contentType: "image/jpeg", data: jpeg)
+    frame.add(to: &form)
     form.addField("employee_id", employeeID ?? "")
     form.addField("process_id", processID ?? "")
     form.addField("step_id", stepID ?? "")
@@ -223,6 +235,17 @@ struct OwlAPI: Sendable {
     }
     var request = URLRequest(url: base.appendingPathComponent(path), timeoutInterval: timeout)
     authorize(&request)
+    return request
+  }
+
+  private func request(_ path: String, language: String?) throws -> URLRequest {
+    var request = try request(path)
+    if let language, !language.isEmpty, let url = request.url,
+      var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    {
+      components.queryItems = [URLQueryItem(name: "language", value: language)]
+      request.url = components.url
+    }
     return request
   }
 
@@ -280,6 +303,23 @@ struct OwlAPI: Sendable {
     } catch {
       NSLog("[Owl] decode \(T.self): \(error)")
       throw OwlError.decoding("\(error)")
+    }
+  }
+}
+
+/// One camera picture for `/check` and `/help/frames`: a JPEG, or, when the phone cannot
+/// decode the HEVC stream (for example in the background), a short HEVC clip from which
+/// owl-api takes the last frame. The contract wants exactly one of `image` or `clip`.
+enum OwlFrame: Sendable {
+  case jpeg(Data)
+  case clip(Data)
+
+  func add(to form: inout MultipartForm) {
+    switch self {
+    case .jpeg(let data):
+      form.addFile("image", filename: "frame.jpg", contentType: "image/jpeg", data: data)
+    case .clip(let data):
+      form.addFile("clip", filename: "frame.mp4", contentType: "video/mp4", data: data)
     }
   }
 }

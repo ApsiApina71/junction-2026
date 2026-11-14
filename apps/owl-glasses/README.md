@@ -15,7 +15,8 @@ What works in the simulator chain (iOS Simulator + MockDeviceKit + mock owl-api)
 - **Ask:** glasses speech recognition (DAT Speech, restarted after its ~1 min stop) → `POST /ask` → answer and source on the display, spoken.
 - **Help:** stream frames to `POST /help/frames` every 2 s, expert messages spoken once.
 - **Record:** pinch per step → H.264 clip of the stream, one reference frame and the narration → `POST /record/{id}/steps` → finish.
-- **Problems handled:** camera or microphone not allowed (Owl never asks on the worker's glasses; the employer grants once with the phone's Permissions button), glasses taken off (pauses, comes back when put on), no network (cached tasks, steps work without the check), server errors (keeps going without the check).
+- **Who wears the glasses:** the employer names the pair once in the app (Server → Glasses id, e.g. `glasses-1`); owl-api says which employee wears it (`GET /glasses/{id}/employee`), and tasks come in that employee's language when a translation exists.
+- **Problems handled:** glasses not assigned to anyone, camera or microphone not allowed (Owl never asks on the worker's glasses; the employer grants once with the phone's Permissions button), glasses taken off (pauses, comes back when put on), no network (cached tasks, steps work without the check), server errors (keeps going without the check).
 - DAT analytics and crash reporting opted out in `Info.plist`.
 
 ## Where things are

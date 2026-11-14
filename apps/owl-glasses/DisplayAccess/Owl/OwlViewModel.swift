@@ -24,6 +24,7 @@ import UIKit
 @MainActor
 final class OwlViewModel {
   static let employeeIDKey = "owl.employeeID"
+  static let glassesIDKey = "owl.glassesID"
   private static let checkInterval: Duration = .milliseconds(1500)
   private static let helpInterval: Duration = .seconds(2)
 
@@ -86,10 +87,19 @@ final class OwlViewModel {
     invocations.start()
   }
 
+  /// The employer names each pair of glasses once (`glasses-1`); owl-api says who wears it.
+  static var glassesID: String {
+    get { UserDefaults.standard.string(forKey: glassesIDKey) ?? "glasses-1" }
+    set { UserDefaults.standard.set(newValue, forKey: glassesIDKey) }
+  }
+
+  /// Optional override for testing: a fixed employee instead of the glasses' assignment.
   static var employeeID: String {
-    get { UserDefaults.standard.string(forKey: employeeIDKey) ?? "emp-sami" }
+    get { UserDefaults.standard.string(forKey: employeeIDKey) ?? "" }
     set { UserDefaults.standard.set(newValue, forKey: employeeIDKey) }
   }
+
+  @ObservationIgnored private var glassesNotAssigned = false
 
   private var api: OwlAPI { OwlAPI() }
   private var language: String? { employee?.language }
@@ -108,6 +118,10 @@ final class OwlViewModel {
     await show(OwlBasicScreens.status("Owl", detail: "Getting your tasks…"), deviceIdentifier: deviceIdentifier)
     watchGlasses()
     await loadTasks()
+    if glassesNotAssigned {
+      await showProblem(OwlError.glassesNotAssigned, retry: { await $0.open() })
+      return displayViewModel.isConnected
+    }
     if !welcomed, let employee {
       welcomed = true
       if let welcome = employee.welcome { speaker.say(welcome) }
@@ -135,14 +149,26 @@ final class OwlViewModel {
   }
 
   private func loadTasks() async {
+    glassesNotAssigned = false
     do {
-      let employee = try await api.employee(Self.employeeID)
-      let processes = try await api.processes()
+      let employeeID = Self.employeeID.trimmingCharacters(in: .whitespaces)
+      let glassesID = Self.glassesID.trimmingCharacters(in: .whitespaces)
+      let employee =
+        employeeID.isEmpty
+        ? try await api.employee(forGlasses: glassesID) : try await api.employee(employeeID)
+      if employee.id != self.employee?.id { welcomed = false }
+      // Steps in the worker's own language when the process has a translation.
+      let processes = try await api.processes(language: employee.language)
       self.employee = employee
       self.processes = processes
       isOffline = false
       OwlCache.save(employee: employee, processes: processes)
       speaker.language = employee.language
+    } catch OwlError.glassesNotAssigned {
+      NSLog("[Owl] glasses \(Self.glassesID) are not assigned")
+      glassesNotAssigned = true
+      employee = nil
+      processes = []
     } catch {
       NSLog("[Owl] loading tasks failed: \(error)")
       isOffline = (error as? OwlError)?.isServiceProblem ?? true
@@ -228,7 +254,7 @@ final class OwlViewModel {
 
   /// Sends one stream frame to Owl Check. Returns the result, or nil on a service problem.
   @discardableResult
-  private func checkFrame(_ jpeg: Data, final: Bool) async -> OwlCheckResult? {
+  private func checkFrame(_ jpeg: OwlFrame, final: Bool) async -> OwlCheckResult? {
     guard let process, let step else { return nil }
     do {
       let result = try await api.check(
@@ -335,7 +361,7 @@ final class OwlViewModel {
 
   /// A final check. The engine answers "checking" at once while it is still busy with this
   /// run, so wait a moment and send the frame again.
-  private func finalCheck(_ jpeg: Data) async -> OwlCheckResult? {
+  private func finalCheck(_ jpeg: OwlFrame) async -> OwlCheckResult? {
     for attempt in 0..<4 {
       guard let result = await checkFrame(jpeg, final: true) else { return nil }
       if result.status != "checking" || attempt == 3 { return result }
@@ -565,7 +591,7 @@ final class OwlViewModel {
     guard isRecordingStep, let recording, let camera else { return }
     isRecordingStep = false
     listener.stop()
-    let photo = camera.latestJPEG(maxSide: 1280)
+    let photo = camera.photoJPEG(maxSide: 1280)
     let clip = await camera.finishClip()
     await show(OwlBasicScreens.status("Saving step…", detail: "Uploading the clip."))
     guard let photo else {

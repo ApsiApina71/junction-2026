@@ -17,6 +17,8 @@ struct OwlEmployee: Codable, Equatable, Sendable {
   let company: String?
   let welcome: String?
   let processIds: [String]
+  /// The pair of glasses this employee wears, or nil.
+  let glassesId: String?
 }
 
 struct OwlProcess: Codable, Equatable, Sendable, Identifiable {
@@ -111,6 +113,8 @@ struct OwlHelpSession: Codable, Equatable, Sendable, Identifiable {
   let processId: String?
   let stepId: String?
   let latestFrameUrl: String?
+  /// When the latest frame arrived.
+  let frameAt: String?
   let updatedAt: String?
   let messages: [OwlHelpMessage]
 
@@ -124,6 +128,8 @@ struct OwlHelpMessage: Codable, Equatable, Sendable, Identifiable {
   let from: String
   let text: String
   let at: String?
+  /// The worker's view with a ring where the expert pointed (shown with the expert's words).
+  let imageUrl: String?
 }
 
 struct OwlRecording: Codable, Equatable, Sendable, Identifiable {
