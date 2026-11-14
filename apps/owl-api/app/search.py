@@ -12,16 +12,20 @@ from dataclasses import dataclass
 
 K1, B = 1.5, 0.75
 STEM = 5  # crude stemming that also helps inflection: "leaves" -> "leave", "laatikkoon" -> "laati"
-_STOP = "a an and are as at be by do does for from how i if in is it its me my of on or should the this to use what when where which who why will with you your can ja on ei se että kun mitä miten mikä mihin jos tai kuin olla minä mä"
+_STOP = "a an and are as at be by do does for from how i if in is it its me my of on or should the this to use what when where which who why will with you your can ja on ei se että kun mitä miten mikä mihin missä mistä milloin kuinka paljon kuka miksi onko voiko saako jos tai kuin olla minä mä minun sinä teen"
 STOPWORDS = frozenset(_STOP.split())
 _WORD = re.compile(r"[^\W_]+", re.UNICODE)
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
 
+# Common Finnish case endings, longest first: "uunissa", "uunia" and "uuni" meet at "uuni".
+_FI_ENDINGS = ("ssa", "ssä", "sta", "stä", "lla", "llä", "lta", "ltä", "lle", "ksi", "na", "nä", "a", "ä", "n", "t")
+
+
 def _stem(word: str) -> str:
-    """Light English suffix stripping, then a prefix cut that also catches Finnish inflection."""
+    """Light English and Finnish suffix stripping, then a prefix cut that also catches longer inflection."""
     if len(word) > 4:
-        for suffix in ("ing", "ed", "es", "s"):
+        for suffix in ("ing", "ed", "es", "s", *_FI_ENDINGS):
             if word.endswith(suffix) and len(word) - len(suffix) >= 3:
                 word = word[: -len(suffix)]
                 break

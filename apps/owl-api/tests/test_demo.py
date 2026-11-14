@@ -16,6 +16,8 @@ PROCESS = Process.model_validate(load_fixture("process-pick-pack.json"))
 ORDER_STEP = PROCESS.steps[1]
 HANDBOOK = ("Kide Logistics: warehouse handbook", (FIXTURES / "docs/warehouse-handbook.md").read_text(encoding="utf-8"))
 BAKERY = ("Leipomo Ruis: bakery handbook", (FIXTURES / "docs/bakery-handbook.md").read_text(encoding="utf-8"))
+LEIPOMO = ("Leipomo Ruis: leipomon ohjeet", (FIXTURES / "docs/leipomon-ohjeet.md").read_text(encoding="utf-8"))
+ALL_DOCS = [HANDBOOK, BAKERY, LEIPOMO]
 
 
 # The demo script
@@ -114,19 +116,25 @@ def test_a_confirmed_warning_is_spoken_once_and_again_when_it_changes():
         ("Which oven do I use for rye bread?", "Oven 2 is for rye bread only."),
         ("How long do I mix the dough?", "Rye dough is always mixed on 1 (slow) for 8 minutes."),
         ("Where is the mixer lever?", "The mixer has a lever with three positions: 0 = stop, 1 = slow, 2 = fast."),
+        # A Finnish worker asks in Finnish and gets the Finnish handbook's rule.
+        ("Mitä uunia käytän ruisleivälle?", "Uuni 2 on vain ruisleivälle."),
+        ("Kuinka kauan taikinaa sekoitetaan?", "Ruistaikina sekoitetaan aina asennossa 1 (hidas) 8 minuuttia."),
+        ("Missä sammutuspeite on?", "Sammutuspeite on uunin 2 vieressä."),
+        ("Milloin leipä on valmis?", "Leipä on valmis, kun se kuulostaa ontolta, kun koputat sen pohjaan."),
     ],
 )
 def test_demo_answers_quote_the_handbook(question, expected):
-    answer = ask.demo_answer(question, [HANDBOOK, BAKERY], "en")
+    answer = ask.demo_answer(question, ALL_DOCS, "en")
     assert answer.found is True
     assert answer.text == expected
-    doc = dict([HANDBOOK, BAKERY])[answer.sources[0].doc]
+    doc = dict(ALL_DOCS)[answer.sources[0].doc]
     assert answer.sources[0].quote in doc
     assert len(answer.say.split()) <= 25
 
 
 def test_demo_answer_not_in_the_instructions():
-    assert ask.demo_answer("What is the wifi password?", [HANDBOOK, BAKERY], "en").found is False
+    assert ask.demo_answer("What is the wifi password?", ALL_DOCS, "en").found is False
+    assert ask.demo_answer("Mikä on wifin salasana?", ALL_DOCS, "fi").found is False
 
 
 def test_sections_and_ranking():
