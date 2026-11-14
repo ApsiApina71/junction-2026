@@ -1,6 +1,6 @@
 # owl-studio
 
-Owl Studio, the company's web app for Onboarding Owl. The contract is [`docs/specs/owl-contract.md`](../../docs/specs/owl-contract.md); keep `src/lib/types.ts` and `src/lib/api.ts` in step with it. The Data view (`src/views/DataView.tsx`) states what `apps/owl-api` does with data: update it when that code changes.
+Owl Studio, the company's web app for Owl Boarding. The contract is [`docs/specs/owl-contract.md`](../../docs/specs/owl-contract.md); keep `src/lib/types.ts` and `src/lib/api.ts` in step with it. The Data view (`src/views/DataView.tsx`) states what `apps/owl-api` does with data: update it when that code changes.
 
 ## Run
 

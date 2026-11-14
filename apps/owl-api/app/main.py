@@ -1,4 +1,4 @@
-"""HTTP API of Onboarding Owl. The contract is docs/specs/owl-contract.md.
+"""HTTP API of Owl Boarding. The contract is docs/specs/owl-contract.md.
 
 Owl Check (vision + verifier), Ask and Record run the real engine; OWL_MOCK_* switch each one to fixtures.
 """

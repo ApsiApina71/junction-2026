@@ -6,7 +6,7 @@ last-updated: 2026-11-14
 
 # owl-studio
 
-Owl Studio is the company's side of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)): the web app where a shift lead adds the company's own instructions, reviews the tasks an expert recorded on the glasses, adds new workers and answers them when they ask for help. Linear project: [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606).
+Owl Studio is the company's side of **Owl Boarding** ([spec](../../docs/specs/onboarding-owl.md)): the web app where a shift lead adds the company's own instructions, reviews the tasks an expert recorded on the glasses, adds new workers and answers them when they ask for help. Linear project: [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606).
 
 It talks to [`apps/owl-api`](../owl-api/README.md) through the [Owl contract](../../docs/specs/owl-contract.md). The shapes are in `src/lib/types.ts`, and every call Studio makes is in `src/lib/api.ts`.
 

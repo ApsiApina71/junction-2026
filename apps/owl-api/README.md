@@ -6,7 +6,7 @@ last-updated: 2026-11-14
 
 # owl-api
 
-The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). The glasses app ([`apps/owl-glasses`](../owl-glasses/README.md)) and Owl Studio talk to it. Linear project: [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606).
+The engine of **Owl Boarding** ([spec](../../docs/specs/onboarding-owl.md)). The glasses app ([`apps/owl-glasses`](../owl-glasses/README.md)) and Owl Studio talk to it. Linear project: [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606).
 
 - **Contract:** [`docs/specs/owl-contract.md`](../../docs/specs/owl-contract.md) ([JUN-27](https://linear.app/junction-2026-bossit/issue/JUN-27)). Models in `app/models.py`.
 - **Scaffold:** [JUN-28](https://linear.app/junction-2026-bossit/issue/JUN-28). Every endpoint answers from `fixtures/`, and the real engine replaces them one by one:
