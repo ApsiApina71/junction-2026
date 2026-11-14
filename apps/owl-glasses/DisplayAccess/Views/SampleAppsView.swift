@@ -74,6 +74,7 @@ struct SampleAppsView: View {
   @State private var testQuestion = "What if an item is out of stock?"
   @State private var testNote: String?
   @State private var stageMirroring = OwlViewModel.stageMirroring
+  @State private var helpWithoutCamera = OwlViewModel.helpWithoutCamera
   @State private var isOpening = false
   @State private var isAskingPermissions = false
 
@@ -385,6 +386,27 @@ struct SampleAppsView: View {
       .tint(OwlTheme.accent)
       .padding(.vertical, 6)
       .onChange(of: stageMirroring) { _, on in OwlViewModel.stageMirroring = on }
+      Divider().overlay(OwlTheme.border).padding(.leading, 48)
+      Toggle(isOn: $helpWithoutCamera) {
+        HStack(spacing: 14) {
+          Image(systemName: "phone.badge.waveform")
+            .font(.body.weight(.semibold))
+            .foregroundStyle(OwlTheme.text)
+            .frame(width: 34, height: 34)
+            .background(OwlTheme.raised, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+          VStack(alignment: .leading, spacing: 2) {
+            Text(t("Help without camera", "Apu ilman kameraa"))
+              .font(.body.weight(.medium))
+              .foregroundStyle(OwlTheme.text)
+            Text(t("Calls ring by voice only, no picture", "Puhelu soi ilman kuvaa, vain äänellä"))
+              .font(.footnote)
+              .foregroundStyle(OwlTheme.textSecondary)
+          }
+        }
+      }
+      .tint(OwlTheme.accent)
+      .padding(.vertical, 6)
+      .onChange(of: helpWithoutCamera) { _, on in OwlViewModel.helpWithoutCamera = on }
     }
   }
 

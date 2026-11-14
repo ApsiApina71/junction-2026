@@ -329,11 +329,13 @@ struct OwlAPI: Sendable {
   // Help (JUN-33)
 
   /// `to`: `manager` rings the shift manager's glasses (JUN-100); nil goes to Owl Studio.
+  /// `frame` nil: the call starts or goes on without a picture (owl-api accepts form fields
+  /// only, JUN-79), for Help without the camera.
   func sendHelpFrame(
-    _ frame: OwlFrame, helpID: String?, employeeID: String?, processID: String?, stepID: String?, to: String? = nil
+    _ frame: OwlFrame?, helpID: String?, employeeID: String?, processID: String?, stepID: String?, to: String? = nil
   ) async throws -> OwlHelpSession {
     var form = MultipartForm()
-    frame.add(to: &form)
+    frame?.add(to: &form)
     if let to { form.addField("to", to) }
     form.addField("employee_id", employeeID ?? "")
     form.addField("process_id", processID ?? "")
