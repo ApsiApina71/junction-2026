@@ -1,6 +1,6 @@
 # owl-glasses
 
-Onboarding Owl on Meta Ray-Ban Display glasses (DAT iOS). Requires Xcode 26.4+ and the `mwdat-ios` Claude Code plugin (`claude plugin install mwdat-ios@mwdat-ios-marketplace`) for DAT guidance. Search `search_dat_docs` before every DAT API call. The owl-api address is baked in with `OWL_API_URL` and can be changed in the app (Server button).
+Onboarding Owl on Meta Ray-Ban Display glasses (DAT iOS). Requires Xcode 26.4+ and the `mwdat-ios` Claude Code plugin (`claude plugin install mwdat-ios@mwdat-ios-marketplace`) for DAT guidance. Search `search_dat_docs` before every DAT API call. The owl-api address and token are baked in with `OWL_API_URL` and `OWL_API_TOKEN` and can be changed in the app (Server button); the https tunnel URL from the owl-api session works as the address too.
 
 ## Where to put code
 

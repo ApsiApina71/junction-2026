@@ -62,6 +62,7 @@ struct SampleAppsView: View {
   @State private var showServerSettings = false
   @State private var serverURLDraft = ""
   @State private var employeeIDDraft = ""
+  @State private var tokenDraft = ""
   @State private var testQuestion = "What if an item is out of stock?"
   @State private var testNote: String?
 
@@ -556,6 +557,7 @@ struct SampleAppsView: View {
         SwiftUI.Button("Server") {
           serverURLDraft = OwlAPI.serverURL
           employeeIDDraft = OwlViewModel.employeeID
+          tokenDraft = OwlAPI.token
           showServerSettings = true
         }
         SwiftUI.Button("Record") {
@@ -582,13 +584,15 @@ struct SampleAppsView: View {
       TextField("Employee id", text: $employeeIDDraft)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
+      SecureField("API token (optional)", text: $tokenDraft)
       SwiftUI.Button("Save") {
         OwlAPI.serverURL = serverURLDraft
         OwlViewModel.employeeID = employeeIDDraft
+        OwlAPI.token = tokenDraft
       }
       SwiftUI.Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Address of owl-api on your Mac, and the worker's employee id.")
+      Text("owl-api address (LAN or the https tunnel), the worker's employee id and the API token.")
     }
     .task {
       // Simulator test hooks (see CLAUDE.md): OWL_AUTO_PREVIEW=inApp|chrome starts mock

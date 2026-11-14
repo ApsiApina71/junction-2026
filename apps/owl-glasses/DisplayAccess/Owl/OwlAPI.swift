@@ -52,6 +52,7 @@ enum OwlError: LocalizedError, Equatable {
 
 struct OwlAPI: Sendable {
   static let serverURLKey = "owl.serverURL"
+  static let tokenKey = "owl.apiToken"
 
   /// The owl-api base URL: set in the app (Server button), else baked in with OWL_API_URL.
   static var serverURL: String {
@@ -62,13 +63,23 @@ struct OwlAPI: Sendable {
     set { UserDefaults.standard.set(newValue, forKey: serverURLKey) }
   }
 
+  /// The `X-Api-Token`: set in the app (Server button), else baked in with OWL_API_TOKEN.
+  static var token: String {
+    get {
+      if let saved = UserDefaults.standard.string(forKey: tokenKey) { return saved }
+      let baked = Bundle.main.object(forInfoDictionaryKey: "OwlAPIToken") as? String ?? ""
+      return baked.hasPrefix("$(") ? "" : baked
+    }
+    set { UserDefaults.standard.set(newValue, forKey: tokenKey) }
+  }
+
   let baseURL: String
   let token: String?
 
-  init(baseURL: String = OwlAPI.serverURL) {
+  init(baseURL: String = OwlAPI.serverURL, token: String = OwlAPI.token) {
     self.baseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-    let token = Bundle.main.object(forInfoDictionaryKey: "OwlAPIToken") as? String
-    self.token = token?.isEmpty == false && token?.hasPrefix("$(") == false ? token : nil
+    let token = token.trimmingCharacters(in: .whitespacesAndNewlines)
+    self.token = token.isEmpty ? nil : token
   }
 
   // MARK: - Endpoints
