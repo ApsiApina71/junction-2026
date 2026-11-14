@@ -48,15 +48,34 @@ final class OwlCamera: @unchecked Sendable {
   /// Called on stream errors after the camera has started (glasses taken off, link lost).
   var onError: (@Sendable (String) -> Void)?
 
-  private init(camera: Camera) {
+  private init(camera: Camera, quality: Quality) {
+    self.quality = quality
     self.camera = camera
   }
 
   @MainActor
-  static func open(on session: DeviceSession) async throws -> OwlCamera {
-    let config = StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 15)
-    guard let camera = try session.addCamera(config: config) else { throw OwlError.noCamera }
-    let owlCamera = OwlCamera(camera: camera)
+  /// What the stream is for. Checks, place and step recognition run at low resolution and
+  /// 7 fps: the glasses stayed cool enough to keep the camera, owl-api reads the labels at
+  /// 640 px (it downsizes to 1024 anyway, V-JEPA crops to 384), and on a busy Bluetooth link
+  /// the glasses dropped to 360×640 by themselves (JUN-53). An expert's recording keeps
+  /// medium at 15 fps, because its clips are what workers watch.
+  enum Quality: Sendable {
+    case work
+    case recording
+
+    nonisolated var configuration: StreamConfiguration {
+      switch self {
+      case .work: StreamConfiguration(videoCodec: .hvc1, resolution: .low, frameRate: 7)
+      case .recording: StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 15)
+      }
+    }
+  }
+
+  let quality: Quality
+
+  static func open(on session: DeviceSession, quality: Quality = .work) async throws -> OwlCamera {
+    guard let camera = try session.addCamera(config: quality.configuration) else { throw OwlError.noCamera }
+    let owlCamera = OwlCamera(camera: camera, quality: quality)
     do {
       try await owlCamera.start()
     } catch {

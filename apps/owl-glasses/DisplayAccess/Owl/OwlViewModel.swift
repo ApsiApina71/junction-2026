@@ -1652,6 +1652,8 @@ final class OwlViewModel {
       return
     }
     let number = newScene()
+    // Nothing is checked while the clip plays, so the camera rests; the step opens it again.
+    closeCamera()
     func failed() async {
       if let then { await then(self) } else { await showProblem(.video) }
     }
@@ -2418,7 +2420,7 @@ final class OwlViewModel {
   func startRecordedStep() async {
     // Only inside a recording: a step clip that no recording waits for would never be ended.
     guard !isRecordingStep, recording != nil, let session = displayViewModel.currentDeviceSession() else { return }
-    guard let camera = await openCamera() else {
+    guard let camera = await openCamera(quality: .recording) else {
       await showProblem(cameraDenied ? .cameraNeeded : .other, detail: OwlError.noCamera.errorDescription)
       return
     }
@@ -2644,14 +2646,22 @@ final class OwlViewModel {
   /// same opening. The stream sometimes fails to start right after the last one stopped (Help
   /// right after a step, JUN-53), so a failed opening is tried again, fresh, up to three times
   /// within 30 s; each failure says why in the log.
-  private func openCamera() async -> OwlCamera? {
-    if let camera { return camera }
-    if let cameraOpening { return await cameraOpening.value }
+  private func openCamera(quality: OwlCamera.Quality = .work) async -> OwlCamera? {
+    if let camera {
+      if camera.quality == quality { return camera }
+      // A recording needs the sharper stream, everything else the cooler one: one at a time.
+      closeCamera()
+    }
+    if let cameraOpening {
+      let opened = await cameraOpening.value
+      if let opened, opened.quality == quality { return opened }
+      if opened != nil { closeCamera() }
+    }
     let closings = cameraClosings
     let opening = Task { @MainActor [weak self] () -> OwlCamera? in
       guard let self else { return nil }
       defer { self.cameraOpening = nil }
-      guard let opened = await self.openCameraTrying() else { return nil }
+      guard let opened = await self.openCameraTrying(quality) else { return nil }
       guard self.cameraClosings == closings else {
         NSLog("[Owl] camera: closed while it was opening")
         opened.close()
@@ -2664,7 +2674,7 @@ final class OwlViewModel {
     return await opening.value
   }
 
-  private func openCameraTrying() async -> OwlCamera? {
+  private func openCameraTrying(_ quality: OwlCamera.Quality) async -> OwlCamera? {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: .seconds(30))
     for attempt in 1...3 {
@@ -2683,8 +2693,9 @@ final class OwlViewModel {
           return nil
         }
         cameraDenied = false
-        let camera = try await OwlCamera.open(on: session)
+        let camera = try await OwlCamera.open(on: session, quality: quality)
         camera.onError = { message in NSLog("[Owl] camera: \(message)") }
+        NSLog("[Owl] camera open (\(quality == .work ? "low, 7 fps" : "medium, 15 fps"))")
         if attempt > 1 { NSLog("[Owl] camera opened on try \(attempt)") }
         return camera
       } catch {
@@ -2696,6 +2707,7 @@ final class OwlViewModel {
 
   private func closeCamera() {
     cameraClosings += 1
+    if camera != nil { NSLog("[Owl] camera closed") }
     camera?.close()
     camera = nil
   }
@@ -2821,6 +2833,9 @@ final class OwlViewModel {
     listener.stop()
     isRecordingStep = false
     camera?.discardClip()
+    // The camera runs only while a step needs it (JUN-53, the glasses ran hot): the task
+    // list, the welcome, customer service and a recording's start open it again if needed.
+    closeCamera()
   }
 
   /// Sends a screen and remembers it, so it can be sent again later. `stage` describes it
