@@ -161,6 +161,7 @@ final class OwlViewModel {
       await self?.open(deviceIdentifier: device) ?? false
     }
     // The glasses recognise speech in their own language setting (DAT Speech `locale`); the
+    OwlCamera.removeLeftoverClips()
     // app cannot choose it. The voice follows the worker's language instead.
     listener.onLocale = { locale in NSLog("[Owl] glasses speech locale: \(locale)") }
     speaker.onSpoken = { [weak self] text in
@@ -916,11 +917,14 @@ final class OwlViewModel {
         // About 2 s of the stream, HEVC as it comes from the glasses.
         try? camera.startClip()
         try? await Task.sleep(for: .seconds(2))
-        guard !Task.isCancelled, let url = await camera.finishClip(), let clip = try? Data(contentsOf: url) else {
+        // The clip leaves the phone's temp folder whether or not it could be read or is still wanted.
+        let url = await camera.finishClip()
+        let clip = url.flatMap { try? Data(contentsOf: $0) }
+        if let url { try? FileManager.default.removeItem(at: url) }
+        guard !Task.isCancelled, let clip else {
           try? await Task.sleep(for: .seconds(4))
           continue
         }
-        try? FileManager.default.removeItem(at: url)
         do {
           let result = try await self.api.recognizeStep(
             clip: clip, processID: process.id, runID: self.runID, employeeID: self.employee?.id)
@@ -942,7 +946,7 @@ final class OwlViewModel {
     recognizeTask?.cancel()
     recognizeTask = nil
     suggestedStepID = nil
-    Task { [camera] in _ = await camera?.finishClip() }
+    camera?.discardClip()
   }
 
   /// "Looks like step N": a hint on the step card. Owl never moves on by itself; when the
@@ -1616,7 +1620,7 @@ final class OwlViewModel {
     helpTask = nil
     listener.stop()
     isRecordingStep = false
-    Task { _ = await camera?.finishClip() }
+    camera?.discardClip()
   }
 
   /// Sends a screen and remembers it, so it can be sent again later. `stage` describes it

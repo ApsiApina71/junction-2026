@@ -157,30 +157,53 @@ final class OwlCamera: @unchecked Sendable {
 
   func startClip() throws {
     let url = FileManager.default.temporaryDirectory
-      .appendingPathComponent("owl-clip-\(UUID().uuidString).mp4")
+      .appendingPathComponent("\(Self.clipPrefix)\(UUID().uuidString).mp4")
     let newRecorder = ClipRecorder(url: url)
-    lock.withLock { recorder = newRecorder }
+    takeRecorder(replacingWith: newRecorder)?.discard()
   }
 
-  /// Stops the clip and returns the MP4 file, or nil if no frames were written.
+  /// Stops the clip and returns the MP4 file, or nil if no frames were written. Whoever asks
+  /// for the file deletes it once it has been sent.
   func finishClip() async -> URL? {
-    let current = lock.withLock {
+    await takeRecorder()?.finish()
+  }
+
+  /// Stops a clip nobody will send and deletes it. A clip is the worker's view: it never
+  /// stays on the phone after its step is over (JUN-59).
+  func discardClip() {
+    takeRecorder()?.discard()
+  }
+
+  private func takeRecorder(replacingWith new: ClipRecorder? = nil) -> ClipRecorder? {
+    lock.withLock {
       let current = recorder
-      recorder = nil
+      recorder = new
       return current
     }
-    return await current?.finish()
   }
 
   func close() {
+    discardClip()
     lock.withLock {
-      recorder = nil
       gop = []
       recent = []
       latestPixels = nil
     }
     tokens.clear()
     camera.stop()
+  }
+
+  private static let clipPrefix = "owl-clip-"
+
+  /// Deletes clips an earlier run left in the temp folder, for example when the app was
+  /// closed in the middle of a step. Called once when the app starts, before any clip exists.
+  static func removeLeftoverClips() {
+    let files = FileManager.default
+    let folder = files.temporaryDirectory
+    let names = (try? files.contentsOfDirectory(atPath: folder.path)) ?? []
+    let leftovers = names.filter { $0.hasPrefix(clipPrefix) || $0.hasPrefix(ClipRecorder.framePrefix) }
+    for name in leftovers { try? files.removeItem(at: folder.appendingPathComponent(name)) }
+    if !leftovers.isEmpty { NSLog("[Owl] removed \(leftovers.count) leftover clip files") }
   }
 }
 
@@ -252,35 +275,12 @@ extension CMSampleBuffer {
   /// to their frames. Every frame then counted as a key frame, Owl decoded a lone in-between
   /// frame, and each check, Help and stage picture was flat grey.
   var owlIsKeyFrame: Bool {
+    if let fromData = owlHoldsRandomAccessPicture { return fromData }
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(self, createIfNecessary: false)
       as? [[CFString: Any]], let first = attachments.first
     else { return true }
     return !(first[kCMSampleAttachmentKey_NotSync] as? Bool ?? false)
   }
-}
-
-/// Writes one step's stream frames to an MP4. HEVC frames are copied as they are, starting
-/// at a key frame; decoded frames (simulator) are encoded to H.264. The server converts the
-/// clip to a display-sized H.264 MP4 (≤ 400 px per side, faststart).
-final class ClipRecorder: @unchecked Sendable {
-  private let url: URL
-  private let lock = NSLock()
-  private var writer: AVAssetWriter?
-  private var input: AVAssetWriterInput?
-  private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
-  private var frames = 0
-  private var failed = false
-  private var lastTime = CMTime.invalid
-
-  init(url: URL) {
-    self.url = url
-  }
-    if let fromData = owlHoldsRandomAccessPicture { return fromData }
-
-  func append(_ sample: CMSampleBuffer) {
-    let time = CMSampleBufferGetPresentationTimeStamp(sample)
-    let pixels = CMSampleBufferGetImageBuffer(sample)
-    lock.withLock {
 
   /// Whether the frame holds an HEVC random access picture. Nil when the data is not HEVC or
   /// cannot be read.
@@ -301,7 +301,32 @@ final class ClipRecorder: @unchecked Sendable {
       return status == kCMBlockBufferNoErr ? bytes : nil
     }
   }
-      guard !failed else { return }
+}
+
+/// Writes one step's stream frames to an MP4. HEVC frames are copied as they are, starting
+/// at a key frame; decoded frames (simulator) are encoded to H.264. The server converts the
+/// clip to a display-sized H.264 MP4 (≤ 400 px per side, faststart).
+final class ClipRecorder: @unchecked Sendable {
+  private let url: URL
+  private let lock = NSLock()
+  private var writer: AVAssetWriter?
+  private var input: AVAssetWriterInput?
+  private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
+  private var frames = 0
+  private var failed = false
+  /// Set when the clip is being finished or thrown away: no frame is added after that.
+  private var closed = false
+  private var lastTime = CMTime.invalid
+
+  init(url: URL) {
+    self.url = url
+  }
+
+  func append(_ sample: CMSampleBuffer) {
+    let time = CMSampleBufferGetPresentationTimeStamp(sample)
+    let pixels = CMSampleBufferGetImageBuffer(sample)
+    lock.withLock {
+      guard !failed, !closed else { return }
       if writer == nil {
         // A compressed clip has to start at a key frame to be playable, and passthrough needs a
         // format hint (AVAssetWriter throws an Objective-C exception without one).
@@ -358,7 +383,7 @@ final class ClipRecorder: @unchecked Sendable {
 
   /// Writes HEVC `samples` (starting at a key frame) to a temporary MP4 and returns its bytes.
   static func writeSync(_ samples: [CMSampleBuffer]) -> Data? {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("owl-frame-\(UUID().uuidString).mp4")
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(framePrefix)\(UUID().uuidString).mp4")
     defer { try? FileManager.default.removeItem(at: url) }
     let recorder = ClipRecorder(url: url)
     for sample in samples { recorder.append(sample) }
@@ -376,15 +401,39 @@ final class ClipRecorder: @unchecked Sendable {
     var url: URL?
   }
 
+  static let framePrefix = "owl-frame-"
+
+  /// Finishes the file and returns it. Nil, and no file left behind, when nothing was written
+  /// or the writer failed.
   func finish() async -> URL? {
-    let (writer, input, frames, lastTime) = lock.withLock { (self.writer, self.input, self.frames, self.lastTime) }
-    guard let writer, let input, frames > 0 else { return nil }
+    let (writer, input, frames, lastTime) = lock.withLock {
+      closed = true
+      return (self.writer, self.input, self.frames, self.lastTime)
+    }
+    guard let writer, let input, frames > 0 else {
+      discard()
+      return nil
+    }
     input.markAsFinished()
     // Give the last frame a duration (1/15 s), so a short clip is not empty.
     if lastTime.isValid { writer.endSession(atSourceTime: lastTime + CMTime(value: 1, timescale: 15)) }
     await writer.finishWriting()
     NSLog("[Owl] clip: \(frames) frames, \(writer.status == .completed ? "ok" : "failed \(String(describing: writer.error))")")
-    return writer.status == .completed ? url : nil
+    guard writer.status == .completed else {
+      try? FileManager.default.removeItem(at: url)
+      return nil
+    }
+    return url
+  }
+
+  /// Stops writing and deletes the file.
+  func discard() {
+    let writer = lock.withLock {
+      closed = true
+      return self.writer
+    }
+    if let writer, writer.status == .writing { writer.cancelWriting() }
+    try? FileManager.default.removeItem(at: url)
   }
 }
 
