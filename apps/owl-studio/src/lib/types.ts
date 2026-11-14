@@ -114,6 +114,8 @@ export interface HelpSession {
   /** Who the call rang for. Stays after a fall back to Studio, to say who did not answer. */
   assignee_name?: string | null
   rang_at?: string | null
+  /** JUN-107: where the manager answers. "phone": in this console, with no time limit. */
+  answers_on?: 'glasses' | 'phone' | null
   fallback?: 'no_answer' | 'later' | 'no_manager' | null
   employee_id: string | null
   process_id: string | null

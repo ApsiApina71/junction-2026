@@ -63,7 +63,12 @@ export function whereText(session: HelpSession, processes: Process[] | null): st
 
 /** A call ringing or answered on the shift manager's glasses (JUN-100). Its live view is theirs, not the console's. */
 export function onManagerGlasses(session: HelpSession): boolean {
-  return session.status === 'ringing' || session.status === 'accepted'
+  return (session.status === 'ringing' || session.status === 'accepted') && session.answers_on !== 'phone'
+}
+
+/** JUN-107: a call for a manager who answers on the phone, in this console. It rings here until they answer. */
+export function onManagerPhone(session: HelpSession): boolean {
+  return (session.status === 'ringing' || session.status === 'accepted') && session.answers_on === 'phone'
 }
 
 export function waiting(sessions: HelpSession[] | null): HelpSession[] {

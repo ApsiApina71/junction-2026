@@ -46,3 +46,36 @@ describe('the manager on shift (JUN-100)', () => {
     expect(screen.queryByRole('img')).toBeNull()
   })
 })
+
+describe('the manager answers on the phone (JUN-107)', () => {
+  const phoneCall = helpSession({ status: 'ringing', routed: 'manager', assignee: 'emp-mika', assignee_name: 'Mika', answers_on: 'phone' })
+
+  it('lists the call as one to answer here', () => {
+    renderWith(<HelpView selectedId={null} />, fakeStudio({ sessions: [phoneCall], employees: [sami, mika] }))
+    expect(screen.getByText('Calling Mika: answer here')).toBeTruthy()
+  })
+
+  it('answers as Mika, then talks as the manager', async () => {
+    const user = userEvent.setup()
+    const accepted = { ...phoneCall, status: 'accepted' as const }
+    const api = fakeApi({
+      helpSession: vi.fn(async () => phoneCall),
+      acceptHelp: vi.fn(async () => accepted),
+      say: vi.fn(async () => accepted),
+    })
+    renderWith(<HelpView selectedId="help-1" />, fakeStudio({ api, sessions: [phoneCall], employees: [sami, mika] }))
+    await user.click(await screen.findByRole('button', { name: 'Answer as Mika' }))
+    await waitFor(() => expect(api.acceptHelp).toHaveBeenCalledWith('help-1', 'emp-mika'))
+    const field = await screen.findByLabelText('Message to Sami')
+    await user.type(field, 'Take the one on the left.{Enter}')
+    await waitFor(() => expect(api.say).toHaveBeenCalledWith('help-1', 'Take the one on the left.', null, 'manager'))
+  })
+
+  it('can say Later, and the call goes to Studio', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi({ helpSession: vi.fn(async () => phoneCall), laterHelp: vi.fn(async () => ({ ...phoneCall, status: 'waiting', routed: 'studio', fallback: 'later' })) })
+    renderWith(<HelpView selectedId="help-1" />, fakeStudio({ api, sessions: [phoneCall], employees: [sami, mika] }))
+    await user.click(await screen.findByRole('button', { name: 'Later' }))
+    await waitFor(() => expect(api.laterHelp).toHaveBeenCalledWith('help-1', 'emp-mika'))
+  })
+})

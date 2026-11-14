@@ -138,8 +138,11 @@ export function createApi(config: ApiConfig = apiConfig(), fetchFn: Fetch = (inp
 
     helpSessions: () => request<{ sessions: HelpSession[] }>('/help').then((r) => r.sessions),
     helpSession: (helpId: string) => request<HelpSession>(`/help/${id(helpId)}`),
-    say: (helpId: string, text: string, mark: Mark | null = null) =>
-      request<HelpSession>(`/help/${id(helpId)}/say`, json('POST', mark ? { from: 'expert', text, mark } : { from: 'expert', text })),
+    say: (helpId: string, text: string, mark: Mark | null = null, from: 'expert' | 'manager' = 'expert') =>
+      request<HelpSession>(`/help/${id(helpId)}/say`, json('POST', mark ? { from, text, mark } : { from, text })),
+    /** JUN-107: the manager on shift answers a call in this console, on their phone. */
+    acceptHelp: (helpId: string, employeeId: string) => request<HelpSession>(`/help/${id(helpId)}/accept`, json('POST', { employee_id: employeeId })),
+    laterHelp: (helpId: string, employeeId: string) => request<HelpSession>(`/help/${id(helpId)}/later`, json('POST', { employee_id: employeeId })),
     endHelp: (helpId: string) => request<HelpSession>(`/help/${id(helpId)}/end`, { method: 'POST' }),
     // The manager on shift answers Help on their own glasses (JUN-100)
     onShift: () => request<{ on_shift: OnShift[] }>('/shift').then((r) => r.on_shift),

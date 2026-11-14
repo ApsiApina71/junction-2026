@@ -6,11 +6,11 @@ import { languageName, speechLocale } from '../lib/languages.ts'
 import { CENTER, markFromPoint, markPosition, nudgeMark } from '../lib/mark.ts'
 import { href } from '../lib/route.ts'
 import { startedAt } from '../lib/seen.ts'
-import { onManagerGlasses, stepOf, taskOf, useStudio, whereText, workerName, workerOf } from '../lib/studio.ts'
+import { onManagerGlasses, onManagerPhone, stepOf, taskOf, useStudio, whereText, workerName, workerOf } from '../lib/studio.ts'
 import { clockTime, duration, freshness, timeAgo } from '../lib/time.ts'
 import type { HelpSession, Mark } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { DangerButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
+import { DangerButton, PrimaryButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
 import { keepCaretKeys } from '../ui/keys.ts'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
@@ -27,7 +27,9 @@ function HelpList() {
   const { sessions, employees, processes, connection } = useStudio()
   const now = useNow(1000)
   // Whoever still waits for a person comes first; the server's order (newest first) holds within each group.
-  const open = (sessions ?? []).filter((session) => session.status !== 'ended').sort((a, b) => Number(b.status === 'waiting') - Number(a.status === 'waiting'))
+  // A call ringing for a manager who answers here, on the phone (JUN-107), waits for a person too.
+  const asks = (session: HelpSession) => session.status === 'waiting' || (session.status === 'ringing' && onManagerPhone(session))
+  const open = (sessions ?? []).filter((session) => session.status !== 'ended').sort((a, b) => Number(asks(b)) - Number(asks(a)))
   const ended = (sessions ?? []).filter((session) => session.status === 'ended').slice(0, 5)
   const waitingCount = open.filter((session) => session.status === 'waiting').length
 
@@ -61,7 +63,9 @@ function HelpList() {
             <ul className="tile-grid" aria-label="Open help requests">
               {open.map((session) => {
                 const status =
-                  session.status === 'ringing'
+                  session.status === 'ringing' && onManagerPhone(session)
+                    ? { tone: 'warning' as const, text: `Calling ${session.assignee_name ?? 'the shift manager'}: answer here` }
+                    : session.status === 'ringing'
                     ? { tone: 'info' as const, text: `Calling ${session.assignee_name ?? 'the shift manager'}` }
                     : session.status === 'accepted'
                       ? { tone: 'info' as const, text: `${session.assignee_name ?? 'The shift manager'} is helping` }
@@ -122,6 +126,46 @@ function RequestTile({ session, name, where, status }: { session: HelpSession; n
     <Card width="100%" className="request-tile" aria-label={`${name}, ${status.text}. ${where}`} onClick={() => (window.location.hash = href('help', session.id))}>
       {content}
     </Card>
+  )
+}
+
+/** JUN-107: the manager on shift has no glasses and answers the worker's call here, on their phone. */
+function AnswerCall({ session, onAnswered }: { session: HelpSession; onAnswered: (session: HelpSession) => void }) {
+  const studio = useStudio()
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const manager = session.assignee_name ?? 'the shift manager'
+  const worker = workerName(session, studio.employees)
+
+  const answer = async (later: boolean) => {
+    if (!session.assignee) return
+    setBusy(true)
+    setProblem(null)
+    try {
+      onAnswered(later ? await studio.api.laterHelp(session.id, session.assignee) : await studio.api.acceptHelp(session.id, session.assignee))
+      if (later) window.location.hash = href('help')
+    } catch (error) {
+      setProblem(messageOf(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Page headerText={worker} headerMetadata={`Calling ${manager}`} enableSystemBarInset={false} className="route">
+      <ScrollView insetForHeader ariaLabel="Help call" className="route-scroll" tabIndex={0}>
+        <div className="route-content">
+          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
+            {`${worker} needs help with ${whereText(session, studio.processes)} and is calling ${manager}, the shift manager. When you answer, ${worker}'s glasses say that ${manager} is watching their view.`}
+          </TextView>
+          {problem && <Problem>{problem}</Problem>}
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <PrimaryButton title={`Answer as ${manager}`} icon={ICONS.check} alwaysShowText showLoader={busy} disabled={busy} onClick={() => void answer(false)} />
+            <Button title="Later" alwaysShowText disabled={busy} onClick={() => void answer(true)} />
+          </ButtonGroup>
+        </div>
+      </ScrollView>
+    </Page>
   )
 }
 
@@ -214,6 +258,16 @@ function HelpConsole({ helpId }: { helpId: string }) {
     )
   }
 
+  if (session.status === 'ringing' && onManagerPhone(session)) {
+    const answered = (next: HelpSession) => {
+      setSession(next)
+      studio.putSession(next)
+    }
+    return <AnswerCall session={session} onAnswered={answered} />
+  }
+
+  // JUN-107: the manager on shift answered here, on the phone. Their words go to the glasses as the manager's.
+  const asManager = session.status === 'accepted' && onManagerPhone(session)
   const worker = workerOf(session, studio.employees)
   const name = worker?.name ?? 'A worker'
   const task = taskOf(session, studio.processes)
@@ -227,7 +281,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
     setSending(true)
     setProblem(null)
     try {
-      const next = await studio.api.say(helpId, message, mark)
+      const next = asManager ? await studio.api.say(helpId, message, mark, 'manager') : await studio.api.say(helpId, message, mark)
       setSession(next)
       studio.putSession(next)
       setText('')
@@ -303,7 +357,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
   }
 
   return (
-    <Page headerText={name} headerMetadata={ended ? 'Ended' : session.status === 'connected' ? 'Connected' : 'Waiting'} enableSystemBarInset={false} className="route">
+    <Page headerText={name} headerMetadata={ended ? 'Ended' : asManager ? `${session.assignee_name ?? 'Shift manager'} on the call` : session.status === 'connected' ? 'Connected' : 'Waiting'} enableSystemBarInset={false} className="route">
       <div className="console">
         <section className="console-view" aria-labelledby="view-heading">
           <TextView as="h2" id="view-heading" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
@@ -369,7 +423,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
             ) : (
               <ol className="messages" ref={talk} aria-live="polite">
                 {session.messages.map((message) => (
-                  <Bubble key={message.id} mine={message.from === 'expert'} who={message.from === 'expert' ? 'You' : name} at={clockTime(message.at)} text={message.text} image={message.image_url} />
+                  <Bubble key={message.id} mine={message.from !== 'worker'} who={message.from === 'worker' ? name : message.from === 'manager' ? (asManager ? 'You' : (session.assignee_name ?? 'Shift manager')) : asManager ? 'Owl Studio' : 'You'} at={clockTime(message.at)} text={message.text} image={message.image_url} />
                 ))}
               </ol>
             )}

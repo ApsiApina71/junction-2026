@@ -470,6 +470,30 @@ body,
   }
 }
 
+/* On a phone (JUN-107: the shift manager answers here) the parts stack as plain blocks, each as tall as its content,
+   so the talk field and the step never lie on top of each other. */
+@media (max-width: 700px) {
+  /* Plain block flow: a flex or grid parent sizes the parts from the toolkit's intrinsic sizes, which leave out the
+     composer, so the step was drawn over the talk field. */
+  .console {
+    display: block;
+    padding-inline: var(--uit-spacing-medium);
+  }
+
+  .console-view,
+  .console-talk,
+  .console-context {
+    display: block;
+  }
+
+  .console > * + *,
+  .console-view > * + *,
+  .console-talk > * + *,
+  .console-context > * + * {
+    margin-block-start: var(--uit-spacing-medium);
+  }
+}
+
 /* A list and the record it opens, side by side: each column has one scroller and its actions docked under it. */
 
 .split {
