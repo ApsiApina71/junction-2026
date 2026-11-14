@@ -83,6 +83,9 @@ def test_the_manager_answers_on_their_glasses(client):
     assert ended["status"] == "ended" and ended["latest_frame_url"] is None
     assert client.get(live["latest_frame_url"].removeprefix("http://testserver")).status_code == 404  # the frames are gone
     assert client.get("/help/incoming", params={"employee_id": "emp-mika"}).json()["sessions"] == []
+    # The worker's glasses learn that the call ended from the next frame: keep this 409, the glasses rely on it.
+    late = call(client, help_id=session["id"])
+    assert (late.status_code, late.json()["detail"]) == (409, "This help session has ended.")
 
 
 def test_no_answer_in_30_seconds_goes_to_studio(client):
