@@ -82,6 +82,8 @@ export interface Process {
   status: 'draft' | 'published'
   source: 'record' | 'docs'
   expert: string | null
+  /** The glasses play each step's clip by themselves when it opens. Older servers leave it out. */
+  autoplay_clip?: boolean
   steps: Step[]
 }
 

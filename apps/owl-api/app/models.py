@@ -142,6 +142,9 @@ class Process(BaseModel):
     status: Literal["draft", "published"]
     source: Literal["record", "docs"]
     expert: str | None = None
+    # The expert's clip of a step plays by itself on the glasses when the step opens, before Owl starts watching
+    # (once per run; a pinch skips it). Off by default: then the worker plays it with "Watch how".
+    autoplay_clip: bool = False
     steps: list[Step]
 
 

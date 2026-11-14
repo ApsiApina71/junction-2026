@@ -61,6 +61,7 @@ def test_the_deposit_step(store):
     step = store.processes["proc-recycling"].steps[0]
     assert step.checkpoint and step.checkpoint.label == "Recycling point"
     assert step.check.kind == "visual"
+    assert store.processes["proc-recycling"].autoplay_clip and len(store.processes["proc-recycling"].steps) == 1
     assert step.check.warning == "That's a deposit can. It goes in the CANS hole."
 
 

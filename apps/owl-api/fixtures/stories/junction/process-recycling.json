@@ -7,6 +7,7 @@
   "status": "published",
   "source": "record",
   "expert": "Sami",
+  "autoplay_clip": true,
   "steps": [
     {
       "id": "step-1",
