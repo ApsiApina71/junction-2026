@@ -265,7 +265,7 @@ enum OwlScreens {
   ) -> FlexBox {
     FlexBox(direction: .column, spacing: 10) {
       card {
-        header(.unsure, meta: step.title, title: OwlStrings.cannotCheck)
+        header(.unsure, meta: step.title, title: why == .cameraFailed ? OwlStrings.cameraInUse : OwlStrings.cannotCheck)
         Text(hint ?? OwlStrings.cannotCheckBody(why), style: .body)
         Text("\(OwlStrings.continueUnverified): \(OwlStrings.notVerifiedNote)", style: .meta, color: .secondary)
       }

@@ -135,8 +135,8 @@ enum OwlStrings {
       "Camera is off. Owl can't check this step.", "Kamera ei ole käytössä. Owl ei voi tarkistaa tätä vaihetta.",
       easy: "The camera is off. Owl cannot check.", "Kamera on pois. Owl ei voi tarkistaa.")
     case .cameraFailed: t(
-      "The camera is busy or did not start. Owl can't check this step.",
-      "Kamera on varattu tai ei käynnistynyt. Owl ei voi tarkistaa tätä vaihetta.",
+      "Camera in use (recording?). Owl can't check this step.",
+      "Kamera on käytössä (nauhoitus?). Owl ei voi tarkistaa tätä vaihetta.",
       easy: "The camera is busy. Owl cannot check.", "Kamera on varattu. Owl ei voi tarkistaa.")
     case .offline: t(
       "No connection. Owl can't check this step.", "Ei yhteyttä. Owl ei voi tarkistaa tätä vaihetta.",
@@ -216,6 +216,9 @@ enum OwlStrings {
   static var holdStill: String { t(
     "Hold it still for a moment.", "Pidä hetki paikallaan.",
     easy: "Hold still.", "Pidä paikallaan.") }
+  /// The camera did not start (JUN-53): most often Meta AI's own recording holds it.
+  static var cameraInUse: String { t("Camera in use (recording?)", "Kamera on käytössä (nauhoitus?)",
+    easy: "The camera is busy", "Kamera on varattu") }
   static var cannotCheck: String { t(
     "Owl can't check this step", "Owl ei voi tarkistaa tätä vaihetta",
     easy: "Owl cannot check this step", "Owl ei voi tarkistaa tätä vaihetta") }
