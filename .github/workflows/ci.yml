@@ -32,6 +32,7 @@ jobs:
             glasses-api: ['apps/glasses-api/**', 'shared/**', '.github/workflows/ci.yml']
             copilot-api: ['apps/copilot-api/**', 'shared/**', '.github/workflows/ci.yml']
             owl-api: ['apps/owl-api/**', 'shared/**', '.github/workflows/ci.yml']
+            owl-studio: ['apps/owl-studio/**', 'shared/**', '.github/workflows/ci.yml']
 
   # /new-app adds one job per app here, gated on needs.changes.outputs.apps.
 
@@ -126,10 +127,29 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest
 
+  owl-studio:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.apps), 'owl-studio')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/owl-studio
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/owl-studio/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
   ci-ok:
     # The single required check. Passes when every app job succeeded or was skipped.
     if: always()
-    needs: [changes, coach-api, coach-web, glasses-api, copilot-api, owl-api]
+    needs: [changes, coach-api, coach-web, glasses-api, copilot-api, owl-api, owl-studio]
     runs-on: ubuntu-latest
     steps:
       - env:
