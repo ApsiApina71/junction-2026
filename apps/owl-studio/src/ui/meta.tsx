@@ -10,6 +10,19 @@ import alert from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
 import { counterText } from '../lib/steps.ts'
 import { CARET_KEYS } from './keys.ts'
 
+/**
+ * A row of actions: the toolkit's ButtonGroup. Buttons keep their own width, as the toolkit asks; when the row has no
+ * room it wraps instead of squeezing them (a squeezed toolkit Button cuts its label).
+ */
+export function Actions({ align = 'start', children }: { align?: 'start' | 'center' | 'end'; children: ReactNode }) {
+  const alignment = align === 'end' ? ButtonGroupAlignment.END : align === 'center' ? ButtonGroupAlignment.CENTER : ButtonGroupAlignment.START
+  return (
+    <ButtonGroup alignment={alignment} className={`actions is-${align}`}>
+      {children}
+    </ButtonGroup>
+  )
+}
+
 /** The one action a view is for (Publish, Save): the toolkit's themed primary material. */
 export function PrimaryButton(props: ButtonProps) {
   const material = useMemo(() => MaterialLibrary.themedPrimaryBlue(), [])
@@ -50,7 +63,7 @@ export function Problem({ children, actions }: { children: ReactNode; actions?: 
               {children}
             </TextView>
           </div>
-          {actions && <ButtonGroup alignment={ButtonGroupAlignment.START}>{actions}</ButtonGroup>}
+          {actions && <Actions align="start">{actions}</Actions>}
         </div>
       </Panel>
     </div>
@@ -121,7 +134,7 @@ export function Confirm({ title, text, onClose, buttons }: { title: string; text
   return (
     <Shade onClose={onClose}>
       <div className="dialog-frame" role="dialog" aria-modal="true" aria-label={title} aria-describedby={titleId} ref={frame} onKeyDown={onKeyDown}>
-        <Modal title={title} subtitle={text} buttons={<ButtonGroup alignment={ButtonGroupAlignment.CENTER}>{buttons}</ButtonGroup>} />
+        <Modal title={title} subtitle={text} buttons={<Actions align="center">{buttons}</Actions>} />
         <span id={titleId} className="visually-hidden">
           {text}
         </span>
@@ -144,7 +157,7 @@ export function Dialog({ title, onClose, children, actions }: { title: string; o
             </TextView>
             {children}
             <div className="dialog-actions">
-              <ButtonGroup alignment={ButtonGroupAlignment.END}>{actions}</ButtonGroup>
+              <Actions align="end">{actions}</Actions>
             </div>
           </div>
         </Panel>
@@ -342,9 +355,9 @@ export function ChoiceDialog<T extends string>({ title, choices, value, onChoose
               </VerticalList>
             </div>
             <div className="dialog-actions">
-              <ButtonGroup alignment={ButtonGroupAlignment.END}>
+              <Actions align="end">
                 <Button title="Cancel" alwaysShowText onClick={onClose} />
-              </ButtonGroup>
+              </Actions>
             </div>
           </div>
         </Panel>

@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, ContainerHeader, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
+import { Button, ContainerHeader, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import { useCallback, useEffect, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { useStudio } from '../lib/studio.ts'
@@ -6,7 +6,7 @@ import { newId, resultText, todayIso } from '../lib/training.ts'
 import { count } from '../lib/words.ts'
 import type { Employee, Process, Trainee, TrainingPlan, TrainingResult } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { ChoiceRow, FieldLabel, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import { Actions, ChoiceRow, FieldLabel, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
@@ -227,10 +227,10 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
               <VerticalList ariaLabel="More practice" className="inline-list">
                 <ChoiceRow label="More practice for" choices={extendChoices} value={String(extend)} onChange={(days) => setExtend(Number(days))} />
               </VerticalList>
-              <ButtonGroup alignment={ButtonGroupAlignment.START}>
+              <Actions align="start">
                 <PrimaryButton title="Confirm: ready" icon={ICONS.check} disabled={busy} onClick={() => void confirm('ready')} />
                 <Button title="Confirm: more practice" alwaysShowText disabled={busy} onClick={() => void confirm('more_practice')} />
-              </ButtonGroup>
+              </Actions>
             </div>
           ) : (
             <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
@@ -244,9 +244,9 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
             </TextView>
           )}
           {error && !(trainee.suggestion && !trainee.confirmed) && <StatusText tone="negative">{error}</StatusText>}
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <Button title="End the training period" alwaysShowText disabled={busy} onClick={() => void stopTraining()} />
-          </ButtonGroup>
+          </Actions>
         </div>
       </Panel>
     </article>
@@ -306,9 +306,9 @@ function StartTraining({ employees, trainees, plans, onStarted }: { employees: E
             <input id="start-day" className="edit-field uit-text-body2" type="date" value={starts} onChange={(event) => setStarts(event.target.value)} />
           </div>
           {error && <StatusText tone="negative">{error}</StatusText>}
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <PrimaryButton title="Start training" icon={ICONS.training} disabled={busy} showLoader={busy} onClick={() => void start()} />
-          </ButtonGroup>
+          </Actions>
         </div>
       </Panel>
     </section>
@@ -369,8 +369,8 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
             <ListItem title="Training lasts" subtitle={count(days, 'day', 'days')} showSlider sliderMinimumValue={1} sliderMaximumValue={30} sliderValue={days} sliderIncrementPercentage={1 / 29} onSliderValueChange={(value) => setDays(Math.max(1, Math.min(30, Math.round(value))))} />
             <ListItem
               title="Customer service mode"
-              subtitle="The worker can turn it on at the counter during training. Owl listens and suggests answers from your documents. Nothing is recorded."
-              subtitleMaxLines={3}
+              subtitle="At the counter during training, Owl listens and suggests answers. Nothing is recorded."
+              subtitleMaxLines={4}
               showSwitch
               checked={service}
               onCheckedChange={setService}
@@ -398,9 +398,9 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
             </TextView>
           )}
           {error && <StatusText tone="negative">{error}</StatusText>}
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <PrimaryButton title="Save the level" icon={ICONS.check} disabled={busy || !dirty} onClick={() => void save()} />
-          </ButtonGroup>
+          </Actions>
         </div>
       )}
     </div>
@@ -430,9 +430,9 @@ function NewPlan({ plans, onSaved }: { plans: TrainingPlan[]; onSaved: () => Pro
   return (
     <div className="new-plan">
       <TextField id="new-plan-role" label="A level for another role" value={role} maxLength={60} placeholder="Packer" onChange={setRole} error={error || null} />
-      <ButtonGroup alignment={ButtonGroupAlignment.START}>
+      <Actions align="start">
         <Button title="Add" icon={ICONS.plus} alwaysShowText onClick={() => void add()} />
-      </ButtonGroup>
+      </Actions>
     </div>
   )
 }
@@ -484,10 +484,10 @@ function SignEditor() {
             In customer service mode the glasses listen during training, only while the worker has it on, and suggest answers from your documents. Nothing is recorded. This sign tells customers.
           </TextView>
           <TextField id="sign-text" label="Text of the sign" value={text} multiline maxLength={SIGN_LIMIT} onChange={setText} error={error || null} />
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <PrimaryButton title="Save" icon={ICONS.check} disabled={!text.trim() || text.trim() === saved} onClick={() => void save()} />
             <Button title="Print the sign" icon={ICONS.print} alwaysShowText onClick={() => window.print()} />
-          </ButtonGroup>
+          </Actions>
         </div>
       </Panel>
       <div className="print-sheet print-sign" aria-hidden="true">

@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, ButtonRail, Card, Chip, ChipStyle, ContainerHeader, CornerRadius, InputTextView, MaterialLibrary, Page, Panel, QuickReplyButton, ScrollView, StaticContainer, TailShapeProvider, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
+import { Button, Chip, Container, ChipStyle, ContainerHeader, CornerRadius, InputTextView, InputTextViewSize, MaterialLibrary, Page, Panel, QuickReplyButton, ScrollView, StaticContainer, TailShapeProvider, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { useNow, usePolling } from '../lib/hooks.ts'
@@ -10,7 +10,7 @@ import { onManagerGlasses, onManagerPhone, stepOf, taskOf, useStudio, whereText,
 import { clockTime, duration, freshness, timeAgo } from '../lib/time.ts'
 import type { HelpSession, Mark } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { DangerButton, PrimaryButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
+import { Actions, DangerButton, PrimaryButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
 import { keepCaretKeys } from '../ui/keys.ts'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
@@ -92,7 +92,12 @@ function HelpList() {
               <ul className="tile-grid" aria-label="Ended help requests">
                 {ended.map((session) => (
                   <li key={session.id}>
-                    <RequestTile session={session} name={workerName(session, employees)} where={whereText(session, processes)} status={{ tone: 'quiet', text: `Ended ${clockTime(session.updated_at)}` }} />
+                    <RequestTile
+                      session={session}
+                      name={workerName(session, employees)}
+                      where={whereText(session, processes)}
+                      status={{ tone: 'quiet', text: `Ended ${clockTime(session.updated_at)}` }}
+                    />
                   </li>
                 ))}
               </ul>
@@ -111,7 +116,10 @@ function HelpList() {
 function RequestTile({ session, name, where, status }: { session: HelpSession; name: string; where: string; status: { tone: Tone; text: string } }) {
   const content = (
     <div className="tile-body">
-      <ContainerHeader title={name} subtitle={where} icon={ICONS.help} />
+      <ContainerHeader title={name} icon={ICONS.help} />
+      <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+        {where}
+      </TextView>
       <StatusText tone={status.tone}>{status.text}</StatusText>
     </div>
   )
@@ -123,9 +131,9 @@ function RequestTile({ session, name, where, status }: { session: HelpSession; n
     )
   }
   return (
-    <Card width="100%" className="request-tile" aria-label={`${name}, ${status.text}. ${where}`} onClick={() => (window.location.hash = href('help', session.id))}>
+    <Container width="100%" className="request-tile" aria-label={`${name}, ${status.text}. ${where}`} onClick={() => (window.location.hash = href('help', session.id))}>
       {content}
-    </Card>
+    </Container>
   )
 }
 
@@ -159,10 +167,10 @@ function AnswerCall({ session, onAnswered }: { session: HelpSession; onAnswered:
             {`${worker} needs help with ${whereText(session, studio.processes)} and is calling ${manager}, the shift manager. When you answer, ${worker}'s glasses say that ${manager} is watching their view.`}
           </TextView>
           {problem && <Problem>{problem}</Problem>}
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <PrimaryButton title={`Answer as ${manager}`} icon={ICONS.check} alwaysShowText showLoader={busy} disabled={busy} onClick={() => void answer(false)} />
             <Button title="Later" alwaysShowText disabled={busy} onClick={() => void answer(true)} />
-          </ButtonGroup>
+          </Actions>
         </div>
       </ScrollView>
     </Page>
@@ -404,9 +412,9 @@ function HelpConsole({ helpId }: { helpId: string }) {
             {ended ? (
               <StatusText tone="quiet">{`Ended ${clockTime(session.updated_at)}`}</StatusText>
             ) : (
-              <ButtonGroup alignment={ButtonGroupAlignment.START}>
+              <Actions align="start">
                 <DangerButton title={ending ? 'Ending' : 'End help'} icon={ICONS.x} showLoader={ending} onClick={() => void end()} />
-              </ButtonGroup>
+              </Actions>
             )}
           </div>
         </section>
@@ -415,28 +423,30 @@ function HelpConsole({ helpId }: { helpId: string }) {
           <TextView as="h2" id="talk-heading" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
             CONVERSATION
           </TextView>
-          <ScrollView ariaLabel="Conversation" className="talk-scroll" tabIndex={session.messages.length ? 0 : undefined}>
-            {session.messages.length === 0 ? (
-              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="talk-empty">
-                {`Nothing said yet. ${ended ? '' : `Your first message tells ${name} that someone is there.`}`}
-              </TextView>
-            ) : (
-              <ol className="messages" ref={talk} aria-live="polite">
-                {session.messages.map((message) => (
-                  <Bubble key={message.id} mine={message.from !== 'worker'} who={message.from === 'worker' ? name : message.from === 'manager' ? (asManager ? 'You' : (session.assignee_name ?? 'Shift manager')) : asManager ? 'Owl Studio' : 'You'} at={clockTime(message.at)} text={message.text} image={message.image_url} />
-                ))}
-              </ol>
-            )}
-          </ScrollView>
+          <div className="talk-box">
+            <ScrollView ariaLabel="Conversation" className="talk-scroll" tabIndex={session.messages.length ? 0 : undefined}>
+              {session.messages.length === 0 ? (
+                <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="talk-empty">
+                  {`Nothing said yet. ${ended ? '' : `Your first message tells ${name} that someone is there.`}`}
+                </TextView>
+              ) : (
+                <ol className="messages" ref={talk} aria-live="polite">
+                  {session.messages.map((message) => (
+                    <Bubble key={message.id} mine={message.from !== 'worker'} who={message.from === 'worker' ? name : message.from === 'manager' ? (asManager ? 'You' : (session.assignee_name ?? 'Shift manager')) : asManager ? 'Owl Studio' : 'You'} at={clockTime(message.at)} text={message.text} image={message.image_url} />
+                  ))}
+                </ol>
+              )}
+            </ScrollView>
+          </div>
 
           {!ended && (
             <div className="composer">
               <div className="quick" role="group" aria-label="Quick replies">
-                <ButtonRail>
+                <Actions>
                   {QUICK_REPLIES.map((reply) => (
                     <QuickReplyButton key={reply} title={reply} onClick={() => void send(reply)} />
                   ))}
-                </ButtonRail>
+                </Actions>
               </div>
               {mark && (
                 <div className="pointing">
@@ -446,6 +456,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
               )}
               <InputTextView
                 className="send-field"
+                size={InputTextViewSize.FULL}
                 text={text}
                 hint={`Tell ${name} what to do`}
                 actionLabel="Send"

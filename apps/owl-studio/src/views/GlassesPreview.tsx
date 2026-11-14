@@ -1,7 +1,8 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, ContainerHeader, MaterialLibrary, Panel, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
+import { Button, ContainerHeader, MaterialLibrary, Panel, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useMemo } from 'react'
 import type { Step } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
+import { Actions } from '../ui/meta.tsx'
 
 /**
  * The step as the worker sees it on the 600 x 600 display, drawn with the same toolkit components a Meta Ray-Ban
@@ -27,12 +28,12 @@ export function GlassesPreview({ step, total }: { step: Step; total: number }) {
             </TextView>
           </div>
         </Panel>
-        <ButtonGroup alignment={ButtonGroupAlignment.CENTER}>
+        <Actions align="center">
           <Button title="Done" icon={ICONS.check} alwaysShowText material={primary} focusable={false} />
           {step.clip_url && <Button title="Watch how" icon={ICONS.chevron} focusable={false} />}
           <Button title="Ask" icon={ICONS.send} focusable={false} />
           <Button title="Help" icon={ICONS.help} focusable={false} />
-        </ButtonGroup>
+        </Actions>
       </div>
     </div>
   )

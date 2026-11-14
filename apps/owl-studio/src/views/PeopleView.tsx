@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, ListItem, Page, Panel, ScrollView, StatusIndicatorType, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { Button, ListItem, Page, Panel, ScrollView, StatusIndicatorType, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useMemo, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { glassesName } from '../lib/docs.ts'
@@ -8,7 +8,7 @@ import { useStudio } from '../lib/studio.ts'
 import { count } from '../lib/words.ts'
 import type { Employee, EmployeeInput, Process } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { CharacterCount, ChoiceRow, PrimaryButton, Problem, TextField, Waiting } from '../ui/meta.tsx'
+import { Actions, CharacterCount, ChoiceRow, PrimaryButton, Problem, TextField, Waiting } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 import { ShiftRows } from './ShiftPanel.tsx'
 
@@ -76,9 +76,9 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
           </VerticalList>
           {!adding && (
             <div className="action-dock">
-              <ButtonGroup alignment={ButtonGroupAlignment.START}>
+              <Actions align="start">
                 <PrimaryButton title="Add a person" icon={ICONS.plus} onClick={() => (window.location.hash = href('people', 'new'))} />
-              </ButtonGroup>
+              </Actions>
             </div>
           )}
         </section>
@@ -271,10 +271,10 @@ function PersonForm({ employee }: { employee: Employee | null }) {
                   setWelcomeEdited(true)
                 }}
               />
-              <ButtonGroup alignment={ButtonGroupAlignment.START}>
+              <Actions align="start">
                 {canSpeak && <Button title="Hear it" icon={ICONS.sound} alwaysShowText onClick={hear} />}
                 <Button title="Use Owl's wording" icon={ICONS.undo} alwaysShowText disabled={busy} onClick={() => void resetWelcome()} />
-              </ButtonGroup>
+              </Actions>
             </>
           ) : (
             <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
@@ -290,10 +290,10 @@ function PersonForm({ employee }: { employee: Employee | null }) {
         )}
       </VerticalList>
       <div className="action-dock">
-        <ButtonGroup alignment={ButtonGroupAlignment.END}>
+        <Actions align="end">
           <Button title="Close" alwaysShowText onClick={() => (window.location.hash = href('people'))} />
           <PrimaryButton title={busy ? 'Saving' : employee ? 'Save changes' : 'Add this person'} showLoader={busy} onClick={() => void save()} />
-        </ButtonGroup>
+        </Actions>
       </div>
     </div>
   )

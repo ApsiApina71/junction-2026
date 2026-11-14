@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, IconTintColor, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { Button, IconTintColor, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { glassesName } from '../lib/docs.ts'
@@ -29,7 +29,7 @@ import type { Issue } from '../lib/steps.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { Check, CheckKind, Employee, OrderLine, Process, Step } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { CharacterCount, ChoiceRow, EditInput, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import { Actions, CharacterCount, ChoiceRow, EditInput, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast, useUnsaved } from '../ui/toast.ts'
 import { GlassesPreview } from './GlassesPreview.tsx'
@@ -311,11 +311,11 @@ export function TaskEditor({ processId }: { processId: string }) {
                   </VerticalList>
                 )}
                 {selected && (
-                  <ButtonGroup alignment={ButtonGroupAlignment.START}>
+                  <Actions align="start">
                     <Button title={`Move step ${selectedIndex + 1} up`} icon={ICONS.up} disabled={selectedIndex === 0} onClick={() => move(selectedIndex, selectedIndex - 1)} />
                     <Button title={`Move step ${selectedIndex + 1} down`} icon={ICONS.down} disabled={selectedIndex === draft.steps.length - 1} onClick={() => move(selectedIndex, selectedIndex + 1)} />
                     <Button title={`Remove step ${selectedIndex + 1}`} icon={ICONS.trash} onClick={() => remove(selected)} />
-                  </ButtonGroup>
+                  </Actions>
                 )}
                 <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
                   Drag a step, or choose it and use the arrows, to change the order.
@@ -349,7 +349,7 @@ export function TaskEditor({ processId }: { processId: string }) {
               </TextView>
             )}
           </div>
-          <ButtonGroup alignment={ButtonGroupAlignment.END}>
+          <Actions align="end">
             {removed && <Button title="Undo" icon={ICONS.undo} alwaysShowText onClick={undoRemove} />}
             {isDraft ? (
               <>
@@ -362,7 +362,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                 <PrimaryButton title={busy === 'save' ? 'Saving' : 'Save changes'} icon={ICONS.check} disabled={busy !== null || !dirty} onClick={() => void send('save')} />
               </>
             )}
-          </ButtonGroup>
+          </Actions>
         </div>
       </div>
     </Page>
@@ -415,6 +415,7 @@ function Learners({ process, headingRef }: { process: Process; headingRef: React
               key={employee.id}
               title={employee.name}
               subtitle={[languageName(employee.language), employee.glasses_id ? glassesName(employee.glasses_id) : 'no glasses yet'].join(' · ')}
+              subtitleMaxLines={2}
               showSwitch
               checked={employee.process_ids.includes(process.id)}
               disabled={busyId !== null}
@@ -623,10 +624,10 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
           <TextView as="p" textStyle={TextStyle.BODY2}>
             <strong>Owl does not check this step yet.</strong> The worker confirms it with a pinch. Tell Owl what a finished step looks like and it speaks up when something is off.
           </TextView>
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <PrimaryButton title="Add what Owl should check" icon={ICONS.plus} onClick={() => choose('visual')} />
             <Button title="Check an order instead" alwaysShowText onClick={() => choose('order')} />
-          </ButtonGroup>
+          </Actions>
         </div>
       )}
 
@@ -641,7 +642,7 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
                 <EditInput
                   value={criterion}
                   label={`Thing to look for ${i + 1}`}
-                  placeholder={i === 0 ? 'For example: the box is taped shut' : 'Something to look for'}
+                  placeholder={i === 0 ? 'The box is taped shut' : 'Something to look for'}
                   autoFocus={focusNew && i === check.criteria.length - 1}
                   onChange={(text) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? text : c)) })}
                 />
@@ -649,7 +650,7 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
               </li>
             ))}
           </ul>
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <Button
               title="Add another thing to look for"
               icon={ICONS.plus}
@@ -659,7 +660,7 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
                 setFocusNew(true)
               }}
             />
-          </ButtonGroup>
+          </Actions>
         </div>
       )}
 
@@ -684,7 +685,7 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
               </div>
             ))}
           </div>
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <Button
               title="Add a product"
               icon={ICONS.plus}
@@ -694,7 +695,7 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
                 setFocusNew(true)
               }}
             />
-          </ButtonGroup>
+          </Actions>
         </div>
       )}
     </fieldset>

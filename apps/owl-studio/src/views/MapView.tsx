@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { Button, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { usePolling } from '../lib/hooks.ts'
@@ -6,7 +6,7 @@ import { useStudio } from '../lib/studio.ts'
 import { rectFrom, zoneId } from '../lib/training.ts'
 import type { Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { ChoiceRow, DangerButton, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
+import { Actions, ChoiceRow, DangerButton, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
 // JUN-97. No markers: Owl recognises a step's place in the worker's camera picture, from the expert's photo of the step
@@ -288,11 +288,11 @@ function ZoneForm({ zone, onSave, onRemove, onClose }: { zone: Zone; onSave: (zo
           <VerticalList ariaLabel="Kind of area" className="inline-list">
             <ChoiceRow label="Kind" choices={kindChoices} value={kind} onChange={setKind} />
           </VerticalList>
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <PrimaryButton title="Save" icon={ICONS.check} disabled={!name.trim()} onClick={() => name.trim() && void onSave({ ...zone, name: name.trim(), kind })} />
             <Button title="Close" alwaysShowText onClick={onClose} />
             <DangerButton title="Remove" icon={ICONS.trash} onClick={() => void onRemove(zone)} />
-          </ButtonGroup>
+          </Actions>
         </div>
       </Panel>
     </section>
@@ -390,9 +390,9 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
                   <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
                     {'The glasses say "Go to:" and the text you write, with the step\'s photo. Save a place before you add photos of it.'}
                   </TextView>
-                  <ButtonGroup alignment={ButtonGroupAlignment.START}>
+                  <Actions align="start">
                     <PrimaryButton title="Save the places" icon={ICONS.check} disabled={!dirty || busy === process.id} onClick={() => void save(process)} />
-                  </ButtonGroup>
+                  </Actions>
                 </div>
               )}
             </div>
@@ -517,9 +517,9 @@ function Unlock({ places, processes }: { places: TraineePlace[]; processes: Proc
             <ChoiceRow label="Step" choices={stepChoices} value={step} onChange={setStep} />
           </VerticalList>
           {error && <StatusText tone="negative">{error}</StatusText>}
-          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+          <Actions align="start">
             <Button title="Open the step" icon={ICONS.check} alwaysShowText onClick={() => void open()} />
-          </ButtonGroup>
+          </Actions>
         </div>
       </Panel>
     </section>
