@@ -444,7 +444,24 @@ def stage_check(worker: Employee | None, step: Step, result: CheckResult) -> Non
         return
     stage.event(
         worker.glasses_id, "check", employee_id=worker.id, status=result.status, problem=result.problem, text=result.say or result.text,
-        decided_by=result.decided_by, step=step.index, step_done=result.step_done, spoken=bool(result.say),
+        decided_by=result.decided_by, step=step.index, step_done=result.step_done, spoken=bool(result.say), seen_by=MODEL_LABELS.get(vision.vision_model(), vision.vision_model()),
+    )  # fmt: skip
+
+
+MODEL_LABELS = {"nemotron-3.5-super-vl": "Nemotron 3.5 VL"}
+JEPA_LABELS = {"vjepa21+probe": "V-JEPA 2.1", "vjepa21": "V-JEPA 2.1", "vjepa2": "V-JEPA 2"}
+
+
+def stage_recognition(worker: Employee | None, process: Process, result: jepa.Recognition) -> None:
+    """V-JEPA's answer on the stage timeline (JUN-79), next to Owl Check's: which step, and how sure. Nothing about what
+    the camera saw beyond the step's own name."""
+    if worker is None or not worker.glasses_id:
+        return
+    step = next((s for s in process.steps if s.id == result.step_id), None)
+    stage.event(
+        worker.glasses_id, "recognize", employee_id=worker.id, status=result.status, step=step.index if step else None,
+        title=step.title if step else None, probability=result.similarities.get(result.step_id) if step else None,
+        by=JEPA_LABELS.get(result.backend, result.backend),
     )  # fmt: skip
 
 
@@ -509,6 +526,7 @@ async def recognize_step(
     # Which step and how sure, not what the camera saw: V-JEPA's action words only with OWL_DEBUG_LOG=1 (a rehearsal).
     seen = f" {result.action}" if os.getenv("OWL_DEBUG_LOG") == "1" and result.action else ""
     log.info("recognize %s: %s %s, margin %.3f (%s)%s", process_id, result.status, result.step_id or "-", result.margin, result.backend, seen)
+    stage_recognition(worker, process, result)
     return result.to_dict()
 
 

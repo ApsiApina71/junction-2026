@@ -93,3 +93,20 @@ def test_old_frames_expire(monkeypatch):
     assert s.latest_frame("g") == b"jpeg"
     s.frames["g"] = (b"jpeg", 0.0)
     assert s.latest_frame("g") is None
+
+
+def test_v_jepa_answers_appear_on_the_timeline_once(client, monkeypatch, tmp_path):
+    """Step recognition beside Owl Check on the stage: which step and how sure, by V-JEPA, once while it stays the same."""
+    from app import jepa
+    from tests.test_jepa import scene_clip
+
+    monkeypatch.setattr(main, "DEMO", False)
+    client.post("/employees/emp-sami/consent", json={"camera_checks": True})
+    answer = jepa.Recognition("ok", "step-4", {"step-1": 0.05, "step-4": 0.91}, 0.86, "vjepa21+probe")
+    monkeypatch.setattr(main.recognizer, "recognize", lambda *a, **k: answer)
+    form = {"process_id": "proc-pick-pack", "employee_id": "emp-sami", "run_id": "s"}
+    for _ in range(3):
+        client.post("/steps/recognize", data=form, files={"clip": ("c.mp4", scene_clip("step-4"), "video/mp4")})
+    events = client.get("/stage/state", params={"glasses": "glasses-1"}).json()["glasses"]["events"]
+    assert [(e["kind"], e["status"], e["step"], e["probability"], e["by"]) for e in events] == [("recognize", "ok", 4, 0.91, "V-JEPA 2.1")]
+    assert events[0]["title"] == "Pack heavy items first"

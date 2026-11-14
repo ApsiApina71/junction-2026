@@ -84,6 +84,12 @@ class Stage:
                 if key == e.get("last_check") and not data.get("spoken"):
                     return
                 e["last_check"] = key
+            if kind == "recognize":
+                # V-JEPA's answer every few seconds: one line while it stays the same.
+                key = (data.get("step"), data.get("status"))
+                if key == e.get("last_recognize"):
+                    return
+                e["last_recognize"] = key
             e["events"].append({"at": _now(), "kind": kind, **data})
             e["updated"] = time.time()
             self._bump()
