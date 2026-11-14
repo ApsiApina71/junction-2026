@@ -31,6 +31,7 @@ jobs:
             coach-web: ['apps/coach-web/**', 'shared/**', '.github/workflows/ci.yml']
             glasses-api: ['apps/glasses-api/**', 'shared/**', '.github/workflows/ci.yml']
             copilot-api: ['apps/copilot-api/**', 'shared/**', '.github/workflows/ci.yml']
+            owl-api: ['apps/owl-api/**', 'shared/**', '.github/workflows/ci.yml']
 
   # /new-app adds one job per app here, gated on needs.changes.outputs.apps.
 
@@ -107,10 +108,28 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest
 
+  owl-api:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.apps), 'owl-api')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/owl-api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          working-directory: apps/owl-api
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
   ci-ok:
     # The single required check. Passes when every app job succeeded or was skipped.
     if: always()
-    needs: [changes, coach-api, coach-web, glasses-api, copilot-api]
+    needs: [changes, coach-api, coach-web, glasses-api, copilot-api, owl-api]
     runs-on: ubuntu-latest
     steps:
       - env:
