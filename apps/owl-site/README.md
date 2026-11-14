@@ -6,7 +6,7 @@ last-updated: 2026-11-14
 
 # owl-site
 
-The one-page launch site for Onboarding Owl ([JUN-86](https://linear.app/junction-2026-bossit/issue/JUN-86)), Linear project [Launch Page](https://linear.app/junction-2026-bossit/project/launch-page-5e64dd64e4ff). Peer reviewers can't put on the glasses, so this page shows the product and how it feels to wear it.
+The one-page launch site for Owl Boarding ([JUN-86](https://linear.app/junction-2026-bossit/issue/JUN-86)), Linear project [Launch Page](https://linear.app/junction-2026-bossit/project/launch-page-5e64dd64e4ff). Peer reviewers can't put on the glasses, so this page shows the product and how it feels to wear it.
 
 - **Hero:** the Meta Ray-Ban Display glasses and the Neural Band in 3D (three.js via React Three Fiber). Visitors drag to turn them.
 - **See through Owl:** the camera flies into the right lens and the page becomes the wearer's view, with the POV video on a loop.

@@ -1,6 +1,6 @@
-# Onboarding Owl 🦉
+# Owl Boarding 🦉
 
-**Onboarding for all physical work, on Meta Ray-Ban Display glasses.** Our entry to the Meta challenge "AI Glasses for Everyone, Everyday" at Junction 2026.
+**Onboarding for all physical work, on Meta Ray-Ban Display glasses.** [owlboarding.com](https://owlboarding.com) · Our entry to the Meta challenge "AI Glasses for Everyone, Everyday" at Junction 2026.
 
 White-collar onboarding has a hundred SaaS tools. Physical work has none. In a warehouse, a restaurant, a bakery or on a building site, the knowledge is tacit and onboarding is slow, so companies prefer to hire people who already know the job. Owl lets an expert record a working day once. Every new worker then learns it from their own view, with their hands free, and Owl checks the work as they go.
 

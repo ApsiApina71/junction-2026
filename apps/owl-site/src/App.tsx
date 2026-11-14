@@ -137,9 +137,9 @@ export default function App() {
   return (
     <>
       <header className="nav">
-        <a className="brand" href="#top" aria-label="Onboarding Owl, back to top">
+        <a className="brand" href="#top" aria-label="Owl Boarding, back to top">
           <Mark />
-          <span>Onboarding Owl</span>
+          <span>Owl Boarding</span>
         </a>
         <nav aria-label="Sections">
           <a href="#how">How it works</a>
@@ -164,7 +164,7 @@ export default function App() {
                 onArrived={onArrived}
               />
             ) : (
-              <div className="scene-fallback" role="img" aria-label="Meta Ray-Ban Display glasses with Onboarding Owl">
+              <div className="scene-fallback" role="img" aria-label="Meta Ray-Ban Display glasses with Owl Boarding">
                 <Mark />
               </div>
             )}
@@ -177,7 +177,7 @@ export default function App() {
               Done right.
             </h1>
             <p className="lede">
-              Onboarding Owl puts your best worker's know-how in front of every new hire's eyes, step by step, and checks
+              Owl Boarding puts your best worker's know-how in front of every new hire's eyes, step by step, and checks
               the work as it happens.
             </p>
             <div className="ctas">
@@ -310,7 +310,7 @@ export default function App() {
       <footer className="footer">
         <div className="brand">
           <Mark />
-          <span>Onboarding Owl</span>
+          <span>Owl Boarding</span>
         </div>
         <p>
           Built at Junction 2026 for the Meta challenge “AI Glasses for Everyone, Everyday”. An independent project, not
