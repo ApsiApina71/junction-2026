@@ -27,6 +27,8 @@ class Consent(BaseModel):
 
     camera_checks: bool = False
     recording: bool = False
+    # JUN-97: during training, Owl follows which area the worker is in, from the markers the camera sees.
+    location: bool = False
     at: str | None = None
 
 
@@ -83,6 +85,13 @@ class Source(BaseModel):
     section: str | None = None
 
 
+class Checkpoint(BaseModel):
+    """Where a step happens (JUN-97). The step unlocks when the worker's glasses see the checkpoint's marker."""
+
+    zone_id: str
+    label: str = Field(min_length=1, max_length=40)  # "Aisle C · Shelf 12"
+
+
 class Step(BaseModel):
     id: str
     index: int = Field(ge=1)
@@ -97,6 +106,8 @@ class Step(BaseModel):
     reviewed: bool = True
     # The company rule from the handbooks that backs this step, found locally (JUN-70). Shown as "Company rule".
     rule: Source | None = None
+    # JUN-97: during training the step is locked until the worker reaches this spot.
+    checkpoint: Checkpoint | None = None
 
 
 class Process(BaseModel):
@@ -267,3 +278,35 @@ class TrainingConfirm(BaseModel):
     note: str | None = Field(default=None, max_length=300)
     # more_practice: training goes on this many days more.
     extend_days: int = Field(default=3, ge=1, le=30)
+
+
+class Zone(BaseModel):
+    """An area of the workplace on Studio's map (JUN-97). x, y, w and h are shares of the map's width and height."""
+
+    id: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9_-]+$")
+    name: Name
+    kind: Literal["aisle", "packing", "loading", "other"] = "other"
+    x: float = Field(default=0, ge=0, le=1)
+    y: float = Field(default=0, ge=0, le=1)
+    w: float = Field(default=0.2, gt=0, le=1)
+    h: float = Field(default=0.2, gt=0, le=1)
+
+
+class StepRef(BaseModel):
+    process_id: str
+    step_id: str
+
+
+class LocationReport(BaseModel):
+    """What the glasses saw: a marker's text ("owl:zone:<zone>" or "owl:cp:<process>:<step>"), or the zone or checkpoint."""
+
+    employee_id: str
+    marker: str | None = Field(default=None, max_length=200)
+    zone: str | None = None
+    checkpoint: StepRef | None = None
+
+
+class Unlock(BaseModel):
+    process_id: str
+    step_id: str
+    by: Literal["trainer", "help"] = "trainer"

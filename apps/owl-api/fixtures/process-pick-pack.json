@@ -40,7 +40,8 @@
           {"sku": "RYE-CRISP", "name": "Rye crispbread", "qty": 1}
         ]
       },
-      "source": {"doc": "Laura's recording", "quote": "Always check the litre size, the 0.5 l and 1 l cartons look the same."}
+      "source": {"doc": "Laura's recording", "quote": "Always check the litre size, the 0.5 l and 1 l cartons look the same."},
+      "checkpoint": {"zone_id": "zone-c", "label": "Aisle C · Shelf 12"}
     },
     {
       "id": "step-3",
@@ -74,7 +75,8 @@
         "criteria": ["Cartons lie at the bottom of the box", "Crispbread is on top", "Gaps are filled with paper"],
         "order_lines": null
       },
-      "source": {"doc": "Warehouse handbook", "quote": "Pack heavy items at the bottom and fill empty space with paper so nothing moves."}
+      "source": {"doc": "Warehouse handbook", "quote": "Pack heavy items at the bottom and fill empty space with paper so nothing moves."},
+      "checkpoint": {"zone_id": "zone-pack", "label": "Packing station"}
     },
     {
       "id": "step-5",

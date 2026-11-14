@@ -117,6 +117,7 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
 - `reviewed` (default `true`): `false` on a step that Owl wrote from a recording or a document and that no person has checked yet. Owl Studio sets it to `true` when the reviewer has read the step against the narration. `PUT /processes/{id}` answers `422` when the body is `published` and a step is not reviewed; saving a draft is always allowed.
 - `source` is where the step comes from, or `null`: the document quote for a process written from documents, the expert's whole narration for a recorded one.
 - `rule`: the company rule from the handbooks that backs this step (`{doc, section, quote}`, quoted word for word), or `null`. Owl finds it locally for recorded steps (JUN-70). Show it as "Company rule".
+- `checkpoint`: where the step happens, `{"zone_id": "zone-c", "label": "Aisle C · Shelf 12"}` (label ≤ 40 characters), or `null`. During training the step is locked until the worker reaches it (JUN-97, see Location). A translation has the same checkpoints as the original.
 
 ### CheckResult
 
@@ -355,7 +356,7 @@ Only the wearer sees the display, so `GET /stage` shows the audience the glasses
 
 ### Consent and data practices (JUN-80)
 
-`Consent`: `{"camera_checks": bool, "recording": bool, "at": "<time>" | null}`. The glasses ask on the first start, on the display and in the worker's language, and can ask again any time. Without `camera_checks`, Owl still guides but does not check (`/check` answers `403`). `recording` is the expert's agreement that Record keeps their clips.
+`Consent`: `{"camera_checks": bool, "recording": bool, "location": bool, "at": "<time>" | null}`. `location` (JUN-97): during training, Owl follows which area the worker is in from the markers the camera sees. The glasses ask on the first start, on the display and in the worker's language, and can ask again any time. Without `camera_checks`, Owl still guides but does not check (`/check` answers `403`). `recording` is the expert's agreement that Record keeps their clips.
 
 | Data | Kept |
 |---|---|
@@ -363,6 +364,7 @@ Only the wearer sees the display, so `GET /stage` shows the audience the glasses
 | Help frames | In memory and on disk only while the help session is open; deleted when it ends. |
 | Recorded photos and clips | Faces blurred before storing; kept until the process is deleted in Studio. |
 | Learning progress | Per worker, for their own glasses; erased with `DELETE /employees/{id}/progress`. Studio sees `/stats`, and per worker only the end-of-training result and its counts (JUN-96), after the worker has seen it. |
+| Location (JUN-97) | Only during training and with `location` consent: the current area and today's areas, in memory only. Never on disk, gone on restart, dropped when training ends or consent is taken back. |
 | Consent | What was agreed and when. |
 | Anything to Meta | Nothing: DAT analytics and crash reporting are opted out in the glasses app. |
 
@@ -434,6 +436,36 @@ The company sets per role how long training lasts and the level to reach: which 
 "Forget me" (`DELETE /employees/{id}/progress`) also drops `seen_at` and `confirmed`: the evidence is gone.
 
 Demo mode: Sami is on day 5 of 5 with four earlier runs (`fixtures/training.json`, days counted back from today). Steps 1, 2, 3 and 5 are at 3 of 3, step 4 at 2 of 3, so the suggestion is `more_practice: Pack heavy items first`. One more run without help makes it `ready`.
+
+### Location during training (JUN-97)
+
+GPS does not work indoors, so the glasses read printed QR markers with the camera. A marker's text is `owl:zone:<zone_id>` (an area) or `owl:cp:<process_id>:<step_id>` (the spot of a step, inside an area).
+
+Rules the server enforces: only during the worker's training period (JUN-96) and only with `Consent.location`. Today's history only, in memory: never written to disk, and dropped when training ends or the consent is taken back. No location goes into the training result.
+
+`POST /location` `{"employee_id": "emp-sami", "marker": "owl:cp:proc-pick-pack:step-2"}`, or `"zone": "zone-c"`, or `"checkpoint": {"process_id", "step_id"}` instead of `marker`. Send it when the marker or area changes, not for every frame. Answers a Location:
+
+```json
+{
+  "employee_id": "emp-sami", "tracking": true,
+  "zone": {"id": "zone-c", "name": "Aisle C"}, "entered_at": "<time>",
+  "history": [{"zone_id": "zone-a", "name": "Aisle A", "entered_at": "<time>", "left_at": "<time>"},
+              {"zone_id": "zone-c", "name": "Aisle C", "entered_at": "<time>", "left_at": null}],
+  "unlocked": [{"process_id": "proc-pick-pack", "step_id": "step-2"}]
+}
+```
+
+Errors: `403 consent_required`, `409 not_in_training`, `404` for text that is not an Owl marker, an unknown area or a step without a checkpoint.
+
+`GET /employees/{id}/location` → the same Location. Outside training or without consent: `tracking: false`, `zone: null` and empty lists.
+
+`POST /employees/{id}/unlock` `{"process_id", "step_id", "by": "trainer" | "help"}` → Location. For a missing or damaged marker.
+
+**Locked steps (glasses):** a step is locked when `tracking` is true, the step has a `checkpoint`, and it is not in `unlocked`. The glasses show "Go to: <label>" with the step's picture until it unlocks. An unlock is used up when `/check` answers `step_done` for that step, so the next run asks for the spot again.
+
+Studio: `GET /zones` → `{"zones": [{"id", "name", "kind": "aisle" | "packing" | "loading" | "other", "x", "y", "w", "h"}]}` (x, y, w, h are shares of the map, from the top left). `PUT /zones/{id}` saves one, `DELETE /zones/{id}` removes it. Checkpoints are set on steps with `PUT /processes/{id}`. `GET /markers` → `{"markers": [{"payload", "kind": "zone" | "checkpoint", "label", "zone_id", "process_id", "step_id", "svg"}]}`, an SVG QR code per area and per checkpoint, for printing. `GET /locations` → `{"trainees": [{"employee_id", "name", "zone", "entered_at"}]}`: the live map, only workers in training who agreed.
+
+Demo: Kide Logistics has Aisles A–C, Packing and Loading. Pick and pack step 2 is at "Aisle C · Shelf 12" (zone-c), step 4 at "Packing station" (zone-pack).
 
 ### Demo mode (`OWL_DEMO=1`)
 

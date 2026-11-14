@@ -42,7 +42,7 @@ def check(client, step_id="step-2", employee_id="emp-sami", run_id="r", final=Fa
 
 
 def test_no_frame_is_looked_at_before_consent(client):
-    assert client.get("/employees/emp-sami/consent").json() == {"camera_checks": False, "recording": False, "at": None}
+    assert client.get("/employees/emp-sami/consent").json() == {"camera_checks": False, "recording": False, "location": False, "at": None}
     r = check(client)
     assert (r.status_code, r.json()["detail"]) == (403, "consent_required")
     given = client.post("/employees/emp-sami/consent", json={"camera_checks": True}).json()

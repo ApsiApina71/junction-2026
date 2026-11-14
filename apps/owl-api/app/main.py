@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from . import ask as ask_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
-from . import jepa, people, persist, training, verifier, vision
+from . import jepa, location, people, persist, training, verifier, vision
 from . import media as media_engine
 from . import progress as progress_engine
 from . import record as record_engine
@@ -77,6 +77,7 @@ tracker = verifier.Tracker()
 recognizer = jepa.Recognizer(store.data_dir / "jepa")
 stage = stage_engine.Stage()
 progress = progress_engine.Progress()
+locations = location.Locations()  # JUN-97: in memory only, today only
 # JUN-78: state survives restarts. OWL_RESET=1 starts clean from the fixtures (rehearsals).
 if os.getenv("OWL_RESET", "") != "1":
     persist.load(store, progress)
@@ -210,6 +211,8 @@ def employee(employee_id: str, request: Request):
 app.include_router(people.router(lambda: store, Auth, out))
 # Training period and target level (JUN-96).
 app.include_router(training.router(lambda: store, lambda: progress, Auth))
+# Location during training: zones, QR markers, checkpoints that unlock steps (JUN-97).
+app.include_router(location.router(lambda: store, lambda: locations, Auth))
 
 LanguageQuery = Annotated[str, Query(max_length=10)]
 
@@ -344,7 +347,7 @@ async def check(
     frame = await read_frame(image, clip)
     if mock or MOCK_CHECK:
         result = with_pace(step, mock_check(step, final, mock))
-        progress.record(run_id, employee_id, process, step, result)
+        record_check(run_id, employee_id, process, step, result)
         stage_check(worker, step, result)
         return out(request, result)
     language = language or (worker.language if worker else None) or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
@@ -368,9 +371,15 @@ async def check(
     finally:
         tracker.end(run_id)
     result = with_pace(step, result)
-    progress.record(run_id, employee_id, process, step, result)
+    record_check(run_id, employee_id, process, step, result)
     stage_check(worker, step, result)
     return out(request, result)
+
+
+def record_check(run_id: str, employee_id: str, process: Process, step: Step, result: CheckResult) -> None:
+    progress.record(run_id, employee_id, process, step, result)
+    if result.step_done and employee_id:
+        locations.step_done(employee_id, process.id, step.id)  # JUN-97: the next run asks for the spot again
 
 
 def stage_check(worker: Employee | None, step: Step, result: CheckResult) -> None:
@@ -460,6 +469,8 @@ def set_consent(employee_id: str, body: Consent):
     consent = body.model_copy(update={"at": now_iso()})
     with store.lock:
         store.consents[employee_id] = consent.model_dump()
+    if not consent.location:
+        locations.forget(employee_id)
     return consent
 
 
@@ -470,6 +481,7 @@ def reset_consent(employee_id: str) -> Response:
         raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
     with store.lock:
         store.consents.pop(employee_id, None)
+    locations.forget(employee_id)
     return Response(status_code=204)
 
 
@@ -479,6 +491,7 @@ def forget_progress(employee_id: str) -> Response:
     if employee_id not in store.employees:
         raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
     progress.forget(employee_id)
+    locations.forget(employee_id)
     with store.lock:
         if employee_id in store.trainings:  # the evidence is gone, so is the result built on it
             store.trainings[employee_id].update(seen_at=None, confirmed=None)

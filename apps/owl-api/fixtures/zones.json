@@ -1,0 +1,9 @@
+{
+  "zones": [
+    {"id": "zone-a", "name": "Aisle A", "kind": "aisle", "x": 0.05, "y": 0.08, "w": 0.14, "h": 0.6},
+    {"id": "zone-b", "name": "Aisle B", "kind": "aisle", "x": 0.25, "y": 0.08, "w": 0.14, "h": 0.6},
+    {"id": "zone-c", "name": "Aisle C", "kind": "aisle", "x": 0.45, "y": 0.08, "w": 0.14, "h": 0.6},
+    {"id": "zone-pack", "name": "Packing", "kind": "packing", "x": 0.68, "y": 0.08, "w": 0.27, "h": 0.36},
+    {"id": "zone-load", "name": "Loading", "kind": "loading", "x": 0.68, "y": 0.55, "w": 0.27, "h": 0.37}
+  ]
+}

@@ -31,8 +31,8 @@ def test_fixture_matches_model(name):
 
 
 def test_every_fixture_is_covered():
-    # demo-script.json is not an API shape; tests/test_demo.py checks it. training.json: tests/test_training.py.
-    assert {p.name for p in FIXTURES.glob("*.json")} - {"demo-script.json", "training.json"} == set(SHAPES)
+    # demo-script.json is not an API shape; tests/test_demo.py checks it. training.json and zones.json: their own tests.
+    assert {p.name for p in FIXTURES.glob("*.json")} - {"demo-script.json", "training.json", "zones.json"} == set(SHAPES)
 
 
 PROCESSES = ["process-pick-pack.json", "process-pick-pack.fi.json", "process-bakery-rye.json", "process-bakery-rye.fi.json"]

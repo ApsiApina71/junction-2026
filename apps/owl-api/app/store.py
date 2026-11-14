@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .models import Doc, Employee, HelpSession, Process, Recording, TrainingPlan
+from .models import Doc, Employee, HelpSession, Process, Recording, TrainingPlan, Zone
 
 APP_DIR = Path(__file__).resolve().parent.parent
 FIXTURES = APP_DIR / "fixtures"
@@ -62,6 +62,8 @@ class Store:
         # ({starts, plan_id, extra_days, seen_at, confirmed, demo}).
         self.training_plans: dict[str, TrainingPlan] = {}
         self.trainings: dict[str, dict] = {}
+        # JUN-97: the areas on Studio's map of the workplace.
+        self.zones: dict[str, Zone] = {}
         self._counter = 0
 
         for path in sorted(FIXTURES.glob("employee*.json")):
@@ -76,6 +78,9 @@ class Store:
         for plan in load_fixture("training.json")["plans"]:
             plan = TrainingPlan.model_validate(plan)
             self.training_plans[plan.id] = plan
+        for zone in load_fixture("zones.json")["zones"]:
+            zone = Zone.model_validate(zone)
+            self.zones[zone.id] = zone
         for folder in (FIXTURES / "docs", data_dir / "docs"):
             for path in sorted(folder.glob("*")) if folder.is_dir() else []:
                 if path.suffix.lower() in {".md", ".txt"}:
@@ -119,8 +124,12 @@ class Store:
         if not language or lang_key(language) == lang_key(process.language):
             return process
         found = self.translations.get((process.id, lang_key(language)))
-        # Publishing happens on the original; a translation follows it.
-        return found.model_copy(update={"status": process.status}) if found else process
+        if not found:
+            return process
+        # Publishing happens on the original; a translation follows it. So do the checkpoints set in Studio (JUN-97).
+        where = {s.id: s.checkpoint for s in process.steps}
+        steps = [s.model_copy(update={"checkpoint": where.get(s.id)}) for s in found.steps]
+        return found.model_copy(update={"status": process.status, "steps": steps})
 
     def drop_translations(self, process_id: str) -> None:
         for key in [k for k in self.translations if k[0] == process_id]:
