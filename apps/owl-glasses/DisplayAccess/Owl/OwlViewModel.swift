@@ -134,9 +134,17 @@ final class OwlViewModel {
     return displayViewModel.isConnected
   }
 
+  /// The published tasks assigned to this worker in Owl Studio (`process_ids`), in that order.
+  /// Every published task when no worker is known or none is assigned.
+  var myProcesses: [OwlProcess] {
+    let published = processes.filter(\.isPublished)
+    guard let ids = employee?.processIds, !ids.isEmpty else { return published }
+    return ids.compactMap { id in published.first { $0.id == id } }
+  }
+
   func showTasks() async {
     stopEverything()
-    let published = processes.filter(\.isPublished)
+    let published = myProcesses
     statusText = isOffline ? "Offline: saved tasks" : "\(published.count) tasks"
     let select: @Sendable (String) -> Void = { [weak self] id in
       Task { @MainActor in await self?.startProcess(id) }
@@ -839,7 +847,7 @@ extension OwlViewModel {
     switch name {
     case "open": await open()
     case "start": await showTasks()
-    case "run": if let first = processes.first(where: \.isPublished) { await startProcess(first.id) }
+    case "run": if let first = myProcesses.first { await startProcess(first.id) }
     case "process": await startProcess(argument)
     case "done": await finishStep()
     case "again": await checkAgain()

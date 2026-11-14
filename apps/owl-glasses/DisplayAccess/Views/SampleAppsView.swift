@@ -622,7 +622,7 @@ struct SampleAppsView: View {
         await sendSample(item, deviceIdentifier: phonePreviewDeviceIdentifier)
       }
       try? await Task.sleep(for: .seconds(4))
-      if env["OWL_AUTO_RUN"] == "1", let first = owlViewModel.processes.first(where: \.isPublished) {
+      if env["OWL_AUTO_RUN"] == "1", let first = owlViewModel.myProcesses.first {
         await owlViewModel.startProcess(first.id)
       }
       if let question = env["OWL_AUTO_ASK"], !question.isEmpty {
