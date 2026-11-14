@@ -253,6 +253,7 @@ Answer to one camera frame during a step.
 | `POST /processes/{id}/translate` | JSON `{"language"}` | `Process` in that language, stored as its translation | Studio (when a worker with a new language is added) |
 | `POST /processes/from-docs` | JSON `{"doc_id", "title"?}` | `Process` (a new **draft**, `source: "docs"`) | Studio |
 | `PUT /processes/{id}` | `Process` | `Process` (edit, reorder, publish or translate; below) | Studio |
+| `POST /processes/{id}/steps/{step_id}/clip` | multipart `clip` (a phone video, MP4/MOV, at most 80 MB), optional `start` (seconds) | `Process`: the step's `clip_url` is the new clip (faces blurred, 10 s from `start`, no sound, display-sized, in a random folder); a step without a picture gets the clip's last frame. With V-JEPA on, the task's probe learns the clip right away | Studio |
 | `POST /check` | multipart (below) | `CheckResult` | glasses |
 | `POST /ask` | JSON (below) | `Answer` | glasses |
 | `GET /docs` | none | `{"docs": [Doc]}` | Studio |

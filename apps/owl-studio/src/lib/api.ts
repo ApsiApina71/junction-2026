@@ -168,6 +168,12 @@ export function createApi(config: ApiConfig = apiConfig(), fetchFn: Fetch = (inp
       form.append('image', file)
       return request<Process>(`/processes/${id(processId)}/steps/${id(stepId)}/place-photos`, { method: 'POST', body: form })
     },
+    /** The company's own video of a step, from a phone: faces blurred, 10 s, no sound. Watch how and step recognition use it. */
+    addStepClip: (processId: string, stepId: string, file: File) => {
+      const form = new FormData()
+      form.append('clip', file)
+      return request<Process>(`/processes/${id(processId)}/steps/${id(stepId)}/clip`, { method: 'POST', body: form })
+    },
     places: () => request<{ trainees: TraineePlace[] }>('/locations').then((r) => r.trainees),
     /** Owl does not recognise the place: the trainer opens the step on the worker's glasses. */
     unlockStep: (employeeId: string, processId: string, stepId: string) =>

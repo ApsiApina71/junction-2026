@@ -451,3 +451,19 @@ describe('where the data goes', () => {
     expect(screen.queryByText(/no log|no record of who|only the worker/i)).toBeNull()
   })
 })
+
+describe('a step video from a phone', () => {
+  it('adds a phone video to a step, so the company needs no glasses for Watch how', async () => {
+    const user = userEvent.setup()
+    const studio = fakeStudio()
+    const withClip = process()
+    withClip.steps[0] = { ...withClip.steps[0], clip_url: 'http://test/media/steps/proc-1-x/step-1.mp4' }
+    studio.api.addStepClip = vi.fn(async () => withClip)
+    renderWith(<TaskEditor processId="proc-1" />, studio)
+    const file = new File(['x'], 'sorting.mov', { type: 'video/quicktime' })
+    await user.upload(await screen.findByLabelText('Add a video of step 1'), file)
+    await waitFor(() => expect(studio.api.addStepClip).toHaveBeenCalledWith('proc-1', 'step-1', file))
+    expect(await screen.findByLabelText("The expert's clip of step 1")).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Replace the video' })).toBeTruthy()
+  })
+})

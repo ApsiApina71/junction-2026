@@ -147,8 +147,8 @@ def last_frame(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def transcode_clip(data: bytes, max_seconds: float = MAX_CLIP_SECONDS, blur: bool = True) -> bytes:
-    """A display-sized H.264 MP4 (faststart, no audio, CLIP_FPS) with faces blurred."""
+def transcode_clip(data: bytes, max_seconds: float = MAX_CLIP_SECONDS, blur: bool = True, start: float = 0.0) -> bytes:
+    """A display-sized H.264 MP4 (faststart, no audio, CLIP_FPS) with faces blurred: max_seconds from `start`."""
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "clip.mp4"
         written = 0
@@ -156,7 +156,9 @@ def transcode_clip(data: bytes, max_seconds: float = MAX_CLIP_SECONDS, blur: boo
             stream = None
             next_t = 0.0
             for frame in _frames(data):
-                t = float(frame.time) if frame.time is not None else written / CLIP_FPS
+                t = (float(frame.time) if frame.time is not None else start + written / CLIP_FPS) - start
+                if t < 0:
+                    continue
                 if t > max_seconds:
                     break
                 if t + 1e-6 < next_t:  # drop frames to reach CLIP_FPS

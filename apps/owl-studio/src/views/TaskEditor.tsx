@@ -429,6 +429,50 @@ function Learners({ process, headingRef }: { process: Process; headingRef: React
   )
 }
 
+/** The company's own video of a step, filmed with a phone: no glasses needed. */
+function StepVideo({ process, step, onChange }: { process: Process; step: Step; onChange: (step: Step) => void }) {
+  const { api } = useStudio()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const picker = useRef<HTMLInputElement>(null)
+
+  const add = async (file: File | undefined) => {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const saved = (await api.addStepClip(process.id, step.id, file)).steps.find((s) => s.id === step.id)
+      if (saved) onChange({ ...step, clip_url: saved.clip_url, reference_image_url: saved.reference_image_url })
+      toast({ message: `Step ${step.index} has the new video. Owl learns it for step recognition.` })
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setBusy(false)
+      if (picker.current) picker.current.value = ''
+    }
+  }
+
+  return (
+    <div className="step-video">
+      <input
+        ref={picker}
+        className="visually-hidden"
+        type="file"
+        accept="video/mp4,video/quicktime,video/*"
+        aria-label={`Add a video of step ${step.index}`}
+        disabled={busy}
+        onChange={(event) => void add(event.target.files?.[0])}
+      />
+      <Button title={busy ? 'Adding the video…' : step.clip_url ? 'Replace the video' : 'Add a video'} icon={ICONS.plus} alwaysShowText disabled={busy} onClick={() => picker.current?.click()} />
+      <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+        A phone video of the step works. Faces are blurred, the first 10 seconds are kept, without sound.
+      </TextView>
+      {error && <Problem>{error}</Problem>}
+    </div>
+  )
+}
+
 function StepForm({ step, total, process, onChange }: { step: Step; total: number; process: Process; onChange: (step: Step) => void }) {
   const [refused, setRefused] = useState<string | null>(null)
   const titleLength = step.title.trim().length
@@ -559,6 +603,7 @@ function StepForm({ step, total, process, onChange }: { step: Step; total: numbe
                   </TextView>
                 </figure>
               )}
+              <StepVideo process={process} step={step} onChange={onChange} />
             </div>
           </Panel>
         </div>

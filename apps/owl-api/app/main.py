@@ -695,6 +695,41 @@ async def add_place_photo(process_id: str, step_id: str, request: Request, image
     return out(request, process)
 
 
+@app.post("/processes/{process_id}/steps/{step_id}/clip", response_model=Process, dependencies=[Auth])
+async def upload_step_clip(
+    process_id: str,
+    step_id: str,
+    request: Request,
+    background: BackgroundTasks,
+    clip: Annotated[UploadFile, File()],
+    start: Annotated[float, Form(ge=0, le=3600)] = 0.0,
+):
+    """Studio adds the company's own video of a step, filmed with a phone: no glasses needed. Like a recorded clip,
+    faces are blurred and it is cut to 10 s from `start`, without sound, display-sized. It becomes the step's "Watch
+    how" clip and what step recognition learns from; a step without a picture gets the clip's last frame."""
+    process = get_process(process_id)
+    step = get_step(process, step_id)
+    data = await clip.read(MAX_CLIP_BYTES + 1)
+    if not data or len(data) > MAX_CLIP_BYTES:
+        raise HTTPException(status_code=413, detail="The video is empty or larger than 80 MB.")
+    try:
+        mp4 = await run_in_threadpool(media_engine.transcode_clip, data, media_engine.MAX_CLIP_SECONDS, True, start)
+        photo = None if step.reference_image_url else await run_in_threadpool(media_engine.last_frame, mp4)
+    except media_engine.MediaError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    folder = f"steps/{process_id}-{secrets.token_urlsafe(9)}"
+    with store.lock:
+        old = step.clip_url
+        step.clip_url = store.save_media(f"{folder}/{step_id}.mp4", mp4)
+        if photo:
+            step.reference_image_url = store.save_media(f"{folder}/{step_id}.jpg", photo)
+    store.remove_media(old)
+    if jepa.JEPA_BACKEND != "baseline":
+        # The task's probe learns the new clip now, not on the worker's next look.
+        background.add_task(run_in_threadpool, recognizer.probe_for, process, step_clips(process))
+    return out(request, process)
+
+
 # Customer service mode (JUN-98). The transcript is used for one answer: never stored, logged or staged.
 
 
