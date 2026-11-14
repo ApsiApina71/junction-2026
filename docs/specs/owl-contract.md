@@ -551,6 +551,8 @@ The worker calls the manager on shift, who answers on **their own glasses**, see
 
 Demo mode: Mika (`emp-mika`, `glasses-7`, Kide Logistics) is the manager on shift unless Studio set someone. Sami calls him from one simulator, Mika answers in the other.
 
+**Answering on the phone (JUN-107).** `Employee.answers_on`: `"glasses"` (the default) or `"phone"`. A manager who answers on the phone has no glasses: the call rings in the Studio Help console, opened on their phone, with **Answer as <name>**, which calls `POST /help/{id}/accept` as them. The session carries `answers_on` from the manager. With `"phone"` there is **no 30 s time limit**: the call stays `ringing`, `routed: "manager"` and `assignee_name` set until they answer or say Later, so the worker's glasses keep saying "Calling Mika". After Accept it is `accepted` and the worker's glasses say "Mika is watching your view". The manager's words go as `from: "manager"`, and they can point at the worker's view with `mark`, as the Studio expert can. `GET /shift/manager` does not depend on glasses.
+
 ### `POST /help/{id}/say`
 
 ```json

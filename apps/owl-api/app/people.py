@@ -110,6 +110,7 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 access=body.access,
                 shift_manager=body.shift_manager,
                 welcome_language=body.welcome_language,
+                answers_on=body.answers_on,
             )
             if body.welcome:
                 store.custom_welcomes.add(employee.id)
@@ -130,6 +131,8 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 value = getattr(body, field)
                 if field in sent and value is not None:
                     setattr(employee, field, value)
+            if "answers_on" in sent and body.answers_on is not None:
+                employee.answers_on = body.answers_on
             if "welcome_language" in sent:  # null: the welcome follows the employee's language again
                 employee.welcome_language = body.welcome_language
             if "access" in sent and body.access is not None:

@@ -29,7 +29,7 @@ from . import ask as ask_engine
 from . import assist as assist_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
-from . import jepa, location, people, persist, place, shift, training, verifier, vision
+from . import jepa, location, people, persist, place, shift, story, training, verifier, vision
 from . import media as media_engine
 from . import progress as progress_engine
 from . import record as record_engine
@@ -115,6 +115,10 @@ if DEMO:
     # JUN-100: Mika is the manager on shift at Kide Logistics, unless Studio set someone.
     if "emp-mika" in store.employees and store.employees["emp-mika"].company not in store.on_shift:
         store.on_shift[store.employees["emp-mika"].company] = "emp-mika"
+# JUN-105: the Junction volunteer story for the demo video, on the real engine (no scripted camera).
+if os.getenv("OWL_STORY", ""):
+    story.apply(store, os.environ["OWL_STORY"])
+    persist.save(store, progress)
 
 
 @asynccontextmanager
@@ -1037,7 +1041,7 @@ def help_say(help_id: str, body: SayRequest, request: Request):
         raise HTTPException(status_code=409, detail="This help session has ended.")
     with store.lock:
         message = HelpMessage(id=len(session.messages) + 1, from_=body.from_, text=body.text.strip(), at=now_iso())
-        if body.from_ == "expert" and body.mark:
+        if body.from_ in {"expert", "manager"} and body.mark:
             # The expert can point: the glasses show the worker's own view with a ring around the spot.
             message.image_url = marked_frame(session, message.id, body.mark)
         session.messages.append(message)

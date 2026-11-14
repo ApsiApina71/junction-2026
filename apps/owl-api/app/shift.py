@@ -34,6 +34,7 @@ def manager_for(store: Store, worker: Employee | None) -> Employee | None:
 def ring(session: HelpSession, manager: Employee) -> None:
     session.routed, session.status = "manager", "ringing"
     session.assignee, session.assignee_name = manager.id, manager.name
+    session.answers_on = manager.answers_on
     session.rang_at = now_iso()
     session.fallback = None
 
@@ -47,8 +48,11 @@ def to_studio(session: HelpSession, why: str) -> None:
 
 
 def settle(session: HelpSession, now: datetime | None = None) -> HelpSession:
-    """A call that rang RING_SECONDS without an answer goes to Studio. Checked on every read."""
-    if session.status == "ringing" and session.rang_at:
+    """A call that rang RING_SECONDS without an answer goes to Studio. Checked on every read.
+
+    A manager who answers on the phone (JUN-107) has no time limit: the call rings in the console until they answer
+    or say Later."""
+    if session.status == "ringing" and session.rang_at and session.answers_on != "phone":
         now = now or datetime.now(TIMEZONE)
         if (now - datetime.fromisoformat(session.rang_at)).total_seconds() >= RING_SECONDS:
             to_studio(session, "no_answer")

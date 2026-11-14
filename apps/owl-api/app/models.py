@@ -46,6 +46,9 @@ class Employee(BaseModel):
     shift_manager: bool = False
     # The language of the welcome and the voice that speaks it; null: the same as language (JUN-108).
     welcome_language: str | None = None
+    # JUN-107: where a shift manager answers Help. "phone": in the Studio console on the phone, and the call rings
+    # until they answer there (no 30 s fall back to Studio).
+    answers_on: Literal["glasses", "phone"] = "glasses"
 
 
 class EmployeeCreate(BaseModel):
@@ -59,6 +62,7 @@ class EmployeeCreate(BaseModel):
     access: Access = Access()
     shift_manager: bool = False
     welcome_language: Language | None = None
+    answers_on: Literal["glasses", "phone"] = "glasses"
 
 
 class EmployeeUpdate(BaseModel):
@@ -74,6 +78,7 @@ class EmployeeUpdate(BaseModel):
     shift_manager: bool | None = None
     # Sent as null: back to the employee's language.
     welcome_language: Language | None = None
+    answers_on: Literal["glasses", "phone"] | None = None
 
 
 class OrderLine(BaseModel):
@@ -212,6 +217,8 @@ class HelpSession(BaseModel):
     assignee: str | None = None
     assignee_name: str | None = None
     rang_at: str | None = None
+    # JUN-107: where the manager answers: their own glasses, or the Studio console on their phone.
+    answers_on: Literal["glasses", "phone"] | None = None
     # Why a call to the manager went to Studio instead.
     fallback: Literal["no_answer", "later", "no_manager"] | None = None
 

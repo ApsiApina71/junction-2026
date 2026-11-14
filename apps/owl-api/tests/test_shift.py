@@ -129,3 +129,22 @@ def test_settle_keeps_a_fresh_call_ringing():
 
     session = HelpSession(id="h", status="ringing", updated_at="x", rang_at=datetime.now(TIMEZONE).isoformat())
     assert shift.settle(session).status == "ringing"
+
+
+def test_a_manager_who_answers_on_the_phone(client):
+    """JUN-107: Mika has no glasses. The call rings in the Studio console on his phone, with no time limit."""
+    assert client.put("/employees/emp-mika", json={"answers_on": "phone", "glasses_id": None}).json()["answers_on"] == "phone"
+    on_shift(client)
+    assert client.get("/shift/manager", params={"employee_id": "emp-sami"}).json()["name"] == "Mika"  # no glasses needed
+    session = call(client).json()
+    assert (session["status"], session["routed"], session["answers_on"]) == ("ringing", "manager", "phone")
+    main.store.help[session["id"]].rang_at = (datetime.now(TIMEZONE) - timedelta(minutes=5)).isoformat(timespec="seconds")
+    still = client.get(f"/help/{session['id']}").json()
+    assert (still["status"], still["routed"], still["assignee_name"]) == ("ringing", "manager", "Mika")
+    # "Answer as Mika" in the console.
+    accepted = client.post(f"/help/{session['id']}/accept", json={"employee_id": "emp-mika"}).json()
+    assert (accepted["status"], accepted["routed"]) == ("accepted", "manager")
+    # He points at the worker's view from the phone, as the Studio expert can.
+    said = client.post(f"/help/{session['id']}/say", json={"from": "manager", "text": "That one.", "mark": {"x": 0.5, "y": 0.5}}).json()
+    assert said["messages"][-1]["from"] == "manager" and said["messages"][-1]["image_url"]
+    assert said["status"] == "accepted"
