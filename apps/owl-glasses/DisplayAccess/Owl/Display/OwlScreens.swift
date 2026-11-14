@@ -474,7 +474,7 @@ enum OwlScreens {
   /// so the next hint is one pinch away.
   static func assist(
     heard: String?, hint: OwlAssist?, busy: Bool, auto: Bool = false, onHint: @escaping OwlAction,
-    onEnd: @escaping OwlAction
+    onEnd: @escaping OwlAction, onHelp: OwlAction? = nil
   ) -> FlexBox {
     let title =
       busy ? OwlStrings.assistLooking
@@ -498,6 +498,10 @@ enum OwlScreens {
     } buttons: {
       Button(label: OwlStrings.hint, style: .primary, iconName: .lightBulb, onClick: onHint)
         .actionRole(.primary)
+      // When the handbook has no answer, a person does (JUN-108, row 8).
+      if let onHelp {
+        Button(label: OwlStrings.help, style: .secondary, iconName: .person, onClick: onHelp)
+      }
       Button(label: OwlStrings.end, style: .secondary, iconName: .x, onClick: onEnd)
     }
   }

@@ -203,7 +203,7 @@ enum OwlScreenGallery {
       return OwlScreens.assist(heard: data.heard, hint: data.assist, busy: false, onHint: none, onEnd: none)
     case "assist-unsure":
       return OwlScreens.assist(
-        heard: nil, hint: OwlAssist(bullets: [data.finnish ? "Ei käsikirjassa, kysy työkaverilta" : "Not in the handbook, ask a colleague"], say: nil, sources: [], unsure: true),
+        heard: nil, hint: OwlAssist(bullets: [data.finnish ? "Ei käsikirjassa. Kysy työkaverilta." : "Not in the handbook. Ask a colleague."], say: nil, sources: [], unsure: true),
         busy: false, auto: true, onHint: none, onEnd: none)
     case "goto":
       return OwlScreens.goTo(

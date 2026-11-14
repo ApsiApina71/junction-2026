@@ -98,6 +98,8 @@ final class OwlViewModel {
   @ObservationIgnored private var autoHintTask: Task<Void, Never>?
   @ObservationIgnored private var assistDrawnAt = Date.distantPast
   @ObservationIgnored private var lastHintAt: Date?
+  /// Help was called from customer service: the counter comes back after the call.
+  @ObservationIgnored private var helpFromCounter = false
   /// Owl's own spoken words are not the customer's: the mic hears them until about then.
   @ObservationIgnored private var assistQuietUntil = Date.distantPast
   private var checksAllowed: Bool { consent?.cameraChecks == true && !cameraPaused }
@@ -1726,8 +1728,17 @@ final class OwlViewModel {
       OwlScreens.assist(
         heard: heard, hint: hint, busy: busy, auto: auto,
         onHint: self.action { await $0.hintAgain() },
-        onEnd: self.action { await $0.endCustomerService() })
+        onEnd: self.action { await $0.endCustomerService() },
+        onHelp: self.action { await $0.helpFromCustomerService() })
     }
+  }
+
+  /// Help from the counter: listening stops (the conversation is dropped), the call starts,
+  /// and customer service comes back when it ends.
+  private func helpFromCustomerService() async {
+    endConversation()
+    helpFromCounter = true
+    await startHelp()
   }
 
   /// A new Hint pinch: the last hint is cleared and a new one asked for what was said since.
@@ -1941,8 +1952,9 @@ final class OwlViewModel {
         : session.isWithManager && session.isConnected ? "\(session.assigneeName ?? "Manager") is watching"
         : session.isConnected ? "Expert connected" : "Waiting for an expert"
       if !newMessages.isEmpty {
-        let lastExpert = session.messages.last { $0.from == "expert" }
-        helpMarked = await image(lastExpert?.imageUrl)
+        // The expert or the shift manager can mark the worker's view (JUN-60, JUN-107).
+        let lastHelper = session.messages.last { $0.from != "worker" }
+        helpMarked = await image(lastHelper?.imageUrl)
         guard isCurrent(number) else { return }
       }
       await drawHelp(number)
@@ -2019,7 +2031,14 @@ final class OwlViewModel {
     helpTo = nil
     helpSession = nil
     helpMarked = nil
-    if process != nil { await backToStep() } else { await showTasks(refresh: false) }
+    if helpFromCounter {
+      helpFromCounter = false
+      await startCustomerService()
+    } else if process != nil {
+      await backToStep()
+    } else {
+      await showTasks(refresh: false)
+    }
   }
 
   // MARK: - The shift manager's glasses (JUN-100)
@@ -2617,6 +2636,15 @@ final class OwlViewModel {
     stopRecognition()
     helpTask?.cancel()
     helpTask = nil
+    // A call left behind would keep ringing the manager: owl-api ends it and deletes its pictures.
+    if let helpID {
+      let api = api
+      Task { _ = try? await api.endHelp(helpID) }
+      self.helpID = nil
+      helpTo = nil
+      helpSession = nil
+      helpFromCounter = false
+    }
     listener.stop()
     isRecordingStep = false
     camera?.discardClip()
@@ -2804,7 +2832,8 @@ extension OwlViewModel {
     case "ask": await ask()
     case "answer": await answer(argument)
     case "endask": await endAsk()
-    case "help": await startHelp()
+    // At the counter, Help is the counter's own Help button: the counter comes back after it.
+    case "help": if assistScene != nil { await helpFromCustomerService() } else { await startHelp() }
     case "endhelp": await endHelp()
     // JUN-100: the worker's two choices, and their spoken answer.
     case "callmanager":
