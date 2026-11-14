@@ -1,4 +1,4 @@
-import { App as Toolkit, Avatar, AvatarSize, Button, Chip, ChipStyle, ListItem, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { App as Toolkit, Button, Chip, ChipStyle, IconImage, ListItem, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import bell from '@wearables-ui-toolkit/icons/svg/bellring__filled.svg'
 import alertIcon from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
 import cloudAlert from '@wearables-ui-toolkit/icons/svg/cloudbadgealert__filled.svg'
@@ -119,7 +119,10 @@ function Shell() {
       <div className="shell">
         <header className="sidebar">
           <div className="sidebar-head">
-            <Avatar src={`/owl/states/${now.owl}.png`} alt="" size={AvatarSize.LARGE} />
+            {/* The logo: the owl silhouette (shared/brand), tinted with the text colour by the toolkit's icon renderer. */}
+            <span className="brand-mark" aria-hidden="true">
+              <IconImage source="/owl/logo.svg" style={{ inlineSize: '100%', blockSize: '100%' }} />
+            </span>
             <div className="sidebar-head-text">
               <TextView as="span" textStyle={TextStyle.BODY2_EMPHASIZED}>
                 Owl Studio

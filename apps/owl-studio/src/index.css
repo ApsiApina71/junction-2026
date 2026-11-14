@@ -94,6 +94,16 @@ body,
   min-inline-size: 0;
 }
 
+/* The owl silhouette beside the name, with clear space of a sixth of its width (shared/brand/README.md). */
+.brand-mark {
+  display: inline-flex;
+  flex: none;
+  inline-size: 72px;
+  block-size: 72px;
+  margin-inline-end: var(--uit-spacing-small);
+  color: var(--uit-color-text-primary);
+}
+
 .sidebar-head-text {
   display: flex;
   flex-direction: column;
