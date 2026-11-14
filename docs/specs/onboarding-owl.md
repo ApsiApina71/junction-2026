@@ -4,9 +4,9 @@ tags: [spec, meta, glasses, onboarding]
 last-updated: 2026-11-14
 ---
 
-# Spec: Onboarding Owl
+# Spec: Owl Boarding
 
-Onboarding for all physical work, on Meta Ray-Ban Display glasses. Working title; the owl is the mascot, a wise teacher.
+Onboarding for all physical work, on Meta Ray-Ban Display glasses. The product is **Owl Boarding**, at [owlboarding.com](https://owlboarding.com); the owl is the mascot, a wise teacher.
 
 - **Ticket(s):** [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) (this spec). Data model and API: [owl-contract.md](owl-contract.md) ([JUN-27](https://linear.app/junction-2026-bossit/issue/JUN-27)). Build tickets JUN-27…JUN-42 and JUN-56 in the Software and Prototyping projects.
 - **Design:** Owl brand and screens, [JUN-35](https://linear.app/junction-2026-bossit/issue/JUN-35)

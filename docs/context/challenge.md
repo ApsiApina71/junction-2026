@@ -16,7 +16,7 @@ We submit to **Meta, "AI Glasses for Everyone, Everyday"**. On the first night w
 - **Judged on:** creativity, technical execution, real-world impact, and inclusive interaction design for people with all abilities. Display and audio-first experiences count equally, as do Web Apps and Device Access Toolkit (DAT) mobile integrations.
 - **Must show:** a clear problem and audience, a functional prototype and a deck; a clear wearable benefit; a focused, plausible path to adoption or a pilot; a prototype that handles permissions, errors, performance trade-offs, connectivity and device state changes; appropriate consent and safe data practices.
 - **Resources:** shared Meta Ray-Ban Display and Ray-Ban Meta Gen 2 glasses at the Meta booth; mentors for Web Apps and DAT (iOS, Android).
-- **Our idea:** Onboarding Owl, onboarding for all physical work on Meta Ray-Ban Display glasses. See [the spec](../specs/onboarding-owl.md).
+- **Our idea:** Owl Boarding, onboarding for all physical work on Meta Ray-Ban Display glasses. See [the spec](../specs/onboarding-owl.md).
 - **Platform facts:** only DAT (phone app) can use the glasses camera; Web Apps get the display only. Docs: https://wearables.developer.meta.com/. Simulator: Chrome "Meta Ray-Ban Display Simulator".
 
 ## Judging criteria

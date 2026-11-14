@@ -12,9 +12,9 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 
 | App | Type | Path | Purpose |
 |---|---|---|---|
-| owl-glasses | ios (DAT) | [../apps/owl-glasses](../apps/owl-glasses/README.md) | Onboarding Owl on Meta Ray-Ban Display glasses (display, camera, Neural Band, speech, voice invocations); was bite-ios |
-| owl-api | api | [../apps/owl-api](../apps/owl-api/README.md) | Onboarding Owl engine: processes, Owl Check, Ask, Record and Help for the glasses app and Owl Studio |
-| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | Onboarding Owl launch page: the glasses and Neural Band in 3D and a fly-into-the-lens POV view |
+| owl-glasses | ios (DAT) | [../apps/owl-glasses](../apps/owl-glasses/README.md) | Owl Boarding on Meta Ray-Ban Display glasses (display, camera, Neural Band, speech, voice invocations); was bite-ios |
+| owl-api | api | [../apps/owl-api](../apps/owl-api/README.md) | Owl Boarding engine: processes, Owl Check, Ask, Record and Help for the glasses app and Owl Studio |
+| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | Owl Boarding launch page: the glasses and Neural Band in 3D and a fly-into-the-lens POV view |
 | owl-studio | web | [../apps/owl-studio](../apps/owl-studio/README.md) | Owl Studio: the company's web app for documents, task review, new workers and the Help console |
 
 ## Agent tooling
@@ -41,7 +41,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [architecture/adr-001-tech-stack.md](architecture/adr-001-tech-stack.md) | Tech stack decision |
 | [architecture/adr-003-glasses-app-dat-ios.md](architecture/adr-003-glasses-app-dat-ios.md) | Glasses app on Meta DAT iOS (today `owl-glasses` + `owl-api`) |
 | [specs/_template.md](specs/_template.md) | Lean PRD template |
-| [specs/onboarding-owl.md](specs/onboarding-owl.md) | Onboarding Owl: what we build for the Meta challenge |
+| [specs/onboarding-owl.md](specs/onboarding-owl.md) | Owl Boarding: what we build for the Meta challenge |
 | [specs/owl-contract.md](specs/owl-contract.md) | Owl data model, API contract and mock data (owl-api, glasses app, Owl Studio) |
 | [security/security-rules.md](security/security-rules.md) | Security rules for code, agents and reviews |
 | [runbooks/agent-onboarding.md](runbooks/agent-onboarding.md) | How agents and humans get productive |
@@ -56,7 +56,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 
 | Spec | Ticket |
 |---|---|
-| [Onboarding Owl](specs/onboarding-owl.md) | [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) |
+| [Owl Boarding](specs/onboarding-owl.md) | [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) |
 | [Owl contract](specs/owl-contract.md) | [JUN-27](https://linear.app/junction-2026-bossit/issue/JUN-27) |
 
 ## Decisions (ADRs)

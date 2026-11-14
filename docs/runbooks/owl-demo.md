@@ -6,7 +6,7 @@ last-updated: 2026-11-14
 
 # Owl demo: start the stack and rehearse on the glasses
 
-How to bring up Onboarding Owl on demo day: owl-api, the https tunnel, the glasses app on the iPhone, and the simulator chain as a backup. The last section is the checklist for the rehearsal on real Meta Ray-Ban Display glasses ([JUN-53](https://linear.app/junction-2026-bossit/issue/JUN-53)).
+How to bring up Owl Boarding on demo day: owl-api, the https tunnel, the glasses app on the iPhone, and the simulator chain as a backup. The last section is the checklist for the rehearsal on real Meta Ray-Ban Display glasses ([JUN-53](https://linear.app/junction-2026-bossit/issue/JUN-53)).
 
 - Spec: [specs/onboarding-owl.md](../specs/onboarding-owl.md). API shapes: [specs/owl-contract.md](../specs/owl-contract.md).
 - App details: [`apps/owl-api/CLAUDE.md`](../../apps/owl-api/CLAUDE.md), [`apps/owl-glasses/CLAUDE.md`](../../apps/owl-glasses/CLAUDE.md).

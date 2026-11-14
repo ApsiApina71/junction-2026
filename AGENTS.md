@@ -59,9 +59,9 @@ Team key `JUN`. States: **Backlog → Todo → In Progress → In Review → Don
 | Linear project | App | Path |
 |---|---|---|
 | [Research](https://linear.app/junction-2026-bossit/project/research-02b541f065e9) | none (docs only) | `docs/context/`, `docs/specs/` |
-| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | owl-glasses and owl-api (Onboarding Owl) | `apps/owl-glasses/`, `apps/owl-api/` |
+| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | owl-glasses and owl-api (Owl Boarding) | `apps/owl-glasses/`, `apps/owl-api/` |
 | [Launch Page](https://linear.app/junction-2026-bossit/project/launch-page-5e64dd64e4ff) | owl-site | `apps/owl-site/` |
-| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | owl-studio (Onboarding Owl, the company's web app) | `apps/owl-studio/` |
+| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | owl-studio (Owl Boarding, the company's web app) | `apps/owl-studio/` |
 | [Prototyping](https://linear.app/junction-2026-bossit/project/prototyping-8076b0344cc5) | none (Claude Design) | `design/` |
 | [Pitch Deck](https://linear.app/junction-2026-bossit/project/pitch-deck-a6caa29caa5c) | none | |
 | [Demo Video](https://linear.app/junction-2026-bossit/project/demo-video-32ee7efc2fe7) | none | |
