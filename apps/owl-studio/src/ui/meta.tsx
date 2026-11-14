@@ -124,7 +124,7 @@ export function Dialog({ title, onClose, children, actions }: { title: string; o
       <div className="dialog-frame" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={frame} onKeyDown={onKeyDown}>
         <Panel width="100%">
           <div className="dialog-content">
-            <TextView as="h2" id={titleId} textStyle={TextStyle.BODY1_EMPHASIZED}>
+            <TextView as="h2" id={titleId} textStyle={TextStyle.BODY2_EMPHASIZED}>
               {title}
             </TextView>
             {children}
@@ -316,7 +316,7 @@ export function ChoiceDialog<T extends string>({ title, choices, value, onChoose
       <div className="dialog-frame choice-frame" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={frame} onKeyDown={onKeyDown}>
         <Panel width="100%">
           <div className="dialog-content">
-            <TextView as="h2" id={titleId} textStyle={TextStyle.BODY1_EMPHASIZED}>
+            <TextView as="h2" id={titleId} textStyle={TextStyle.BODY2_EMPHASIZED}>
               {title}
             </TextView>
             <div role="radiogroup" aria-labelledby={titleId} className="choice-list">

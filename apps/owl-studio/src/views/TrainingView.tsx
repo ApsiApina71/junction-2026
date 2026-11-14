@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { useStudio } from '../lib/studio.ts'
 import { newId, resultText, todayIso } from '../lib/training.ts'
+import { count } from '../lib/words.ts'
 import type { Employee, Process, Trainee, TrainingPlan, TrainingResult } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
 import { ChoiceRow, FieldLabel, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
@@ -177,7 +178,7 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
     : trainee.suggestion
       ? { tone: 'warning', text: 'Needs your decision' }
       : { tone: 'quiet', text: 'In training' }
-  const extendChoices = [1, 2, 3, 5, 10].map((days) => ({ value: String(days), label: days === 1 ? '1 day' : `${days} days` }))
+  const extendChoices = [1, 2, 3, 5, 10].map((days) => ({ value: String(days), label: count(days, 'day', 'days') }))
   return (
     <article className="trainee" aria-label={heading}>
       <Panel width="100%">
@@ -220,7 +221,7 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
                 </tbody>
               </table>
               <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                {`${trainee.name} saw this on the glasses. Owl gives the evidence; you decide.`}
+                They saw this on the glasses first. Owl gives the evidence; you decide.
               </TextView>
               <TextField id={`by-${trainee.employee_id}`} label="Your name" value={by} maxLength={60} onChange={setBy} error={error || null} />
               <VerticalList ariaLabel="More practice" className="inline-list">
@@ -238,8 +239,8 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
                 : trainee.confirmed
                   ? trainee.confirmed.result === 'ready'
                     ? `${trainee.name} works on their own now.`
-                    : `${trainee.name} practises with the glasses. Owl suggests again at the end, and ${trainee.name} sees it first.`
-                  : `${trainee.days_left === 1 ? '1 day left.' : `${trainee.days_left} days left.`} How it goes is between ${trainee.name} and Owl until the end.`}
+                    : `${trainee.name} practises with the glasses. Owl suggests again at the end, and they see it first.`
+                  : `${count(trainee.days_left, 'day', 'days')} left. How it goes is between them and Owl until the end.`}
             </TextView>
           )}
           {error && !(trainee.suggestion && !trainee.confirmed) && <StatusText tone="negative">{error}</StatusText>}
@@ -287,7 +288,7 @@ function StartTraining({ employees, trainees, plans, onStarted }: { employees: E
   }
 
   const whoChoices = [{ value: '', label: 'Choose a person' }, ...free.map((employee) => ({ value: employee.id, label: employee.name, detail: employee.role || undefined }))]
-  const levelChoices = [{ value: '', label: byRole ? `The level for ${byRole.role} (${byRole.days} days)` : 'The level for their role' }, ...plans.map((plan) => ({ value: plan.id, label: `${plan.role} (${plan.days} days)` }))]
+  const levelChoices = [{ value: '', label: byRole ? `The level for ${byRole.role} (${count(byRole.days, 'day', 'days')})` : 'The level for their role' }, ...plans.map((plan) => ({ value: plan.id, label: `${plan.role} (${count(plan.days, 'day', 'days')})` }))]
 
   return (
     <section aria-labelledby="start-heading">
@@ -358,14 +359,14 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
       <VerticalList ariaLabel={`The level for ${plan.role}`} className="inline-list">
         <ListItem
           title={plan.role}
-          subtitle={`${plan.days} days · ${plan.target.length === 1 ? '1 step' : `${plan.target.length} steps`}${plan.customer_service ? ' · customer service' : ''}`}
+          subtitle={`${count(plan.days, 'day', 'days')} · ${count(plan.target.length, 'step', 'steps')}${plan.customer_service ? ' · customer service' : ''}`}
           icon={ICONS.training}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         />
         {open && (
           <>
-            <ListItem title="Training lasts" subtitle={days === 1 ? '1 day' : `${days} days`} showSlider sliderMinimumValue={1} sliderMaximumValue={30} sliderValue={days} sliderIncrementPercentage={1 / 29} onSliderValueChange={(value) => setDays(Math.max(1, Math.min(30, Math.round(value))))} />
+            <ListItem title="Training lasts" subtitle={count(days, 'day', 'days')} showSlider sliderMinimumValue={1} sliderMaximumValue={30} sliderValue={days} sliderIncrementPercentage={1 / 29} onSliderValueChange={(value) => setDays(Math.max(1, Math.min(30, Math.round(value))))} />
             <ListItem
               title="Customer service mode"
               subtitle="The worker can turn it on at the counter during training. Owl listens and suggests answers from your documents. Nothing is recorded."

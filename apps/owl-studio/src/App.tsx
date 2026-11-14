@@ -121,7 +121,7 @@ function Shell() {
           <div className="sidebar-head">
             <Avatar src={`/owl/states/${now.owl}.png`} alt="" size={AvatarSize.LARGE} />
             <div className="sidebar-head-text">
-              <TextView as="span" textStyle={TextStyle.BODY1_EMPHASIZED}>
+              <TextView as="span" textStyle={TextStyle.BODY2_EMPHASIZED}>
                 Owl Studio
               </TextView>
               {company && (

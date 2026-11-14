@@ -46,7 +46,7 @@ function HelpList() {
               <div className="panel-body panel-owl">
                 <img className="owl-figure" src="/owl/full/done.png" alt="" height={220} />
                 <div className="panel-body-text">
-                  <TextView as="h2" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                  <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
                     No one is waiting
                   </TextView>
                   <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
@@ -426,7 +426,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
                     {`STEP ${step.index} OF ${task?.steps.length ?? step.index}`}
                   </TextView>
                 )}
-                <TextView as="h2" id="context-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                <TextView as="h2" id="context-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
                   {step ? step.title : (task?.title ?? 'Not in a task')}
                 </TextView>
                 {step ? (

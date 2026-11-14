@@ -197,7 +197,7 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
     <ScrollView ariaLabel="Try a question" className="detail-scroll" tabIndex={answer ? 0 : undefined}>
       <Panel width="100%">
         <div className="panel-body ask-body">
-          <TextView as="h2" id="ask-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+          <TextView as="h2" id="ask-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
             Try a question
           </TextView>
           <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>

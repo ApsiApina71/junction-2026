@@ -456,7 +456,7 @@ function StepForm({ step, total, process, onChange }: { step: Step; total: numbe
         <Panel width="100%">
           <div className="panel-body step-form-body">
             <div className="step-form-head">
-              <TextView as="h2" id="step-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+              <TextView as="h2" id="step-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
                 {`Step ${step.index} of ${total}`}
               </TextView>
               {recorded && reviewed && (

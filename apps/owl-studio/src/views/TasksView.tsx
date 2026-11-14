@@ -44,7 +44,7 @@ export function TasksView() {
               <div className="panel-body panel-owl">
                 <img className="owl-figure" src="/owl/full/welcome.png" alt="" height={220} />
                 <div className="panel-body-text">
-                  <TextView as="h2" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                  <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
                     No tasks yet
                   </TextView>
                   <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
@@ -92,7 +92,7 @@ function TaskCard({ process, learners, showCompany }: { process: Process; learne
       {image ? <img className="card-photo" src={image} alt="" loading="lazy" /> : <img className="card-photo is-owl" src="/owl/full/resting.png" alt="" />}
       <CardAboveScrim className="card-label">
         <StatusText tone={tone}>{status}</StatusText>
-        <TextView as="h2" textStyle={TextStyle.BODY1_EMPHASIZED}>
+        <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
           {title}
         </TextView>
         <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>

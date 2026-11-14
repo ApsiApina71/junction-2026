@@ -281,7 +281,7 @@ function ZoneForm({ zone, onSave, onRemove, onClose }: { zone: Zone; onSave: (zo
     <section aria-labelledby="zone-heading">
       <Panel width="100%">
         <div className="panel-body zone-body">
-          <TextView as="h2" id="zone-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+          <TextView as="h2" id="zone-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
             {zone.name}
           </TextView>
           <TextField id="zone-name" label="Name" value={name} maxLength={60} onChange={setName} />

@@ -49,7 +49,7 @@ export function DataView() {
         <section className="split-list" aria-label="Where your data goes">
           <ScrollView insetForHeader ariaLabel="Where your data goes" className="detail-scroll" tabIndex={0}>
             <div className="column-content data-list">
-              <TextView as="h1" textStyle={TextStyle.BODY1_EMPHASIZED}>
+              <TextView as="h1" textStyle={TextStyle.BODY2_EMPHASIZED}>
                 Where your data goes
               </TextView>
               <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
@@ -59,7 +59,7 @@ export function DataView() {
                 <Panel width="100%">
                   <div className="panel-body data-body">
                     <div className="data-head">
-                      <TextView as="h2" id="data-server" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                      <TextView as="h2" id="data-server" textStyle={TextStyle.BODY2_EMPHASIZED}>
                         On your Owl server
                       </TextView>
                       <Chip text="Owl controls this" icon={shieldCheck} chipStyle={ChipStyle.EMPHASIZED} />
@@ -133,7 +133,7 @@ export function DataView() {
                 <Panel width="100%">
                   <div className="panel-body data-body">
                     <div className="data-head">
-                      <TextView as="h2" id="data-model" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                      <TextView as="h2" id="data-model" textStyle={TextStyle.BODY2_EMPHASIZED}>
                         Sent to the AI model
                       </TextView>
                       <Chip text="The model provider's terms apply" icon={ICONS.info} chipStyle={ChipStyle.DEEMPHASIZED} />
@@ -181,7 +181,7 @@ export function DataView() {
                 <Panel width="100%">
                   <div className="panel-body data-body">
                     <div className="data-head">
-                      <TextView as="h2" id="data-meta" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                      <TextView as="h2" id="data-meta" textStyle={TextStyle.BODY2_EMPHASIZED}>
                         Meta and the glasses
                       </TextView>
                       <Chip text="Meta's terms apply" icon={ICONS.info} chipStyle={ChipStyle.DEEMPHASIZED} />
@@ -207,7 +207,7 @@ export function DataView() {
                 <Panel width="100%">
                   <div className="panel-body data-body">
                     <div className="data-head">
-                      <TextView as="h2" id="data-phone" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                      <TextView as="h2" id="data-phone" textStyle={TextStyle.BODY2_EMPHASIZED}>
                         On the worker's phone
                       </TextView>
                       <Chip text="Owl controls this" icon={shieldCheck} chipStyle={ChipStyle.EMPHASIZED} />
@@ -228,7 +228,7 @@ export function DataView() {
               <section aria-labelledby="data-limits" className="data-section">
                 <Panel width="100%">
                   <div className="panel-body data-body">
-                    <TextView as="h2" id="data-limits" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                    <TextView as="h2" id="data-limits" textStyle={TextStyle.BODY2_EMPHASIZED}>
                       Limits you should know
                     </TextView>
                     <dl>

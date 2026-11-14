@@ -25,7 +25,8 @@
 }
 
 html,
-body {
+body,
+#root {
   inline-size: 100%;
   block-size: 100%;
   margin: 0;
@@ -34,10 +35,7 @@ body {
 
 /* Percent sizes are not scaled by zoom, so the root stays exactly the window's size. */
 #root {
-  inline-size: 100%;
-  block-size: 100%;
   zoom: var(--studio-zoom);
-  background: var(--uit-color-background-window);
 }
 
 /* The toolkit parks focus on its content root when a page has nothing to focus first; that root is not a control. */
@@ -156,7 +154,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--uit-spacing-xlarge);
-  padding: 0 var(--uit-spacing-xlarge) var(--uit-spacing-5xl);
+  padding-block: 0 var(--uit-spacing-5xl);
+  padding-inline: var(--uit-spacing-large);
 }
 
 .lede {
@@ -347,6 +346,7 @@ body {
 }
 
 .action-dock {
+  min-inline-size: 0;
   margin-block-start: auto;
   padding-block: var(--uit-spacing-medium) var(--uit-spacing-xsmall);
 }
@@ -386,7 +386,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--uit-spacing-xsmall);
-  padding: var(--uit-spacing-medium) var(--uit-spacing-large);
+  padding: var(--uit-spacing-large);
 }
 
 .bubble-image {
@@ -557,11 +557,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--uit-spacing-xlarge);
-  padding: 0 var(--uit-spacing-large) var(--uit-spacing-2xl);
-}
-
-.column-stack {
-  padding-inline: 0;
+  padding-block: 0 var(--uit-spacing-2xl);
+  padding-inline: var(--uit-spacing-large);
 }
 
 .dot-list {
@@ -958,6 +955,7 @@ body {
 /* The task editor: the task's state and details, then the steps, the open step and what the worker sees. */
 
 .editor-shell {
+  min-inline-size: 0;
   block-size: 100%;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -971,7 +969,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--uit-spacing-xlarge);
-  padding: 0 var(--uit-spacing-xlarge) var(--uit-spacing-2xl);
+  padding-block: 0 var(--uit-spacing-2xl);
+  padding-inline: var(--uit-spacing-large);
 }
 
 .editor-head,
@@ -1154,7 +1153,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--uit-spacing-small);
-  padding: var(--uit-spacing-medium) var(--uit-spacing-large) var(--uit-spacing-large);
+  padding: var(--uit-spacing-large);
 }
 
 .glasses-photo {
@@ -1166,6 +1165,7 @@ body {
 }
 
 .editor-bar {
+  min-inline-size: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

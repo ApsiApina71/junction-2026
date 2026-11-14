@@ -5,6 +5,7 @@ import { glassesName } from '../lib/docs.ts'
 import { LANGUAGES, languageName, speechLocale, writesWelcome } from '../lib/languages.ts'
 import { href } from '../lib/route.ts'
 import { useStudio } from '../lib/studio.ts'
+import { count } from '../lib/words.ts'
 import type { Employee, EmployeeInput, Process } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
 import { CharacterCount, ChoiceRow, PrimaryButton, Problem, TextField, Waiting } from '../ui/meta.tsx'
@@ -91,7 +92,7 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
                 <div className="panel-body panel-owl">
                   <img className="owl-figure" src="/owl/full/welcome.png" alt="" height={240} />
                   <div className="panel-body-text">
-                    <TextView as="h2" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                    <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
                       A welcome in their own language
                     </TextView>
                     <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
@@ -111,7 +112,7 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
 function tasksText(employee: Employee, processes: Process[] | null): string {
   const titles = employee.process_ids.map((id) => processes?.find((process) => process.id === id)?.title).filter(Boolean)
   if (!titles.length) return 'No tasks yet'
-  return titles.length === 1 ? (titles[0] as string) : `${titles.length} tasks`
+  return titles.length === 1 ? (titles[0] as string) : count(titles.length, 'task', 'tasks')
 }
 
 function PersonForm({ employee }: { employee: Employee | null }) {
@@ -200,7 +201,7 @@ function PersonForm({ employee }: { employee: Employee | null }) {
     <div className="detail-shell">
       <VerticalList ariaLabel={employee ? `${employee.name}, details` : 'New person'} className="detail-list">
         <div className="form-block">
-          <TextView as="h2" textStyle={TextStyle.BODY1_EMPHASIZED}>
+          <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
             {employee ? employee.name : 'New person'}
           </TextView>
           <TextField id="person-name" label="Name" value={name} maxLength={60} onChange={setName} error={nameMissing && !name.trim() ? 'Write the name Owl should greet them by.' : null} />
