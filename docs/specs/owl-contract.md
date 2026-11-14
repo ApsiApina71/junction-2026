@@ -26,6 +26,7 @@ The shared JSON shapes and endpoints of `apps/owl-api`. The glasses app (`apps/o
 | 404 | Unknown process, step, help or record id | Reload the process list |
 | 422 | Missing or invalid field | Bug; log it |
 | 429 | Model rate limited | Retry after 2 s |
+| 503 "The model is not set up on this server yet." | No API key on the server yet (JUN-68) | Same as below |
 | 500, 502, 503, no answer | Server bug, model or network error | "Owl can't see right now" and keep going without the check. A step finished this way is **not checked**: never show it as verified (JUN-57) |
 
 - **Languages** are BCP 47 tags (`en`, `fi`, `uk`, `ar`). `say` and `text` fields come in the employee's language. See [Languages](#languages).
@@ -229,6 +230,7 @@ Answer to one camera frame during a step.
 | `GET /glasses/{glasses_id}/employee` | none | `Employee`, or `404` when the pair is not assigned | glasses |
 | `GET /processes` | none; optional `?language=fi` | `{"processes": [Process]}` (published and drafts, steps included) | glasses, Studio |
 | `GET /processes/{id}` | none; optional `?language=fi` | `Process` | glasses, Studio |
+| `POST /processes/{id}/translate` | JSON `{"language"}` | `Process` in that language, stored as its translation | Studio (when a worker with a new language is added) |
 | `POST /processes/from-docs` | JSON `{"doc_id", "title"?}` | `Process` (a new **draft**, `source: "docs"`) | Studio |
 | `PUT /processes/{id}` | `Process` | `Process` (edit, reorder, publish or translate; below) | Studio |
 | `POST /check` | multipart (below) | `CheckResult` | glasses |
@@ -304,6 +306,10 @@ Send one frame at a time and wait for the answer, about one frame every 1–2 s 
 Only `question` is required. The question is the final transcription from the glasses' Speech capability.
 
 When all documents together are larger than `ASK_MAX_CHARS`, only the best sections for the question go to the model, picked by a local BM25 index on this server (JUN-71). Source quotes are still checked against the whole documents.
+
+### `POST /processes/{id}/translate`
+
+"Hire anyone" (JUN-72): Owl writes the process in the worker's language and stores it, so `GET /processes?language=<lang>` returns it from then on. Everything but the words is kept: step ids and order, media, check kinds, SKUs and quantities. Order line names stay as printed on the order and the shelf labels. The same language as the process returns the process. It needs the model: in demo or mock mode it answers `503` "Translation needs the model", and a translation that does not keep the steps answers `502`.
 
 ### `POST /processes/from-docs`
 

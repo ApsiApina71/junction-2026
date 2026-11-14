@@ -192,6 +192,10 @@ class Recording(BaseModel):
     process_id: str | None = None
 
 
+class TranslateRequest(BaseModel):
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$")
+
+
 class FromDocs(BaseModel):
     doc_id: str
     title: str | None = Field(default=None, max_length=80)

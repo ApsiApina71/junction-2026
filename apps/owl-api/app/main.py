@@ -26,6 +26,7 @@ from . import media as media_engine
 from . import people, verifier, vision
 from . import progress as progress_engine
 from . import record as record_engine
+from . import translate as translate_engine
 from .models import (
     Answer,
     AskRequest,
@@ -42,6 +43,7 @@ from .models import (
     RecordStart,
     SayRequest,
     Step,
+    TranslateRequest,
 )
 from .store import Store, lang_key, load_fixture, now_iso
 
@@ -237,6 +239,22 @@ def update_process(process_id: str, body: Process, request: Request, language: L
     return out(request, updated)
 
 
+@app.post("/processes/{process_id}/translate", response_model=Process, dependencies=[Auth])
+async def translate_process(process_id: str, body: TranslateRequest, request: Request):
+    """Owl writes and stores the process in the worker's language (JUN-72). Needs the model."""
+    original = get_process(process_id)
+    if lang_key(body.language) == lang_key(original.language):
+        return out(request, original)
+    if DEMO or MOCK_RECORD:
+        raise HTTPException(status_code=503, detail="Translation needs the model.")
+    try:
+        translated = await call_model(lambda: translate_engine.translate(original, body.language))
+    except translate_engine.TranslationError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    store.translations[(process_id, lang_key(body.language))] = translated
+    return out(request, store.translated(original, body.language))
+
+
 # Owl Check
 
 
@@ -269,6 +287,11 @@ async def call_model[T](fn: Callable[[], T]) -> T:
         raise HTTPException(status_code=502, detail=f"Model error {e.status_code}.") from e
     except anthropic.APIConnectionError as e:
         raise HTTPException(status_code=503, detail="Cannot reach the model.") from e
+    except TypeError as e:
+        # The SDK raises a plain TypeError when no API key or credentials are set (JUN-68 turns the models on).
+        if "authentication" not in str(e):
+            raise
+        raise HTTPException(status_code=503, detail="The model is not set up on this server yet.") from e
 
 
 @app.post("/check", response_model=CheckResult, dependencies=[Auth])
