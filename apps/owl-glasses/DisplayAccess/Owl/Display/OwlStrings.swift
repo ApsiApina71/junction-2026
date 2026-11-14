@@ -284,7 +284,9 @@ enum OwlStrings {
   /// "Training day 4 of 5 · 1 day left". `left`: days after today. `active`: today is inside
   /// the period. `day`/`days` may be unknown.
   static func trainingDays(day: Int?, of days: Int?, left: Int, active: Bool) -> String {
-    if !active { return t("Your training period has ended.", "Koulutusjaksosi on päättynyt.") }
+    if !active { return t(
+      "Your training period has ended.", "Koulutusjaksosi on päättynyt.",
+      easy: "Your training is over.", "Koulutuksesi on loppunut.") }
     if left < 1 { return t("Last day of training.", "Koulutuksen viimeinen päivä.") }
     let rest = left == 1 ? t("1 day left", "1 päivä jäljellä") : t("\(left) days left", "\(left) päivää jäljellä")
     guard let day, let days else { return t("Training: ", "Koulutus: ") + rest }
@@ -329,8 +331,10 @@ enum OwlStrings {
   }
   static func trainingConfirmed(by name: String) -> String {
     name.isEmpty
-      ? t("Your trainer confirmed this.", "Kouluttajasi vahvisti tämän.")
-      : t("\(name) confirmed this.", "\(name) vahvisti tämän.")
+      ? t("Your trainer confirmed this.", "Kouluttajasi vahvisti tämän.",
+          easy: "Your trainer agrees.", "Kouluttajasi on samaa mieltä.")
+      : t("\(name) confirmed this.", "\(name) vahvisti tämän.",
+          easy: "\(name) agrees.", "\(name) on samaa mieltä.")
   }
   static func trainingResultLine(_ ready: Bool) -> String {
     ready ? t("Result: Ready.", "Tulos: Valmis työhön.") : t("Result: More practice.", "Tulos: Lisää harjoitusta.")
@@ -358,7 +362,8 @@ enum OwlStrings {
   static var assistSuggestion: String { t("Suggestion", "Ehdotus") }
   static var assistOffered: String { t("Owl offers a hint", "Owl tarjoaa vihjeen") }
   static var assistCouldNot: String {
-    t("Owl couldn't find a hint now. Ask a colleague.", "Owl ei löytänyt vihjettä nyt. Kysy työkaverilta.")
+    t("Owl couldn't find a hint now. Ask a colleague.", "Owl ei löytänyt vihjettä nyt. Kysy työkaverilta.",
+      easy: "Owl has no hint now. Ask a co-worker.", "Owlilla ei ole nyt vihjettä. Kysy työkaverilta.")
   }
   static var sayAssistOn: String {
     t("Customer service on. Owl is listening.", "Asiakaspalvelu päällä. Owl kuuntelee.")
@@ -367,7 +372,8 @@ enum OwlStrings {
     t("Owl stopped listening. Nothing was saved.", "Owl lopetti kuuntelun. Mitään ei tallennettu.")
   }
   static var assistOnlyInTraining: String {
-    t("Customer service mode is only for your training period.", "Asiakaspalvelutila on vain koulutusjaksoa varten.")
+    t("Customer service mode is only for your training period.", "Asiakaspalvelutila on vain koulutusjaksoa varten.",
+      easy: "Customer service help is only for your training.", "Asiakaspalvelun apu on vain koulutusta varten.")
   }
 
   // Location during training (JUN-97). Shown whenever tracking is on.
@@ -492,17 +498,22 @@ enum OwlStrings {
     t("Calling \(name), shift manager…", "Soitan: \(name), vuoropäällikkö…")
   }
   static func managerWillSee(_ name: String) -> String {
-    t("\(name) sees your view when they answer.", "\(name) näkee näkymäsi, kun hän vastaa.")
+    t("\(name) sees your view when they answer.", "\(name) näkee näkymäsi, kun hän vastaa.",
+      easy: "When \(name) answers, they see what you see.", "Kun \(name) vastaa, hän näkee saman kuin sinä.")
   }
   /// Shown the whole call (the rule of JUN-100: the worker always sees who is watching).
-  static func isWatching(_ name: String) -> String { t("\(name) is watching your view", "\(name) näkee näkymäsi") }
+  static func isWatching(_ name: String) -> String { t(
+    "\(name) is watching your view", "\(name) näkee näkymäsi",
+    easy: "\(name) sees what you see", "\(name) näkee saman kuin sinä") }
   static func noAnswer(_ name: String) -> String {
     t("\(name) didn't answer. An expert in Owl Studio will help.", "\(name) ei vastannut. Asiantuntija Owl Studiossa auttaa.",
       easy: "\(name) did not answer. Owl asks an expert.", "\(name) ei vastannut. Owl kysyy asiantuntijalta.")
   }
   static var noManagerOnShift: String {
     t("No shift manager is on shift now. An expert in Owl Studio will help.",
-      "Vuoropäällikkö ei ole nyt vuorossa. Asiantuntija Owl Studiossa auttaa.")
+      "Vuoropäällikkö ei ole nyt vuorossa. Asiantuntija Owl Studiossa auttaa.",
+      easy: "No shift manager is here now. Owl asks an expert.",
+      "Vuoropäällikkö ei ole nyt töissä. Owl kysyy asiantuntijalta.")
   }
   static var answer: String { t("Answer", "Vastaa") }
   static var talk: String { t("Talk", "Puhu") }
@@ -537,7 +548,9 @@ enum OwlStrings {
   }
   static var recordHintDoing: String { t("Do the step and say what you do.", "Tee vaihe ja kerro, mitä teet.") }
   static var recordHintNext: String { t("Pinch Record step for the next one.", "Nipistä Tallenna vaihe seuraavaa varten.") }
-  static var recordHintFirst: String { t("Pinch Record step, then do the step and say what you do.", "Nipistä Tallenna vaihe, tee vaihe ja kerro, mitä teet.") }
+  static var recordHintFirst: String { t(
+    "Pinch Record step, then do the step and say what you do.", "Nipistä Tallenna vaihe, tee vaihe ja kerro, mitä teet.",
+    easy: "Pinch Record step. Do the step. Say what you do.", "Nipistä Tallenna vaihe. Tee vaihe. Kerro, mitä teet.") }
   static var savingStep: String { t("Saving the step", "Tallennan vaihetta") }
   static var uploadingClip: String { t("Sending the clip.", "Lähetän videon.") }
   static var writingSteps: String { t("Owl is writing the steps", "Owl kirjoittaa vaiheita") }
@@ -546,7 +559,9 @@ enum OwlStrings {
   static var openingClip: String { t("Opening the clip", "Avaan videota") }
   static var stepNotSaved: String { t("Step not saved. Record it again.", "Vaihetta ei tallennettu. Tallenna se uudelleen.") }
   static func reviewInStudio(_ title: String) -> String {
-    t("A person reviews \(title) in Owl Studio before anyone learns from it.", "Tehtävä \(title) tarkistetaan Owl Studiossa ennen kuin kukaan oppii siitä.")
+    t("A person reviews \(title) in Owl Studio before anyone learns from it.", "Tehtävä \(title) tarkistetaan Owl Studiossa ennen kuin kukaan oppii siitä.",
+      easy: "A person checks \(title) first. Then others can learn it.",
+      "Ihminen tarkistaa ensin tehtävän \(title). Sitten muut voivat oppia sen.")
   }
 
   // When something is in the way (JUN-42)
@@ -555,7 +570,7 @@ enum OwlStrings {
     case .cameraNeeded: t(
       "Owl can't use the camera", "Owl ei saa käyttää kameraa",
       easy: "Owl may not use the camera", "Owl ei saa käyttää kameraa")
-    case .microphoneNeeded: t("Owl can't hear you", "Owl ei kuule sinua")
+    case .microphoneNeeded: t("Owl can't hear you", "Owl ei kuule sinua", easy: "Owl cannot hear you", "Owl ei kuule sinua")
     case .offline: t("No connection", "Ei yhteyttä")
     case .server: t(
       "Owl can't help right now", "Owl ei voi auttaa juuri nyt",
