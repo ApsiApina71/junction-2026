@@ -53,6 +53,9 @@ final class OwlViewModel {
   @ObservationIgnored private var onStepCard = false
   /// Display-first: the last spoken line, shown on the step card under the status.
   @ObservationIgnored private var lastCaption: String?
+  /// What the display shows now, for the stage page (JUN-79).
+  @ObservationIgnored private var stageScreen = OwlStageScreen(kind: "start", title: "Owl", text: nil)
+  @ObservationIgnored private var stageFrameTask: Task<Void, Never>?
   @ObservationIgnored private var images: [String: UIImage] = [:]
   @ObservationIgnored private var welcomed = false
   @ObservationIgnored private var deviceStateToken: AnyListenerToken?
@@ -94,7 +97,11 @@ final class OwlViewModel {
     // The glasses recognise speech in their own language setting (DAT Speech `locale`); the
     // app cannot choose it. The voice follows the worker's language instead.
     listener.onLocale = { locale in NSLog("[Owl] glasses speech locale: \(locale)") }
-    speaker.onSpoken = { [weak self] text in self?.caption(text) }
+    speaker.onSpoken = { [weak self] text in
+      self?.caption(text)
+      self?.postStage(said: text)
+    }
+    startStageFrames()
     displayViewModel.onSessionStateChange = { [weak self] state in
       self?.sessionStateChanged(state)
     }
@@ -108,6 +115,16 @@ final class OwlViewModel {
   }
 
   /// Optional override for testing: a fixed employee instead of the glasses' assignment.
+  /// "Stage mirroring" (JUN-79): the glasses screen, spoken lines and one camera frame a second
+  /// go to owl-api's stage page for the audience. Off by default; OWL_STAGE=1 turns it on.
+  static var stageMirroring: Bool {
+    get {
+      ProcessInfo.processInfo.environment["OWL_STAGE"] == "1"
+        || UserDefaults.standard.bool(forKey: "owl.stageMirroring")
+    }
+    set { UserDefaults.standard.set(newValue, forKey: "owl.stageMirroring") }
+  }
+
   static var employeeID: String {
     get { UserDefaults.standard.string(forKey: employeeIDKey) ?? "" }
     set { UserDefaults.standard.set(newValue, forKey: employeeIDKey) }
@@ -143,7 +160,7 @@ final class OwlViewModel {
     if !welcomed, let employee {
       welcomed = true
       if let welcome = employee.welcome { speaker.say(welcome) }
-      await showScreen {
+      await showScreen(stage: .init(kind: "welcome", title: "Hi, \(employee.name)!", text: employee.welcome)) {
         OwlBasicScreens.welcome(employee: employee, onStart: self.action { await $0.showTasks() })
       }
     } else {
@@ -170,7 +187,7 @@ final class OwlViewModel {
     let select: @Sendable (String) -> Void = { [weak self] id in
       Task { @MainActor in await self?.startProcess(id) }
     }
-    await showScreen {
+    await showScreen(stage: .init(kind: "tasks", title: "Your tasks", text: published.map(\.title).joined(separator: " · "))) {
       OwlBasicScreens.taskList(
         processes: published, onSelect: select,
         onRecord: self.action { await $0.startRecording() },
@@ -246,7 +263,10 @@ final class OwlViewModel {
   private func sendStep() async {
     guard let process, let step else { return }
     let image = await image(step.referenceImageUrl)
-    await showScreen {
+    let stage = OwlStageScreen(
+      kind: "step", title: "Step \(step.index)/\(process.steps.count) · \(step.title)",
+      text: [step.instruction, stepStatusWithCaption].compactMap { $0 }.joined(separator: " · "))
+    await showScreen(stage: stage) {
       OwlBasicScreens.step(
         process: process, step: step, image: image, status: self.stepStatusWithCaption,
         onDone: self.action { await $0.finishStep() },
@@ -362,7 +382,8 @@ final class OwlViewModel {
       let rows = lines.map { "\($0.name): \($0.seen) / \($0.expected)\($0.note.map { ", \($0)" } ?? "")." }
       speaker.say(rows.joined(separator: " "), interrupt: false)
     }
-    await showScreen {
+    let rows = (result.lines ?? []).map { "\($0.isOK ? "✓" : "✗") \($0.name) \($0.seen)/\($0.expected)" }
+    await showScreen(stage: .init(kind: "check", title: result.text ?? result.hint ?? "Check this", text: rows.isEmpty ? nil : rows.joined(separator: " · "))) {
       OwlBasicScreens.checkResult(
         step: step, result: result,
         onCheckAgain: self.action { await $0.checkAgain() },
@@ -470,7 +491,7 @@ final class OwlViewModel {
       // After a task "Well done!" is already playing; queue the progress after it.
       speaker.say(lines.joined(separator: " "), interrupt: !afterTask)
     }
-    await showScreen {
+    await showScreen(stage: .init(kind: "progress", title: title, text: lines.joined(separator: " "))) {
       OwlBasicScreens.progress(
         title: title, lines: lines, onHome: self.action { await $0.showTasks() },
         onForget: progress == nil ? nil : self.action { await $0.forgetMe() })
@@ -528,6 +549,38 @@ final class OwlViewModel {
     return [stepStatus, "“\(lastCaption)”"].compactMap { $0 }.joined(separator: " ")
   }
 
+  // MARK: - Stage view (JUN-79)
+
+  /// Sends the current screen (and the line just spoken) to the stage page. Fire and forget:
+  /// the stage never slows the worker down.
+  private func postStage(said: String?) {
+    guard Self.stageMirroring else { return }
+    let stepInfo: OwlStageUpdate.Step? =
+      if let process, let step, stageScreen.kind == "step" || stageScreen.kind == "check" {
+        .init(processId: process.id, stepId: step.id, index: step.index, total: process.steps.count)
+      } else { nil }
+    let update = OwlStageUpdate(
+      glassesId: Self.glassesID, employeeId: employee?.id, language: employee?.language,
+      screen: stageScreen, said: said, step: stepInfo)
+    let api = api
+    Task.detached { try? await api.postStage(update) }
+  }
+
+  /// At most one camera frame a second while the camera is on and mirroring is on.
+  private func startStageFrames() {
+    stageFrameTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        guard let self, Self.stageMirroring, self.glassesOn, let camera = self.camera,
+          let jpeg = camera.photoJPEG(maxSide: 640)
+        else { continue }
+        let api = self.api
+        let glassesID = Self.glassesID
+        try? await api.postStageFrame(jpeg, glassesID: glassesID)
+      }
+    }
+  }
+
   // MARK: - Consent (JUN-80)
 
   private static func consentKey(_ employeeID: String) -> String { "owl.consent.\(employeeID)" }
@@ -560,7 +613,7 @@ final class OwlViewModel {
     ].map { self.t($0) }
     statusText = "Asking for camera consent"
     speaker.say(lines.joined(separator: " "))
-    await showScreen {
+    await showScreen(stage: .init(kind: "consent", title: self.t("Owl's camera"), text: lines.joined(separator: " "))) {
       OwlBasicScreens.consent(
         title: self.t("Owl's camera"), lines: lines,
         allowLabel: self.t("Allow checks"),
@@ -676,7 +729,7 @@ final class OwlViewModel {
       if access.audioFirst, let source = answer.sources.first {
         speaker.say("\(t("Source:")) \(source.doc)\(source.section.map { ", \($0)" } ?? "").", interrupt: false)
       }
-      await showScreen {
+      await showScreen(stage: .init(kind: "answer", title: question, text: answer.text + (answer.sources.first.map { " — \($0.doc)" } ?? ""))) {
         OwlBasicScreens.answer(
           question: question, answer: answer,
           onAskAgain: self.action { await $0.ask() },
@@ -763,7 +816,7 @@ final class OwlViewModel {
         "Tell people nearby that you are filming.",
       ].map { self.t($0) }
       speaker.say(lines.joined(separator: " "))
-      await showScreen {
+      await showScreen(stage: .init(kind: "consent", title: self.t("Recording"), text: lines.joined(separator: " "))) {
         OwlBasicScreens.consent(
           title: self.t("Recording"), lines: lines,
           allowLabel: self.t("I agree"), declineLabel: self.t("Cancel"),
@@ -791,7 +844,7 @@ final class OwlViewModel {
     guard let recording else { return }
     let stepCount = recording.steps.count
     let isRecordingStep = isRecordingStep
-    await showScreen {
+    await showScreen(stage: .init(kind: "record", title: isRecordingStep ? "Recording step \(stepCount + 1)" : "Record: \(recording.title)", text: text)) {
       OwlBasicScreens.record(
         title: recording.title, stepCount: stepCount, isRecordingStep: isRecordingStep,
         narration: text,
@@ -988,8 +1041,10 @@ final class OwlViewModel {
   }
 
   /// Sends a screen and remembers it, so it can be sent again later.
-  private func showScreen(_ make: @escaping @MainActor () -> FlexBox) async {
+  private func showScreen(stage: OwlStageScreen? = nil, _ make: @escaping @MainActor () -> FlexBox) async {
     onStepCard = false
+    stageScreen = stage ?? OwlStageScreen(kind: "screen", title: statusText, text: nil)
+    postStage(said: nil)
     currentScreen = { [weak self] in await self?.show(make()) }
     await show(make())
   }

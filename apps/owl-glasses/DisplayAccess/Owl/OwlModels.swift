@@ -207,3 +207,26 @@ struct OwlConsent: Codable, Equatable, Sendable {
   let recording: Bool
   let at: String?
 }
+
+/// What the glasses show, for the stage page (`POST /stage`, JUN-79).
+struct OwlStageScreen: Encodable, Equatable, Sendable {
+  let kind: String
+  let title: String
+  let text: String?
+}
+
+struct OwlStageUpdate: Encodable, Sendable {
+  struct Step: Encodable, Sendable {
+    let processId: String
+    let stepId: String
+    let index: Int
+    let total: Int
+  }
+
+  let glassesId: String
+  let employeeId: String?
+  let language: String?
+  let screen: OwlStageScreen
+  let said: String?
+  let step: Step?
+}

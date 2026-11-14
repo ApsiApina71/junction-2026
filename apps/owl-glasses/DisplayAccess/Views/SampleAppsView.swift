@@ -66,6 +66,7 @@ struct SampleAppsView: View {
   @State private var tokenDraft = ""
   @State private var testQuestion = "What if an item is out of stock?"
   @State private var testNote: String?
+  @State private var stageMirroring = OwlViewModel.stageMirroring
 
   var body: some View {
     VStack(spacing: 16) {
@@ -573,6 +574,10 @@ struct SampleAppsView: View {
         }
       }
       .font(.subheadline)
+      // The audience sees the glasses on owl-api's /stage page (JUN-79). Off by default.
+      Toggle("Stage mirroring", isOn: $stageMirroring)
+        .font(.subheadline)
+        .onChange(of: stageMirroring) { _, on in OwlViewModel.stageMirroring = on }
       if let testNote {
         Text(testNote)
           .font(.caption)

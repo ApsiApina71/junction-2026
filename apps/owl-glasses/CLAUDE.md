@@ -28,6 +28,7 @@ SIMCTL_CHILD_OWL_AUTO_PREVIEW=inApp xcrun simctl launch "iPhone 17" fi.junction2
 | `OWL_AUTO_RECORD=1` | Records one narrated 4 s step and finishes the recording |
 | `OWL_MOCK_CHECK=ok\|warning\|unsure\|checking` | Sends `mock=` with every `/check` so the mock owl-api returns that answer |
 | `OWL_FORCE_CLIP=1` | Sends short HEVC clips (`clip`) instead of JPEGs (`image`), the fallback for when the phone cannot decode in the background |
+| `OWL_STAGE=1` | Turns on Stage mirroring (JUN-79) without the phone toggle; watch it at `<owl-api>/stage` |
 | `OWL_AUTO_SCRIPT=<steps>` | Debug builds: runs `;`-separated steps in order, e.g. `open;run;mock:warning;wait:4;mock:ok;again;done;ask;speak:Mitä jos tuote on loppu?;help;wait:10;endhelp;record;recordstep;wait:3;endstep;finish`. Steps: `open start run process:<id> done again back watch progress allow decline agreerecord camera forget resetconsent ask answer:<q> help endhelp record recordstep endstep finish mock:<answer> wait:<s> speak:<text> takeoff puton heymeta` |
 
 The glasses id is a setting: `xcrun simctl spawn "iPhone 17" defaults write fi.junction2026.bossit.owl owl.glassesID glasses-1`. With the preview on, the preview sheet also has buttons for "Hey Meta", taking the glasses off, a spoken question and the mock Check answer. Logs: `xcrun simctl spawn "iPhone 17" log stream --predicate 'eventMessage CONTAINS "[Owl]"'`. The mock camera streams `Assets.xcassets/owlDemoFeed` (falls back to `demoMeal`) as a generated HEVC clip, because MockDeviceKit streams video files only.

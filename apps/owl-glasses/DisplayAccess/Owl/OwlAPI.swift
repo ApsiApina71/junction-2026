@@ -121,6 +121,27 @@ struct OwlAPI: Sendable {
     }
   }
 
+  // Stage view (JUN-79): only while "Stage mirroring" is on.
+
+  func postStage(_ update: OwlStageUpdate) async throws {
+    try await sendNoContent(try request("stage", json: update))
+  }
+
+  func postStageFrame(_ jpeg: Data, glassesID: String) async throws {
+    var form = MultipartForm()
+    form.addFile("image", filename: "frame.jpg", contentType: "image/jpeg", data: jpeg)
+    form.addField("glasses_id", glassesID)
+    try await sendNoContent(try request("stage/frame", form: form, timeout: 10))
+  }
+
+  private func sendNoContent(_ request: URLRequest) async throws {
+    let (data, response) = try await load(request)
+    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    guard (200..<300).contains(status) else {
+      throw OwlError.server(status, (try? JSONDecoder().decode(ErrorDetail.self, from: data))?.detail ?? "")
+    }
+  }
+
   /// The worker's own progress, for the glasses only.
   func progress(employeeID: String) async throws -> OwlProgress {
     try await send(try request("employees/\(employeeID)/progress"))
