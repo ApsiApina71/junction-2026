@@ -42,6 +42,14 @@ OWL_DEMO=1 PUBLIC_BASE_URL=https://<name>.trycloudflare.com \
 uv run --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+**On real glasses** keep the demo story but let the camera count: Owl Check on Nemotron (Verda) and step recognition on V-JEPA 2. Check `curl localhost:8000/health` says `"vision_model": "nemotron-3.5-super-vl"` and `"step_recognition": "vjepa2 (...)"`, not `baseline`.
+
+```sh
+OWL_DEMO=1 OWL_DEMO_LIVE=check,recognize,place VISION_BACKEND=nemotron JEPA_BACKEND=vjepa2 \
+PUBLIC_BASE_URL=https://<name>.trycloudflare.com \
+uv run --extra jepa --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 With a key, leave out the `OWL_MOCK_*` and `OWL_DEMO` flags so Check, Ask and Record use the models. Set `API_TOKEN=<token>` when the tunnel is public, and give the same token to the glasses app (step 4).
 
 Run it without `--reload` during the demo. owl-api saves its state to `apps/owl-api/data/state.json` after every change, so a restart keeps workers, recordings and progress; help sessions are dropped on purpose. For a clean rehearsal, start once with `OWL_RESET=1` (or delete `data/state.json`).

@@ -56,6 +56,14 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 `app/translate.py` (JUN-72): `POST /processes/{id}/translate` has Claude write the process in the worker's language and stores it as the process's translation (the same store as `PUT /processes/{id}?language=`). Step ids, media, checks and order line names are kept; a translation that does not keep the steps is refused. Needs the model.
 
+## Owl Check on Nemotron (NVIDIA, Verda)
+
+`VISION_BACKEND=nemotron` sends check pictures to **NVIDIA Nemotron 3.5 Super VL** (open weights, 120B with 12B active, NVFP4), served by vLLM on a Verda B300 GPU, instead of Claude. Same prompt, same `Observation` schema (vLLM's structured output keeps the answer to it), thinking off. Measured on the sample pictures: 0.6-1.6 s per check, and a picture of the wrong step comes back `unclear` with a hint. When Nemotron fails and `ANTHROPIC_API_KEY` is set, Claude answers that check. `GET /health` says which model looks at checks (`vision_model`) and what step recognition runs on (`step_recognition`).
+
+```sh
+VISION_BACKEND=nemotron VERDA_INFERENCE_KEY=<key> uv run --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 ## Step recognition (V-JEPA 2)
 
 `app/jepa.py` (JUN-34): `POST /steps/recognize` tells which step the worker is doing by comparing a 2 s clip from the glasses with the expert's clip of each step. Embeddings come from Meta's **V-JEPA 2** when the optional extra is installed, using the attentive pooler of its Something-Something v2 checkpoint (`facebook/vjepa2-vitl-fpc16-256-ssv2`, trained on hand-object actions, MIT), and from a small appearance-and-motion baseline otherwise (tests, CI, and machines without the model).
@@ -63,10 +71,13 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 What makes it work, all measured on real video clips (see JUN-34): the SSv2 pooler instead of the plain encoder's mean; the expert's clip looked at in 2 s windows like the worker's; the last three looks of a run together; and **learning from confirmations** (`POST /steps/confirm`): every step the worker confirms adds an example, and more examples is what helps most. Prototypes and examples are embeddings only, cached in `data/jepa/`.
 
 ```sh
-uv sync --extra jepa                      # torch + transformers; the model downloads from Hugging Face on first use, no login
-JEPA_BACKEND=vjepa2 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+JEPA_BACKEND=vjepa2 uv run --extra jepa uvicorn app.main:app --host 0.0.0.0 --port 8000   # torch + transformers; the model downloads from Hugging Face on first use, no login
 uv run python scripts/jepa_eval.py --expert <dir> --trainee <dir> --backend vjepa2   # go/no-go on real clips
 ```
+
+Use `uv run --extra jepa` every time: a plain `uv sync` removes the extra, and step recognition then falls back to the baseline without failing (`/health` shows `step_recognition: baseline`). The model loads when the server starts.
+
+**V-JEPA 2.1 (March 2026) was tested and not adopted.** Meta's newer encoder (ViT-B and ViT-L at 384 px, loaded from Meta's checkpoints, Meta's eval preprocessing) was measured on the same Kinetics clips as above, as a mean embedding and with few-shot linear and attentive probes trained on the expert's windows (Meta's way of using a frozen encoder). None beat the SSv2 model (62 % one-shot, 70 % three-shot), and 2.1 has no published SSv2 head. Its strength is first-person hand-object video, so the comparison is repeated on our own pick-and-pack clips (JUN-66) before the decision is final.
 
 ## Stage view
 
@@ -89,7 +100,7 @@ uv run python scripts/jepa_eval.py --expert <dir> --trainee <dir> --backend vjep
 - State is seeded from `fixtures/` and saved to `data/state.json` after every change, so a restart keeps workers, processes, translations, recordings, consents and learning runs (JUN-78). `OWL_RESET=1` starts clean from the fixtures. Help sessions stay in memory on purpose: their frames are deleted when the session ends. Uploads (documents, recorded photos and clips) go to `data/` (gitignored).
 - The API key stays on the server. `API_TOKEN` keeps others on the venue Wi-Fi out.
 - Check frames are not stored. Help frames are deleted when the session ends, and leftovers when the server starts. Company documents stay on this server until someone deletes them.
-- What leaves this server (JUN-59): each check picture, the documents with a question, a recording's narration and blurred photos, a task's words for a translation and a document a task is written from go to the model (`MODEL_ID`, Anthropic's API), and with Jev on, a written description of the view goes to TypeSafe through OpenRouter. Step-recognition clips never leave it. The whole list, with the limits, is in the spec under [Where the data goes](../../docs/specs/onboarding-owl.md#where-the-data-goes), and Owl Studio shows it to the company. Change all three together.
+- What leaves this server (JUN-59): each check picture, the documents with a question, a recording's narration and blurred photos, a task's words for a translation and a document a task is written from go to the model (`MODEL_ID`, Anthropic's API; with `VISION_BACKEND=nemotron` the check pictures go to Nemotron 3.5 Super VL on Verda instead), and with Jev on, a written description of the view goes to TypeSafe through OpenRouter. Step-recognition clips never leave it. The whole list, with the limits, is in the spec under [Where the data goes](../../docs/specs/onboarding-owl.md#where-the-data-goes), and Owl Studio shows it to the company. Change all three together.
 - `/media/*` is served without a token, because the glasses' display loads pictures and clips by address. Recorded media (`rec-<n>-<random>/`) and Help frames (`help/help-<n>-<random>/`) sit in folders with random names. Recordings made before 14 Nov 10:00 keep their plain `rec-<n>/` folder.
 
 The step pictures in `fixtures/media/` are sample pictures for the two example tasks, made with an image model from the worker's point of view (JUN-35). They are not photos of a real workplace, and "Laura" and "Helena" are made-up experts. The step clips are still placeholders, drawn by `scripts/make_placeholder_media.py` until real ones are recorded with Owl Record (JUN-66); the script leaves existing pictures alone.

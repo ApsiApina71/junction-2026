@@ -228,7 +228,7 @@ Answer to one camera frame during a step.
 
 | Method and path | Body | Answer | Used by |
 |---|---|---|---|
-| `GET /health` | none | `{"status": "ok", "model_id": "..."}` | all |
+| `GET /health` | none | `{"status": "ok", "model_id": "...", "vision_model": "...", "step_recognition": "..."}`: `vision_model` looks at check pictures (`model_id`, or `nemotron-3.5-super-vl` with `VISION_BACKEND=nemotron`); `step_recognition` is `vjepa2 (<model>)` or `baseline` | all |
 | `GET /employees` | none | `{"employees": [Employee]}` | Studio |
 | `POST /employees` | JSON (below) | `Employee` | Studio |
 | `GET /employees/{id}` | none | `Employee` | glasses, Studio |
@@ -350,7 +350,7 @@ The third knowledge level: a written instruction becomes a guided process in one
 
 - `status: "unsure"` and `step_id: null` when the best step does not beat the second by `JEPA_MIN_MARGIN`, or when no step has an expert clip.
 - The glasses show "Looks like step N" and move on only after a confirming pinch, never by themselves. Steps without an expert clip are not candidates.
-- In demo mode (`OWL_DEMO=1`) the mock camera shows the same picture in every step, so the answer is scripted: the first step not yet done in the worker's current run, with `backend: "demo"`.
+- In demo mode (`OWL_DEMO=1`) the mock camera shows the same picture in every step, so the answer is scripted: the first step not yet done in the worker's current run, with `backend: "demo"`. With `OWL_DEMO_LIVE` listing `recognize` (real glasses), the model answers instead.
 - Same consent rule as `/check` (`403 consent_required`). The clip is not stored. It guides; it never scores how well someone worked.
 
 ### Stage view (JUN-79)
@@ -507,6 +507,8 @@ A new worker at a counter (a shop, a café, a reception). During training, and o
 Demo mode or `OWL_MOCK_ASSIST=1`: no model. The local BM25 search looks at the newest sentence first, then two and three sentences, then the last 12, 25 and 80 words, and shows the best sentences of the first section that shares at least two words with it, as they stand in the document. A newest sentence that is a question the documents do not answer gives `unsure`, so an older, answered question never comes back. The scene for the stage: [`docs/runbooks/owl-cafe-script.md`](../runbooks/owl-cafe-script.md). Demo worker: Noa (`emp-noa`, Café Kide, `glasses-6`), on day 2 of 5 of training, with `fixtures/docs/cafe-handbook.md` (opening hours, prices, returns, allergens, loyalty card, payment, Wi-Fi).
 
 ### Demo mode (`OWL_DEMO=1`)
+
+`OWL_DEMO_LIVE` lists the parts that still use the live models in demo mode, for the demo on real glasses: `check` (Owl Check: the vision model and the verifier, `decided_by` is `rules` or `jev`), `recognize` (step recognition) and `place` (place recognition). For example `OWL_DEMO_LIVE=check,recognize,place`. Everything else stays scripted.
 
 For the stage demo and the video without models (JUN-69). Only the camera's eyes are scripted: `fixtures/demo-script.json` says what the camera "sees" in each step, by seconds since the step's first frame in a run, and the real engine decides (rules, two frames in a row, the Done pinch, speech). In the pick-and-pack story, step 2 first sees a 0.5 l carton for 1 l (`checking`, then `warning`), then the right box after 12 s; every other step looks done. The story restarts for every `run_id`. Every check answers `decided_by: "demo"`.
 

@@ -38,6 +38,8 @@ export function DataView() {
   const recorded = processes?.filter((process) => process.source === 'record').length ?? null
   const said = (value: number | null | undefined) => (value === null || value === undefined ? 'Not known' : String(value))
   const model = health?.model_id ? health.model_id : 'the model your server is set to use'
+  const visionModel = health?.vision_model ?? health?.model_id
+  const nemotron = health?.vision_model?.startsWith('nemotron') ?? false
 
   return (
     <div className="view">
@@ -125,7 +127,15 @@ export function DataView() {
             </p>
             <dl>
               <dt>A check</dt>
-              <dd>One picture from the glasses camera, with the step and the expert's photo of it. The model describes what it sees, and your server decides.</dd>
+              <dd>
+                One picture from the glasses camera, with the step and the expert's photo of it. The model describes what it sees, and your server decides.
+                {nemotron && visionModel !== health?.model_id ? (
+                  <>
+                    {' '}
+                    Checks go to <strong>{visionModel}</strong>, NVIDIA's open-weight model on a Verda GPU server, not to {model}.
+                  </>
+                ) : null}
+              </dd>
               <dt>A customer service hint</dt>
               <dd>The last half minute of the counter conversation as text, and your documents for that worker's company. The model suggests up to three points; each must rest on words found in a document.</dd>
               <dt>A question</dt>
@@ -209,6 +219,12 @@ export function DataView() {
                 <dt>AI model</dt>
                 <dd>{health?.model_id ?? 'Not known'}</dd>
               </div>
+              {health?.vision_model && health.vision_model !== health.model_id ? (
+                <div>
+                  <dt>Checks seen by</dt>
+                  <dd>{health.vision_model}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Server</dt>
                 <dd>{api.config.baseUrl.replace(/^https?:\/\//, '')}</dd>

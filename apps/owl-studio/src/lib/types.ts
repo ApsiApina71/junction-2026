@@ -159,6 +159,9 @@ export interface Stats {
 export interface Health {
   status: string
   model_id: string
+  /** The model that looks at check pictures: model_id, or Nemotron on Verda. Older servers leave it out. */
+  vision_model?: string
+  step_recognition?: string
 }
 
 // Training period and target level (JUN-96)

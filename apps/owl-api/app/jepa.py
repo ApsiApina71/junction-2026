@@ -6,8 +6,8 @@ with the prototypes (cosine similarity): the closest step is what the worker is 
 
 Two embedders behind one interface:
 
-- vjepa2: Meta's V-JEPA 2 video encoder (facebook/vjepa2-vitl-fpc64-256, MIT licence, 0.3B parameters) through Hugging
-  Face transformers. It understands motion and hand-object actions from first-person video. Optional extra
+- vjepa2: Meta's V-JEPA 2 video model (facebook/vjepa2-vitl-fpc16-256-ssv2, MIT licence, 0.3B parameters) through
+  Hugging Face transformers. It understands motion and hand-object actions from first-person video. Optional extra
   (`uv sync --extra jepa`); no login, key or cost. Runs on CUDA (a Verda GPU), Apple MPS or CPU.
 - baseline: a tiny appearance-and-motion descriptor with no machine learning. The default, used in tests and CI, and
   the fallback when the model is not installed. It works on real video, but only for scenes that look alike.
@@ -16,6 +16,7 @@ Not monitoring: the similarity only says which step the worker is on. Owl never 
 """
 
 import hashlib
+import importlib.util
 import io
 import logging
 import os
@@ -172,6 +173,15 @@ def embedder() -> ClipEmbedder:
             if _embedder is None:
                 _embedder = BaselineEmbedder()
         return _embedder
+
+
+def backend_name() -> str:
+    """What step recognition runs on, for /health, without loading the model: a missing extra means the baseline."""
+    if _embedder is not None:
+        return f"vjepa2 ({JEPA_MODEL})" if _embedder.name == "vjepa2" else _embedder.name
+    if JEPA_BACKEND == "vjepa2" and importlib.util.find_spec("transformers") and importlib.util.find_spec("torch"):
+        return f"vjepa2 ({JEPA_MODEL}, loading)"
+    return "baseline"
 
 
 def centred_similarities(query: np.ndarray, protos: dict[str, np.ndarray]) -> dict[str, float]:

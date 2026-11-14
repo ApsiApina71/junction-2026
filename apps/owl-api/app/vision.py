@@ -1,20 +1,35 @@
 """Owl Check vision (JUN-30): what the glasses camera sees during a step, as structured data.
 
 The model only reports what it sees. Deciding whether the step is right is app/verifier.py.
+
+Two backends behind `observe`, chosen with VISION_BACKEND:
+
+- claude (default): Anthropic's API, MODEL_ID.
+- nemotron: NVIDIA Nemotron 3.5 Super VL, open weights, served by vLLM on a Verda GPU in Finland (OpenAI-compatible
+  API, VERDA_INFERENCE_KEY). The same prompt and the same Observation schema, enforced by vLLM's structured output, with
+  thinking off: a check takes about 0.6-1.6 s. When it fails and an Anthropic key is set, Claude answers instead.
 """
 
 import base64
+import logging
 import os
 from typing import Literal
 
 import anthropic
-from pydantic import BaseModel, Field
+import httpx
+from pydantic import BaseModel, Field, ValidationError
 
 from .models import Step
+
+log = logging.getLogger("owl.vision")
 
 MODEL_ID = os.getenv("MODEL_ID", "claude-opus-5-5")
 # Low effort keeps a check under the 4 s target; raise it if observations get sloppy.
 VISION_EFFORT = os.getenv("VISION_EFFORT", "low")
+VISION_BACKEND = os.getenv("VISION_BACKEND", "claude")
+NEMOTRON_URL = os.getenv("NEMOTRON_URL", "https://containers.datacrunch.io/nemotron-3-5-super-vl-b300/v1")
+NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "nemotron-3.5-super-vl")
+NEMOTRON_TIMEOUT_S = float(os.getenv("NEMOTRON_TIMEOUT_S", "8"))
 OTHER = "other"
 
 SYSTEM_PROMPT = """You are the eyes of Owl, a training assistant on smart glasses. A new worker is doing one step of a \
@@ -93,17 +108,69 @@ def _step_text(step: Step) -> str:
     return "\n".join(lines)
 
 
-def observe(frame: bytes, step: Step, reference: bytes | None, language: str = "en") -> Observation:
-    """One frame and the step (plus the expert's reference photo) in, a structured observation out."""
+def vision_model() -> str:
+    """The model that looks at check frames, for /health."""
+    return NEMOTRON_MODEL if VISION_BACKEND == "nemotron" else MODEL_ID
+
+
+def _content(frame: bytes, step: Step, reference: bytes | None, language: str) -> list[dict]:
+    """The user message in Anthropic's form; _openai_content converts it for Nemotron."""
     content: list[dict] = []
     if reference:
         content += [{"type": "text", "text": "The expert's reference photo of this step done right:"}, _image(reference)]
-    content += [
+    return content + [
         {"type": "text", "text": "The worker's camera frame now:"},
         _image(frame),
         {"type": "text", "text": f"{_step_text(step)}\n\nWrite the hint in this language: {language}"},
     ]
 
+
+def _openai_content(content: list[dict]) -> list[dict]:
+    return [
+        {"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}} if c["type"] == "image" else c
+        for c in content
+    ]
+
+
+def observe_nemotron(content: list[dict]) -> Observation:
+    """Nemotron 3.5 Super VL on Verda. vLLM's structured output keeps the answer to the Observation schema."""
+    key = os.getenv("VERDA_INFERENCE_KEY")
+    if not key:
+        raise VisionError("VISION_BACKEND=nemotron needs VERDA_INFERENCE_KEY.")
+    body = {
+        "model": NEMOTRON_MODEL,
+        "max_tokens": 1500,
+        "temperature": 0,
+        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": _openai_content(content)}],
+        "response_format": {"type": "json_schema", "json_schema": {"name": "Observation", "schema": Observation.model_json_schema()}},
+        # The answer is a short report of what is seen; thinking would only add latency.
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+    try:
+        response = httpx.post(f"{NEMOTRON_URL}/chat/completions", json=body, headers={"Authorization": f"Bearer {key}"}, timeout=NEMOTRON_TIMEOUT_S)
+        response.raise_for_status()
+        choice = response.json()["choices"][0]
+        if choice.get("finish_reason") != "stop":
+            raise VisionError(f"No usable observation (finish_reason={choice.get('finish_reason')})")
+        return Observation.model_validate_json(choice["message"]["content"] or "")
+    except (httpx.HTTPError, KeyError, IndexError, ValueError, ValidationError) as e:
+        raise VisionError(f"Nemotron gave no usable observation ({type(e).__name__})") from e
+
+
+def observe(frame: bytes, step: Step, reference: bytes | None, language: str = "en") -> Observation:
+    """One frame and the step (plus the expert's reference photo) in, a structured observation out."""
+    content = _content(frame, step, reference, language)
+    if VISION_BACKEND == "nemotron":
+        try:
+            return observe_nemotron(content)
+        except VisionError as e:
+            if not os.getenv("ANTHROPIC_API_KEY"):
+                raise
+            log.warning("%s; Claude answers this check", e)
+    return observe_claude(content)
+
+
+def observe_claude(content: list[dict]) -> Observation:
     response = client().beta.messages.parse(
         model=MODEL_ID,
         max_tokens=4000,

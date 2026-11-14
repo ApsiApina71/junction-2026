@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import secrets
+import threading
 import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
@@ -68,6 +69,10 @@ MOCK_ASSIST = os.getenv("OWL_MOCK_ASSIST", "") == "1"
 # 1 = the demo story plays without models (JUN-69): scripted observations for /check, handbook search for /ask,
 # narration drafts for /record. Every check answers decided_by "demo".
 DEMO = os.getenv("OWL_DEMO", "") == "1"
+# In demo mode, the parts listed here still use the live models: "check" (Owl Check: vision and the verifier),
+# "recognize" (step recognition with V-JEPA) and "place" (place recognition). For the demo on real glasses, where the
+# camera shows the real task.
+DEMO_LIVE = {part.strip() for part in os.getenv("OWL_DEMO_LIVE", "").split(",") if part.strip()}
 # 1 = Record writes the draft straight from the narration, without the model.
 MOCK_RECORD = os.getenv("OWL_MOCK_RECORD", "") == "1" or DEMO
 API_TOKEN = os.getenv("API_TOKEN", "")
@@ -79,6 +84,12 @@ MAX_CLIP_BYTES = 80 * 1024 * 1024
 MAX_SIDE = 1024  # Frames are downscaled to this before they go to a model.
 REFERENCE_SIDE = 600  # The Display glasses render at 600x600 (DAT docs).
 Image.MAX_IMAGE_PIXELS = 40_000_000
+
+
+def scripted(part: str) -> bool:
+    """Demo mode scripts this part ("check", "recognize" or "place") unless OWL_DEMO_LIVE lists it."""
+    return DEMO and part not in DEMO_LIVE
+
 
 store = Store()
 tracker = verifier.Tracker()
@@ -102,6 +113,9 @@ if DEMO:
 async def lifespan(_: FastAPI):
     # Help sessions live in memory, so frames left on disk by an earlier run belong to no one: delete them.
     store.clear_help_media()
+    if jepa.JEPA_BACKEND != "baseline" and not scripted("recognize"):
+        # The model takes a few seconds to load: load it now, not on the worker's first look.
+        threading.Thread(target=jepa.embedder, name="jepa-warmup", daemon=True).start()
     yield
 
 
@@ -217,7 +231,7 @@ def get_step(process: Process, step_id: str) -> Step:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "model_id": MODEL_ID}
+    return {"status": "ok", "model_id": MODEL_ID, "vision_model": vision.vision_model(), "step_recognition": jepa.backend_name()}
 
 
 @app.get("/employees/{employee_id}", response_model=Employee, dependencies=[Auth])
@@ -380,12 +394,17 @@ async def check(
         language = verifier.easy(language)
     if not tracker.allow(run_id):
         # JUN-82: a per-run budget of model calls; a burst of frames is answered without a call.
-        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if DEMO else "rules", next_check_ms=2000))
+        return out(
+            request,
+            CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if scripted("check") else "rules", next_check_ms=2000),
+        )
     if not tracker.try_begin(run_id):
         # One check per run at a time: a frame that arrives while the last one is checked is answered at once.
-        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if DEMO else "rules", next_check_ms=800))
+        return out(
+            request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if scripted("check") else "rules", next_check_ms=800)
+        )
     try:
-        if DEMO:
+        if scripted("check"):
             result = verifier.run_check(
                 step, frame, None, run_id, final, language, tracker,
                 observe=lambda _f, s, _r, _l: demo.observe(process_id, s, run_id), jev=lambda *_: None, decided_by="demo",
@@ -444,7 +463,7 @@ async def recognize_step(
     data = await clip.read(MAX_FRAME_BYTES * 3 + 1)
     if not data or len(data) > MAX_FRAME_BYTES * 3:
         raise HTTPException(status_code=413, detail="The clip is empty or larger than 18 MB.")
-    if DEMO:
+    if scripted("recognize"):
         # Demo mode: the mock camera shows the same picture in every step, so the story says where the worker is:
         # the first step not yet done in their run. Honest about it: backend "demo".
         step_id = progress.next_step(worker.id, process) if worker else None
@@ -472,7 +491,7 @@ class StepConfirm(BaseModel):
 async def confirm_step(body: StepConfirm) -> Response:
     """The worker confirmed "Looks like step N" with a pinch: Owl learns that look as an example of the step (JUN-34)."""
     get_step(get_process(body.process_id), body.step_id)
-    if not DEMO:
+    if not scripted("recognize"):
         await run_in_threadpool(recognizer.confirm, body.run_id, body.process_id, body.step_id)
     return Response(status_code=204)
 
@@ -602,7 +621,7 @@ async def location_frame(
         raise HTTPException(status_code=404, detail=f"Step {step_id} has no place.")
     frame = await read_frame(image, clip, REFERENCE_SIDE)
     target = place.target_key(process_id, step_id)
-    if DEMO:
+    if scripted("place"):
         # The camera's eyes are scripted in demo mode: every look is at the place, so the second one opens the step.
         look = place.Look(matched=True, score=1.0, best=target, backend="demo")
         reached, can = places.count(worker.id, target, True, time.monotonic()), True
