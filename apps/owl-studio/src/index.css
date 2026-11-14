@@ -32,9 +32,10 @@ body {
   background: var(--uit-color-background-window);
 }
 
+/* Percent sizes are not scaled by zoom, so the root stays exactly the window's size. */
 #root {
   inline-size: 100%;
-  block-size: calc(100% / var(--studio-zoom));
+  block-size: 100%;
   zoom: var(--studio-zoom);
   background: var(--uit-color-background-window);
 }
@@ -244,6 +245,204 @@ body {
 .owl-figure {
   flex: none;
   inline-size: auto;
+}
+
+.route-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.tile-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
+  gap: var(--uit-spacing-large);
+}
+
+.tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  padding: var(--uit-spacing-large);
+}
+
+/* A Card lays its content out above its own layers, so it needs a size of its own. */
+.request-tile {
+  block-size: 210px;
+}
+
+/* The Help console: the worker's view, the conversation, and the step they are on. */
+
+.console {
+  box-sizing: border-box;
+  block-size: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: var(--uit-spacing-xlarge);
+  /* Clear the floating Page header. */
+  padding: calc(var(--uit-spacing-5xl) + var(--uit-spacing-xlarge)) var(--uit-spacing-xlarge) var(--uit-spacing-small);
+}
+
+.console-view,
+.console-talk,
+.console-context {
+  min-inline-size: 0;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.console-view {
+  overflow: auto;
+}
+
+.frame {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--uit-corner-radius-medium);
+  background: var(--uit-color-background-input-field);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.frame:focus-visible {
+  outline: 4px solid var(--uit-color-text-accent);
+  outline-offset: 4px;
+}
+
+.frame img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.frame-empty {
+  aspect-ratio: 4 / 3;
+}
+
+/* The ring the server draws on the picture: same yellow, same dark edge, 9% of the short side in radius. */
+.ring {
+  position: absolute;
+  block-size: 18%;
+  aspect-ratio: 1;
+  border: 6px solid #ffd60a;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #000000, inset 0 0 0 3px #000000;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.frame-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--uit-spacing-small) var(--uit-spacing-large);
+}
+
+.action-dock {
+  margin-block-start: auto;
+  padding-block: var(--uit-spacing-medium) var(--uit-spacing-xsmall);
+}
+
+.talk-scroll,
+.context-scroll {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.talk-empty {
+  padding: var(--uit-spacing-large) 0;
+}
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--uit-spacing-large);
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.bubble-row {
+  display: flex;
+}
+
+.bubble-row.is-mine {
+  justify-content: flex-end;
+}
+
+.bubble {
+  max-inline-size: 86%;
+}
+
+.bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xsmall);
+  padding: var(--uit-spacing-medium) var(--uit-spacing-large);
+}
+
+.bubble-image {
+  display: block;
+  inline-size: 100%;
+  margin-block-start: var(--uit-spacing-small);
+  border-radius: var(--uit-corner-radius-xsmall);
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+  padding-block-end: var(--uit-spacing-xsmall);
+}
+
+.pointing,
+.dictate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--uit-spacing-medium);
+}
+
+.order-summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xsmall);
+}
+
+.context-photo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+}
+
+.context-photo img {
+  display: block;
+  inline-size: 100%;
+  border-radius: var(--uit-corner-radius-xsmall);
+}
+
+@media (max-width: 1400px) {
+  .console {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  .console-context {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Shared parts on the toolkit (ui/meta.tsx) */

@@ -108,7 +108,7 @@ function Shell() {
 
   const offline = studio.connection.state !== 'online' && studio.connection.state !== 'connecting'
   const go = (view: View) => {
-    window.location.hash = view === 'help' && now.helpId ? href('help', now.helpId) : href(view)
+    window.location.hash = href(view)
   }
 
   return (
@@ -148,6 +148,7 @@ function Shell() {
                     subtitleTextColor={SubtitleTextColor.WARNING}
                     visualStateOverride={current ? VisualState.FOCUSED : undefined}
                     aria-current={current ? 'page' : undefined}
+                    initialFocusEligible={false}
                     onClick={() => go(view)}
                   />
                 )
@@ -156,7 +157,7 @@ function Shell() {
           </nav>
           <div className="sidebar-foot">
             <ConnectionChip />
-            <Button title="Settings" icon={ICONS.settings} alwaysShowText onClick={() => setSettingsOpen(true)} />
+            <Button title="Settings" icon={ICONS.settings} alwaysShowText initialFocusEligible={false} onClick={() => setSettingsOpen(true)} />
           </div>
         </header>
 
@@ -178,6 +179,7 @@ function Shell() {
           {onToolkit(route) ? (
             <div className="view-slot">
               {route.view === 'tasks' && !route.id && <TasksView />}
+              {route.view === 'help' && <HelpView selectedId={route.id} />}
             </div>
           ) : (
             <div className="view-slot legacy" key={`${route.view}/${route.id ?? ''}`}>
@@ -186,7 +188,6 @@ function Shell() {
               {route.view === 'people' && <PeopleView selectedId={route.id} />}
               {route.view === 'training' && <TrainingView />}
               {route.view === 'map' && <MapView />}
-              {route.view === 'help' && <HelpView selectedId={route.id} />}
               {route.view === 'data' && <DataView />}
             </div>
           )}
@@ -213,7 +214,7 @@ function Shell() {
 
 /** The views already built from toolkit components (JUN-101); the rest still render inside .legacy. */
 function onToolkit(route: Route): boolean {
-  return route.view === 'tasks' && !route.id
+  return (route.view === 'tasks' && !route.id) || route.view === 'help'
 }
 
 /** Which server Studio talks to, said in a Chip at the foot of the sidebar. */

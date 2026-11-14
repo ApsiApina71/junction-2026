@@ -32,8 +32,9 @@ describe('the manager on shift (JUN-100)', () => {
     renderWith(<HelpView selectedId={null} />, fakeStudio({ sessions: [ringing, missed], employees: [sami, mika] }))
     expect(screen.getByText('Calling Mika')).toBeTruthy()
     expect(screen.getByText(/Mika did not answer/)).toBeTruthy()
-    const row = screen.getByText('Calling Mika').closest('a') as HTMLAnchorElement
-    expect(row.getAttribute('href')).toBeNull()
+    // The call is the manager's: it is shown, but it opens nothing here.
+    expect(screen.getByText('Calling Mika').closest('[role="button"]')).toBeNull()
+    expect(screen.getByRole('button', { name: /Mika did not answer/ })).toBeTruthy()
   })
 
   it('keeps the live view of an answered call for the manager', async () => {
