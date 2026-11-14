@@ -1,0 +1,17 @@
+{
+  "id": "emp-ville",
+  "name": "Ville",
+  "language": "fi",
+  "role": "Varastotyöntekijä",
+  "company": "Kide Logistics",
+  "welcome": "Tervetuloa Kide Logisticsiin, Ville! Tämän päivän tehtävä: Kerää ja pakkaa tilaus. Luen sinulle ääneen kaiken, mitä näytöllä on.",
+  "process_ids": [
+    "proc-pick-pack"
+  ],
+  "glasses_id": "glasses-5",
+  "access": {
+    "audio_first": true,
+    "display_first": false,
+    "easy_language": false
+  }
+}

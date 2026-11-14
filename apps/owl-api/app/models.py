@@ -13,6 +13,22 @@ Role = Annotated[str, StringConstraints(strip_whitespace=True, max_length=60)]
 Welcome = Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)]
 
 
+class Access(BaseModel):
+    """How Owl talks to this worker (JUN-81). Studio sets it; everything is off by default."""
+
+    audio_first: bool = False  # low vision or eyes busy: everything on the display is also spoken
+    display_first: bool = False  # Deaf or hard of hearing, or a loud workplace: every spoken line is also captioned
+    easy_language: bool = False  # short, plain sentences (intellectual disability, dyslexia, newcomers)
+
+
+class Consent(BaseModel):
+    """What the worker agreed to on the glasses, and when (JUN-80)."""
+
+    camera_checks: bool = False
+    recording: bool = False
+    at: str | None = None
+
+
 class Employee(BaseModel):
     id: str
     name: str
@@ -22,6 +38,7 @@ class Employee(BaseModel):
     welcome: str
     process_ids: list[str]
     glasses_id: str | None = None
+    access: Access = Access()
 
 
 class EmployeeCreate(BaseModel):
@@ -32,6 +49,7 @@ class EmployeeCreate(BaseModel):
     glasses_id: GlassesId | None = None
     # Empty or left out: the server writes the welcome in the employee's language.
     welcome: Welcome | None = None
+    access: Access = Access()
 
 
 class EmployeeUpdate(BaseModel):
@@ -43,6 +61,7 @@ class EmployeeUpdate(BaseModel):
     process_ids: list[str] | None = None
     glasses_id: GlassesId | None = None
     welcome: Welcome | None = None
+    access: Access | None = None
 
 
 class OrderLine(BaseModel):
@@ -113,6 +132,8 @@ class CheckResult(BaseModel):
     confidence: float | None = Field(default=None, ge=0, le=1)
     decided_by: Literal["jev", "rules", "demo"]
     step_done: bool = False
+    # When the glasses should look again, in milliseconds; null: not before the next step or pinch (JUN-82).
+    next_check_ms: int | None = None
 
 
 class AskRequest(BaseModel):

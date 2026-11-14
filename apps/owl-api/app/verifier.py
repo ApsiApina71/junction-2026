@@ -31,6 +31,8 @@ JEV_MODEL = os.getenv("JEV_MODEL", "typesafe/jev-1.13")
 JEV_THRESHOLD = float(os.getenv("JEV_THRESHOLD", "0.75"))
 JEV_TIMEOUT = float(os.getenv("JEV_TIMEOUT", "2.5"))
 CONFIRM_FRAMES = int(os.getenv("CONFIRM_FRAMES", "2"))
+# The per-run budget of model calls (JUN-82): with next_check_ms the glasses send far fewer.
+MAX_CHECKS_PER_MINUTE = int(os.getenv("MAX_CHECKS_PER_MINUTE", "40"))
 RUN_TTL = 60 * 60  # Forget a run's state after an hour.
 
 VERDICTS = ("ok", "wrong_item", "missing", "too_many", "not_matching", "unsure")
@@ -233,8 +235,42 @@ TEXTS = {
 }
 
 
+# Easy language (JUN-81): one idea per sentence, everyday words, no clauses. Selected with a "-x-easy" language tag.
+TEXTS["en-easy"] = {
+    **TEXTS["en"],
+    "ok_order": ("Everything is in the box.", "Good. Everything is in the box."),
+    "ok_visual": ("Good.", "Good."),
+    "ok_final": ("Done.", "Good job. This step is done."),
+    "wrong_item": ("Wrong: {wrong}. Take: {line}.", "Wrong one. This is {wrong}. Take {line}."),
+    "missing": ("Missing: {line}.", "Something is missing. Add {line}."),
+    "too_many": ("Too many: {what}.", "Too many. Take out {what}."),
+    "not_matching": ("Not ready: {failed}.", "Not ready yet. Look again: {failed}."),
+    "unsure": ("I can't see.", "I can't see well. {hint}."),
+}
+TEXTS["fi-easy"] = {
+    **TEXTS["fi"],
+    "ok_order": ("Kaikki on laatikossa.", "Hyvä. Kaikki on laatikossa."),
+    "ok_visual": ("Hyvä.", "Hyvä."),
+    "ok_final": ("Valmis.", "Hyvää työtä. Tämä vaihe on valmis."),
+    "wrong_item": ("Väärä: {wrong}. Ota: {line}.", "Väärä tuote. Tämä on {wrong}. Ota {line}."),
+    "missing": ("Puuttuu: {line}.", "Jotain puuttuu. Lisää {line}."),
+    "too_many": ("Liikaa: {what}.", "Liikaa. Ota pois {what}."),
+    "not_matching": ("Ei vielä valmis: {failed}.", "Ei vielä valmis. Katso uudelleen: {failed}."),
+    "unsure": ("En näe.", "En näe hyvin. {hint}."),
+}
+
+
+def easy(language: str) -> str:
+    """The easy-language form of a language tag: "fi" -> "fi-x-easy"."""
+    return language if "-x-easy" in language.lower() else f"{language}-x-easy"
+
+
 def _texts(language: str) -> dict:
-    return TEXTS.get(language.split("-")[0].lower(), TEXTS["en"])
+    base = language.split("-")[0].lower()
+    table = TEXTS.get(base, TEXTS["en"])
+    if "-x-easy" in language.lower():
+        return TEXTS.get(f"{base}-easy", TEXTS["en-easy"]) if base in TEXTS else TEXTS["en-easy"]
+    return table
 
 
 def build_result(
@@ -301,6 +337,18 @@ class Tracker:
         self._lock = threading.Lock()
         self._runs: dict[tuple[str, str], RunState] = {}
         self._busy: set[str] = set()
+        self._calls: dict[str, list[float]] = {}
+
+    def allow(self, run_id: str, now: float | None = None) -> bool:
+        """At most MAX_CHECKS_PER_MINUTE model calls per run (JUN-82)."""
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            calls = [t for t in self._calls.get(run_id, []) if now - t < 60]
+            if len(calls) >= MAX_CHECKS_PER_MINUTE:
+                self._calls[run_id] = calls
+                return False
+            self._calls[run_id] = [*calls, now]
+            return True
 
     def try_begin(self, run_id: str) -> bool:
         with self._lock:

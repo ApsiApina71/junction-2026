@@ -72,6 +72,14 @@ class Progress:
                 if step.id == run.last_step_id and run.finished_at is None:
                     run.finished_at = now
 
+    def forget(self, employee_id: str) -> int:
+        """Erases every run of this worker. Returns how many were erased."""
+        with self._lock:
+            mine = [k for k, r in self.runs.items() if r.employee_id == employee_id]
+            for k in mine:
+                del self.runs[k]
+            return len(mine)
+
     def for_employee(self, employee_id: str) -> dict:
         with self._lock:
             runs = sorted((r for r in self.runs.values() if r.employee_id == employee_id), key=lambda r: r.started_at, reverse=True)

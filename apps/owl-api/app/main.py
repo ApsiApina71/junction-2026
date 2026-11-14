@@ -31,6 +31,7 @@ from .models import (
     Answer,
     AskRequest,
     CheckResult,
+    Consent,
     Doc,
     Employee,
     FromDocs,
@@ -325,15 +326,24 @@ async def check(
 ):
     process = get_process(process_id)
     step = get_step(process, step_id)
+    worker = store.employees.get(employee_id) if employee_id else None
+    if worker is not None and not store.consents.get(worker.id, {}).get("camera_checks"):
+        # JUN-80: no frame is looked at before the worker has agreed on the glasses.
+        raise HTTPException(status_code=403, detail="consent_required")
     frame = await read_frame(image, clip)
     if mock or MOCK_CHECK:
-        result = mock_check(step, final, mock)
+        result = with_pace(step, mock_check(step, final, mock))
         progress.record(run_id, employee_id, process, step, result)
         return out(request, result)
-    language = language or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
+    language = language or (worker.language if worker else None) or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
+    if worker is not None and worker.access.easy_language:
+        language = verifier.easy(language)
+    if not tracker.allow(run_id):
+        # JUN-82: a per-run budget of model calls; a burst of frames is answered without a call.
+        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if DEMO else "rules", next_check_ms=2000))
     if not tracker.try_begin(run_id):
         # One check per run at a time: a frame that arrives while the last one is checked is answered at once.
-        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if DEMO else "rules"))
+        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if DEMO else "rules", next_check_ms=800))
     try:
         if DEMO:
             result = verifier.run_check(
@@ -345,8 +355,47 @@ async def check(
             result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
     finally:
         tracker.end(run_id)
+    result = with_pace(step, result)
     progress.record(run_id, employee_id, process, step, result)
     return out(request, result)
+
+
+def with_pace(step: Step, result: CheckResult) -> CheckResult:
+    """JUN-82: look again soon while a problem is being confirmed or fixed, rarely when all is well, never when done."""
+    if result.step_done or step.check.kind == "none":
+        ms = None
+    else:
+        ms = {"checking": 800, "warning": 1500, "unsure": 1500}.get(result.status, 3000)
+    return result.model_copy(update={"next_check_ms": ms})
+
+
+# Consent (JUN-80): what the worker agreed to on the glasses. Without camera_checks, /check answers 403.
+
+
+@app.get("/employees/{employee_id}/consent", response_model=Consent, dependencies=[Auth])
+def get_consent(employee_id: str):
+    if employee_id not in store.employees:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    return Consent(**store.consents.get(employee_id, {}))
+
+
+@app.post("/employees/{employee_id}/consent", response_model=Consent, dependencies=[Auth])
+def set_consent(employee_id: str, body: Consent):
+    if employee_id not in store.employees:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    consent = body.model_copy(update={"at": now_iso()})
+    with store.lock:
+        store.consents[employee_id] = consent.model_dump()
+    return consent
+
+
+@app.delete("/employees/{employee_id}/progress", status_code=204, dependencies=[Auth])
+def forget_progress(employee_id: str) -> Response:
+    """ "Forget me": the worker erases their own learning data."""
+    if employee_id not in store.employees:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    progress.forget(employee_id)
+    return Response(status_code=204)
 
 
 # Learning progress (JUN-73): the worker's own, and anonymous totals. Never one person's results in Studio.
@@ -373,6 +422,8 @@ async def ask(body: AskRequest, request: Request):
         return out(request, Answer.model_validate(load_fixture("answer.json")))
     employee = store.employees.get(body.employee_id or "")
     language = body.language or (employee.language if employee else "en")
+    if employee is not None and employee.access.easy_language:
+        language = verifier.easy(language)
     if DEMO:
         return out(request, ask_engine.demo_answer(body.question, [(doc.title, text) for doc, text in store.docs.values()], language))
     context = None

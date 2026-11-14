@@ -62,6 +62,7 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
 
 - `company`: the company of the worker's first task; without a task, the company this owl-api runs for (`OWL_COMPANY`, by default the demo worker's). One company per server: multi-company admin is out of scope.
 - `welcome` is the personal welcome shown and spoken on the first start (JUN-41). Owl writes it from the name, the company and the first task, in the employee's language, and rewrites it when one of those changes. A welcome written by hand in Owl Studio stays as written.
+- `access` (JUN-81): `{"audio_first": bool, "display_first": bool, "easy_language": bool}`, all `false` by default; Studio sets it. **audio_first** (low vision, or eyes busy): the glasses speak everything on the display too. **display_first** (Deaf or hard of hearing, or a loud workplace): every spoken line is also a caption, and a warning stays until a pinch. **easy_language**: the server's own sentences (checks, Ask) come in easy language when `/check` and `/ask` carry the worker's `employee_id`; a process can be stored in easy language with a `-x-easy` language tag. The fixtures have one worker per profile: Amina (easy language, `glasses-3`), Leo (display first, `glasses-4`) and Ville (audio first, Finnish, `glasses-5`).
 - `glasses_id` is the pair of glasses the employee wears, or `null`. The employer names the pairs (`glasses-1`; letters, digits, `-` and `_`). A pair has one worker at a time: assigning it to someone takes it from whoever had it.
 
 ### Process
@@ -150,6 +151,7 @@ Answer to one camera frame during a step.
   - `lines[].note`: what was seen instead, or `null`.
 - `confidence`: Jev's reported probability for its answer (0–1), or `null` when the rules decided alone. It is not a calibrated chance that the step is right: **never show it as a percentage**.
 - `decided_by`: `jev` (Jev agreed with the rules above the server's threshold), `rules` (the deterministic compare decided alone, for example without a Jev key) or `demo` (demo mode: the camera observation is scripted, see below).
+- `next_check_ms` (JUN-82): when the glasses should look again: 800 while a problem is being confirmed, 1500 after a warning or an unsure frame, 3000 while the step looks right, and `null` when the step is done or has no check (wait for the next step or a pinch). A run gets at most `MAX_CHECKS_PER_MINUTE` (40) model calls; above that the answer is `checking` without a model call.
 - `step_done`: `true` only when `final` was sent and the step is right. **A step is never done while something is wrong.**
 
 **What a passed check means.** Vision describes one frame; the rules decide from that description. A product vision did not map to an order line counts as something extra in the box, and a criterion that was not answered is not passed (`unsure`). Jev, when on, is a second opinion on the decision from the same description: it cannot catch an item vision missed or misread. The "two frames in a row" rule is consistency over time from the same model, not an independent confirmation. So a passed check covers only what was visible in the frame and reviewed against the step, and the apps say no more than that ("Owl checked the box", not "the order is correct").
@@ -226,6 +228,9 @@ Answer to one camera frame during a step.
 | `GET /employees/{id}` | none | `Employee` | glasses, Studio |
 | `PUT /employees/{id}` | JSON, any of the `POST /employees` fields | `Employee` | Studio |
 | `GET /employees/{id}/progress` | none | `Progress` (below) | glasses only |
+| `DELETE /employees/{id}/progress` | none | `204`: "forget me", the worker erases their own learning data | glasses only |
+| `GET /employees/{id}/consent` | none | `Consent` | glasses |
+| `POST /employees/{id}/consent` | JSON `{"camera_checks": bool, "recording": bool}` | `Consent` with `at` | glasses |
 | `GET /stats` | none | anonymous totals (below) | Studio, pitch |
 | `GET /glasses/{glasses_id}/employee` | none | `Employee`, or `404` when the pair is not assigned | glasses |
 | `GET /processes` | none; optional `?language=fi` | `{"processes": [Process]}` (published and drafts, steps included) | glasses, Studio |
@@ -291,7 +296,7 @@ Multipart form:
 | `run_id` | text | A UUID the glasses app makes when the worker starts a process. The "two frames in a row" rule is kept per run and step. |
 | `final` | text `true` / `false`, default `false` | `true` on the "Done" pinch. |
 | `language` | text, optional | Defaults to the employee's language. |
-| `employee_id` | text, optional | The worker, for their own learning progress (JUN-73). |
+| `employee_id` | text, optional but always sent by the glasses | The worker: their consent (JUN-80), their access profile (JUN-81) and their own learning progress (JUN-73). Without `camera_checks` consent the answer is `403 {"detail": "consent_required"}` and the frame is not read. |
 
 Why `clip`: with the phone locked in a pocket the app runs in the background, and the DAT `raw` video codec stops delivering frames there; `hvc1` keeps delivering compressed frames ([VideoCodec](https://wearables.developer.meta.com/docs/reference/ios_swift/dat/1.0/mwdatcamera_videocodec)). The phone decodes them when it can and falls back to `clip` when iOS refuses background decoding.
 
@@ -314,6 +319,19 @@ When all documents together are larger than `ASK_MAX_CHARS`, only the best secti
 ### `POST /processes/from-docs`
 
 The third knowledge level: a written instruction becomes a guided process in one click (JUN-70). With a model, Claude writes the steps (title, instruction, spoken sentence, check criteria) and quotes the document for each; a quote that is not in the document is dropped, never passed on. Without a model (demo or mock mode, or a model error), the document's first numbered list, or else its sections, become the steps. The result is a draft that a person reviews and publishes in Owl Studio. A document with no list and no sections answers `422`.
+
+### Consent and data practices (JUN-80)
+
+`Consent`: `{"camera_checks": bool, "recording": bool, "at": "<time>" | null}`. The glasses ask on the first start, on the display and in the worker's language, and can ask again any time. Without `camera_checks`, Owl still guides but does not check (`/check` answers `403`). `recording` is the expert's agreement that Record keeps their clips.
+
+| Data | Kept |
+|---|---|
+| Check frames | Never stored: read, described and dropped. |
+| Help frames | In memory and on disk only while the help session is open; deleted when it ends. |
+| Recorded photos and clips | Faces blurred before storing; kept until the process is deleted in Studio. |
+| Learning progress | Per worker, for their own glasses; erased with `DELETE /employees/{id}/progress`. Studio sees only `/stats`. |
+| Consent | What was agreed and when. |
+| Anything to Meta | Nothing: DAT analytics and crash reporting are opted out in the glasses app. |
 
 ### Learning progress (JUN-73)
 

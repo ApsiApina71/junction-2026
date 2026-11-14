@@ -8,6 +8,9 @@ from app.store import FIXTURES, load_fixture
 SHAPES = {
     "employee.json": Employee,
     "employee-mikko.json": Employee,
+    "employee-amina.json": Employee,
+    "employee-leo.json": Employee,
+    "employee-ville.json": Employee,
     "process-pick-pack.json": Process,
     "process-pick-pack.fi.json": Process,
     "process-bakery-rye.json": Process,

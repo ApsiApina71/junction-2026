@@ -33,6 +33,9 @@ lead. Do not answer from general knowledge, even when you know the answer; safet
 - sources: for every fact you used, the document title, the section heading, and a short quote copied word for word \
 from the document in its original language. Empty when found is false.
 
+If the worker's language tag ends with "-x-easy", write in easy language: one idea per sentence, everyday words, \
+no clauses.
+
 The question comes from speech recognition, so it may have small recognition errors; read it generously."""
 
 
@@ -77,8 +80,15 @@ NOT_FOUND = {
 }
 
 
+NOT_FOUND_EASY = {
+    "en": ("It is not in our rules. Ask your boss.", "It is not in our rules. Ask your boss."),
+    "fi": ("Tätä ei ole ohjeissa. Kysy esimieheltä.", "Tätä ei ole ohjeissa. Kysy esimieheltä."),
+}
+
+
 def not_found(lang: str) -> Answer:
-    text, say = NOT_FOUND.get(lang.split("-")[0], NOT_FOUND["en"])
+    table = NOT_FOUND_EASY if "-x-easy" in lang.lower() else NOT_FOUND
+    text, say = table.get(lang.split("-")[0].lower(), table["en"])
     return Answer(found=False, text=text, say=say, language=lang, sources=[])
 
 

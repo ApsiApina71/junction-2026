@@ -113,6 +113,7 @@ def test_a_whole_task_over_http(client):
         data = {"process_id": "proc-pick-pack", "step_id": step_id, "run_id": "stage", "employee_id": "emp-sami", "final": str(final).lower()}
         return client.post("/check", data=data, files={"image": ("f.jpg", jpeg(), "image/jpeg")}).json()
 
+    assert client.post("/employees/emp-sami/consent", json={"camera_checks": True}).status_code == 200
     assert check("step-1", final=True)["step_done"] is True
     assert check("step-2")["status"] == "checking"
     assert check("step-2")["status"] == "warning"

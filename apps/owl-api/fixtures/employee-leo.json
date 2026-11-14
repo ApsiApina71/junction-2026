@@ -1,0 +1,17 @@
+{
+  "id": "emp-leo",
+  "name": "Leo",
+  "language": "en",
+  "role": "Warehouse picker",
+  "company": "Kide Logistics",
+  "welcome": "Welcome to Kide Logistics, Leo! Today's task: Pick and pack an order. Every word I say is also on your display.",
+  "process_ids": [
+    "proc-pick-pack"
+  ],
+  "glasses_id": "glasses-4",
+  "access": {
+    "audio_first": false,
+    "display_first": true,
+    "easy_language": false
+  }
+}

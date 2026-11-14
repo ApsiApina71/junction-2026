@@ -43,6 +43,7 @@ def test_everything_added_survives_a_restart(server, tmp_path):
     client.post(f"/record/{rec['id']}/steps", data={"narration": "Tape the box shut."}, files={"photo": ("p.jpg", jpeg(), "image/jpeg")})
     client.post(f"/record/{rec['id']}/finish")
     process_id = client.get(f"/record/{rec['id']}").json()["process_id"]
+    client.post(f"/employees/{aino['id']}/consent", json={"camera_checks": True})
     form = {"process_id": "proc-pick-pack", "step_id": "step-1", "run_id": "r1", "employee_id": aino["id"], "final": "true"}
     client.post("/check", data=form, files={"image": ("f.jpg", jpeg(), "image/jpeg")})
     assert (tmp_path / "state.json").is_file()
@@ -53,6 +54,7 @@ def test_everything_added_survives_a_restart(server, tmp_path):
     assert client.get(f"/processes/{process_id}").json()["status"] == "draft"
     assert client.get(f"/record/{rec['id']}").json()["status"] == "done"
     assert client.get(f"/employees/{aino['id']}/progress").json()["steps_done"] == 1
+    assert client.get(f"/employees/{aino['id']}/consent").json()["camera_checks"] is True
     # New ids do not collide with the ones from before the restart.
     assert client.post("/record", json={"title": "Next"}).json()["id"] != rec["id"]
 

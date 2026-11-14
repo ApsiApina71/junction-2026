@@ -107,6 +107,7 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 welcome=body.welcome or write_welcome(store, body.name, body.language, company, body.process_ids),
                 process_ids=body.process_ids,
                 glasses_id=body.glasses_id,
+                access=body.access,
             )
             if body.welcome:
                 store.custom_welcomes.add(employee.id)
@@ -127,6 +128,8 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 value = getattr(body, field)
                 if field in sent and value is not None:
                     setattr(employee, field, value)
+            if "access" in sent and body.access is not None:
+                employee.access = body.access
             if "glasses_id" in sent:  # null takes the glasses away
                 employee.glasses_id = body.glasses_id
                 _wear(store, employee.id, employee.glasses_id)

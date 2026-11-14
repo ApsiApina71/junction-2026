@@ -1,0 +1,17 @@
+{
+  "id": "emp-amina",
+  "name": "Amina",
+  "language": "en",
+  "role": "Warehouse picker",
+  "company": "Kide Logistics",
+  "welcome": "Welcome, Amina! You work at Kide now. Today you pick and pack an order. I am Owl. I show you each step.",
+  "process_ids": [
+    "proc-pick-pack"
+  ],
+  "glasses_id": "glasses-3",
+  "access": {
+    "audio_first": false,
+    "display_first": false,
+    "easy_language": true
+  }
+}
