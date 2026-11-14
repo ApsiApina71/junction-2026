@@ -17,7 +17,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | glasses-api | api | [../apps/glasses-api](../apps/glasses-api/README.md) | Automatic calorie tracker for camera glasses: frames in, a food log and a spoken sentence out |
 | copilot-api | api | [../apps/copilot-api](../apps/copilot-api/README.md) | Photo from the glasses → Claude → product check |
 | glasses-ios | ios (DAT) | [../apps/glasses-ios](../apps/glasses-ios/README.md) | iPhone app for Meta glasses: camera, speech, display |
-| bite-ios | ios (DAT) | [../apps/bite-ios](../apps/bite-ios/README.md) | Display-glasses app (display, camera, Neural Band, speech); base for the Onboarding Owl glasses app |
+| owl-glasses | ios (DAT) | [../apps/owl-glasses](../apps/owl-glasses/README.md) | Onboarding Owl on Meta Ray-Ban Display glasses (display, camera, Neural Band, speech, voice invocations); was bite-ios |
 
 ## Agent tooling
 

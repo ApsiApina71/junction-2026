@@ -42,7 +42,7 @@ enum BiteError: LocalizedError, Equatable {
 @Observable
 @MainActor
 final class BiteViewModel {
-  static let serverURLKey = "bite.serverURL"
+  static let serverURLKey = "owl.serverURL"
   private static let watchInterval: Duration = .seconds(3)
 
   private(set) var today: TodayLog = .empty
@@ -68,7 +68,7 @@ final class BiteViewModel {
   static var serverURL: String {
     get {
       UserDefaults.standard.string(forKey: serverURLKey)
-        ?? (Bundle.main.object(forInfoDictionaryKey: "BiteAPIURL") as? String ?? "")
+        ?? (Bundle.main.object(forInfoDictionaryKey: "OwlAPIURL") as? String ?? "")
     }
     set { UserDefaults.standard.set(newValue, forKey: serverURLKey) }
   }
@@ -483,7 +483,7 @@ enum BiteAPI {
       throw BiteError.badServerURL(base)
     }
     var request = URLRequest(url: url, timeoutInterval: 60)
-    if let token = Bundle.main.object(forInfoDictionaryKey: "BiteAPIToken") as? String, !token.isEmpty {
+    if let token = Bundle.main.object(forInfoDictionaryKey: "OwlAPIToken") as? String, !token.isEmpty {
       request.setValue(token, forHTTPHeaderField: "X-Api-Token")
     }
     return request

@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>BiteAPIURL</key>
-	<string>$(BITE_API_URL)</string>
+	<key>OwlAPIURL</key>
+	<string>$(OWL_API_URL)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Bite</string>
+	<string>Owl</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,7 +29,7 @@
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>displaysample</string>
+				<string>owlglasses</string>
 			</array>
 		</dict>
 	</array>
@@ -37,8 +37,18 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>MWDAT</key>
 	<dict>
+		<key>Analytics</key>
+		<dict>
+			<key>OptOut</key>
+			<true/>
+		</dict>
+		<key>CrashReporting</key>
+		<dict>
+			<key>OptOut</key>
+			<true/>
+		</dict>
 		<key>AppLinkURLScheme</key>
-		<string>displaysample://</string>
+		<string>owlglasses://</string>
 		<key>ClientToken</key>
 		<string>$(CLIENT_TOKEN)</string>
 		<key>MetaAppID</key>
@@ -52,7 +62,7 @@
 		<true/>
 	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>DisplayAccess needs Bluetooth to connect to your glasses.</string>
+	<string>Owl needs Bluetooth to connect to your glasses.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_bonjour._tcp</string>
@@ -68,6 +78,7 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>audio</string>
 		<string>processing</string>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>

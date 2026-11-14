@@ -587,22 +587,22 @@ struct SampleAppsView: View {
       await biteViewModel.refreshToday()
     }
     .task {
-      // Simulator test hooks: BITE_AUTO_PREVIEW=inApp|chrome starts a mock display, and
-      // BITE_AUTO_LOG=1 logs a meal from the mock camera once the display is up.
+      // Simulator test hooks: OWL_AUTO_PREVIEW=inApp|chrome starts a mock display, and
+      // OWL_AUTO_LOG=1 logs a meal from the mock camera once the display is up.
       let env = ProcessInfo.processInfo.environment
-      guard developerPreviewMode == nil, let mode = env["BITE_AUTO_PREVIEW"] else { return }
+      guard developerPreviewMode == nil, let mode = env["OWL_AUTO_PREVIEW"] else { return }
       selectedDeveloperPreviewMode = mode == "chrome" ? .chrome : .inApp
       isDeveloperPreviewPresented = true
       await startSelectedDeveloperPreview()
       try? await Task.sleep(for: .seconds(3))
-      if env["BITE_AUTO_LOG"] == "1" {
+      if env["OWL_AUTO_LOG"] == "1" {
         await biteViewModel.logMeal()
       }
-      if env["BITE_AUTO_TODAY"] == "1" {
+      if env["OWL_AUTO_TODAY"] == "1" {
         try? await Task.sleep(for: .seconds(6))
         await biteViewModel.showToday()
       }
-      if env["BITE_AUTO_WATCH"] == "1" {
+      if env["OWL_AUTO_WATCH"] == "1" {
         await biteViewModel.toggleWatching()
       }
     }

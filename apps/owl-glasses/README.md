@@ -4,9 +4,9 @@ tags: [app, ios, glasses, dat, prototype]
 last-updated: 2026-11-14
 ---
 
-# bite-ios
+# owl-glasses
 
-Working iPhone app for **Meta Ray-Ban Display** glasses, built at the event on Meta's open-source DAT `DisplayAccess` sample (see `LICENSE-meta-sample`). It is the **starting point for the Onboarding Owl glasses app** ([JUN-29](https://linear.app/junction-2026-bossit/issue/JUN-29)); the food-tracking features ("Bite with Bo the bear", on top of `apps/glasses-api`) are the earlier prototype.
+The **Onboarding Owl** iPhone app for **Meta Ray-Ban Display** glasses ([JUN-29](https://linear.app/junction-2026-bossit/issue/JUN-29), spec [docs/specs/onboarding-owl.md](../../docs/specs/onboarding-owl.md)). Built on Meta's open-source DAT `DisplayAccess` sample (see `LICENSE-meta-sample`); it started as `bite-ios` ("Bite with Bo the bear", food tracking on `apps/glasses-api`), whose code is still in `DisplayAccess/Bite/` until the Owl flow replaces it.
 
 What already works, in the simulator chain (iOS Simulator + MockDeviceKit + Chrome "Meta Ray-Ban Display Simulator"):
 
@@ -22,6 +22,8 @@ Not yet tested on real Display glasses.
 
 | Path | What |
 |---|---|
+| `DisplayAccess/Owl/` | Owl flow, voice, camera and owl-api client (folder-synced group) |
+| `DisplayAccess/Owl/Display/` | Owl glasses screens and art (JUN-36) |
 | `DisplayAccess/Bite/BiteDisplay.swift` | Glasses screens (Display DSL, no SwiftUI) |
 | `DisplayAccess/Bite/BearArt.swift` | Mascot and cards drawn as images |
 | `DisplayAccess/Bite/BiteViewModel.swift` | Flow, `GlassesCamera`, API client |

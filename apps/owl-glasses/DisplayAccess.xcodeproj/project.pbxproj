@@ -22,6 +22,7 @@
 		DB01000000000009 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = DB0A000000000001 /* MWDATCore */; };
 		DB0100000000000A /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = DB0A000000000002 /* MWDATDisplay */; };
 		DB0100000000000B /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = DB0A000000000003 /* MWDATMockDevice */; };
+		DB0100000000000C /* MWDATSpeech in Frameworks */ = {isa = PBXBuildFile; productRef = DB0A000000000005 /* MWDATSpeech */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -54,6 +55,14 @@
 		DB0200000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		DB0B000000000001 /* Owl */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Owl;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		DB05000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -63,6 +72,7 @@
 				DB0100000000000A /* MWDATDisplay in Frameworks */,
 				DB0100000000B004 /* MWDATCamera in Frameworks */,
 				DB0100000000000B /* MWDATMockDevice in Frameworks */,
+				DB0100000000000C /* MWDATSpeech in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +101,7 @@
 				DB03000000000004 /* Samples */,
 				DB03000000000005 /* ViewModels */,
 				DB03000000000006 /* Views */,
+				DB0B000000000001 /* Owl */,
 				DB0300000000B000 /* Bite */,
 				DB02000000000009 /* Assets.xcassets */,
 				DB0200000000000A /* DisplayAccess.entitlements */,
@@ -153,12 +164,16 @@
 			);
 			dependencies = (
 			);
+			fileSystemSynchronizedGroups = (
+				DB0B000000000001 /* Owl */,
+			);
 			name = DisplayAccess;
 			packageProductDependencies = (
 				DB0A000000000001 /* MWDATCore */,
 				DB0A000000000002 /* MWDATDisplay */,
 				DB0A000000000004 /* MWDATCamera */,
 				DB0A000000000003 /* MWDATMockDevice */,
+				DB0A000000000005 /* MWDATSpeech */,
 			);
 			productName = DisplayAccess;
 			productReference = DB02000000000001 /* DisplayAccess.app */;
@@ -251,7 +266,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = fi.junction2026.bossit.bite;
+				PRODUCT_BUNDLE_IDENTIFIER = fi.junction2026.bossit.owl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -277,7 +292,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = fi.junction2026.bossit.bite;
+				PRODUCT_BUNDLE_IDENTIFIER = fi.junction2026.bossit.owl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -454,6 +469,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DB09000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
 			productName = MWDATCamera;
+		};
+		DB0A000000000005 /* MWDATSpeech */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DB09000000000001 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATSpeech;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
