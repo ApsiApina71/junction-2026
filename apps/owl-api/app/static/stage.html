@@ -28,6 +28,9 @@
   .display .title { font-size: 34px; font-weight: 700; line-height: 1.15; }
   .display .text { font-size: 22px; color: #d7deea; }
   .display .empty { color: var(--muted); font-size: 18px; text-align: center; }
+  /* The exact glasses screen: a 600x600 render from DAT's own display renderer. Black is see-through on the glasses. */
+  .display.still { padding: 0; background: #000; overflow: hidden; }
+  .display.still img { width: 100%; height: 100%; display: block; }
   .caption { margin-top: 16px; padding: 12px 16px; background: var(--panel); border-radius: 12px; border-left: 4px solid var(--gold); font-size: 20px; min-height: 52px; }
   .caption small { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
   .camera { width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 16px; border: 1px solid var(--line); object-fit: cover; }
@@ -105,11 +108,67 @@
     if (pick) pick.onchange = () => { chosen = pick.value; connect(); };
   }
 
+  // Which exact glasses screen (static/glasses/<name>.png) matches what the glasses report now. The screens' words come
+  // from the glasses (screen kind, title, text) and from Owl's latest check, so the still is the same screen.
+  function stillFor(g) {
+    const s = g && g.screen;
+    if (!s) return null;
+    const t = `${s.title || ""} ${s.text || ""}`.toLowerCase();
+    const last = (g.events || [])[0] || {};
+    const check = (g.events || []).find((ev) => ev.kind === "check");
+    switch (s.kind) {
+      case "welcome": return "welcome";
+      case "tasks": return t.includes("training") ? "training" : "tasks";
+      case "locked": return "goto";
+      case "clip": case "video": return "clip";
+      case "finished": case "done": return "finished";
+      case "check":
+        if (t.includes("can't check") || t.includes("cannot check")) return "cant-check";
+        return "warning";
+      case "help":
+        if (t.includes("who can help")) return "help-choice";
+        if (t.includes("calling")) return "calling-mika";
+        return "mika-watching";
+      case "assist":
+        if (t.includes("not in the handbook")) return "hint-not-found";
+        if (t.includes("10:00") || t.includes("deadline")) return "hint-deadline";
+        return "customer-service";
+      case "step": {
+        if (last.kind === "said" && /you are there/i.test(last.text || "")) return "you-are-there";
+        if (!check) return "step-watching";
+        if (check.step_done) return "done";
+        if (check.status === "warning") return "warning";
+        if (check.status === "ok") return "step-looks-right";
+        if (check.status === "unsure") return "step-cant-see";
+        return "step-watching";
+      }
+    }
+    if (t.includes("well done")) return "finished";
+    return null;
+  }
+
+  const missing = new Set();
   function renderDisplay(g) {
     const s = g && g.screen;
-    el("display").innerHTML = s && (s.title || s.text)
-      ? `<div class="kind">${esc(s.kind)}</div><div class="title">${esc(s.title)}</div><div class="text">${esc(s.text)}</div>`
-      : `<div class="empty">Waiting for the glasses…</div>`;
+    const still = stillFor(g);
+    const box = el("display");
+    if (still && !missing.has(still)) {
+      const src = `/static/glasses/${still}.png`;
+      const img = box.querySelector("img");
+      if (!img || img.dataset.still !== still) {
+        const next = new Image();
+        next.alt = `The glasses screen: ${s.title || s.kind}`;
+        next.dataset.still = still;
+        next.onload = () => { box.className = "display still"; box.innerHTML = ""; box.appendChild(next); };
+        next.onerror = () => { missing.add(still); renderDisplay(g); };
+        next.src = src;
+      }
+    } else {
+      box.className = "display";
+      box.innerHTML = s && (s.title || s.text)
+        ? `<div class="kind">${esc(s.kind)}</div><div class="title">${esc(s.title)}</div><div class="text">${esc(s.text)}</div>`
+        : `<div class="empty">Waiting for the glasses…</div>`;
+    }
     const said = g && g.events.find((ev) => ev.kind === "said");
     el("said").textContent = said ? said.text : "–";
     const st = g && g.step;

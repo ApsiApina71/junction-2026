@@ -1200,6 +1200,15 @@ def stage_page() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "stage.html", media_type="text/html")
 
 
+@app.get("/static/glasses/{name}.png", include_in_schema=False)
+def glasses_still(name: Annotated[str, PathParam(pattern=r"^[a-z0-9-]{1,40}$")]) -> FileResponse:
+    """The exact 600x600 renders of the glasses screens (DAT's own renderer) that /stage shows. No worker data."""
+    path = Path(__file__).parent / "static" / "glasses" / f"{name}.png"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="No such screen.")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=300"})
+
+
 @app.get("/stage/frame", dependencies=[StageAuth])
 def stage_latest_frame(glasses: str = "") -> Response:
     snap = stage.snapshot(glasses or None)
