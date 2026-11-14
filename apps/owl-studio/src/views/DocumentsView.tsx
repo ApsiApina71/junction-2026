@@ -1,3 +1,4 @@
+import { Avatar, AvatarSize, Button, IconImage, InputTextView, InputTextViewSize, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import { useCallback, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { fileProblem, lengthText } from '../lib/docs.ts'
@@ -5,9 +6,8 @@ import { useNow, usePolling } from '../lib/hooks.ts'
 import { useStudio } from '../lib/studio.ts'
 import { timeAgo } from '../lib/time.ts'
 import type { Answer, Doc } from '../lib/types.ts'
-import { Icon } from '../ui/Icon.tsx'
-import { OwlFace } from '../ui/Owl.tsx'
-import { EmptyState, Loading, Problem } from '../ui/parts.tsx'
+import { ICONS } from '../ui/icons.ts'
+import { Confirm, DangerButton, PrimaryButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
 /** The company's own instructions. Owl answers workers' questions from these and from nothing else. */
@@ -69,92 +69,99 @@ export function DocumentsView() {
     }
   }
 
+  const confirming = docs?.find((doc) => doc.id === confirmId) ?? null
+
   return (
-    <div className="view">
-      <header className="view-head">
-        <div>
-          <h1>Documents</h1>
-          <p className="lede">Your own instructions, as you already have them. Owl answers workers' questions from these and from nothing else, and says so when the answer is not in them.</p>
-        </div>
-      </header>
-
-      <div className="two-col">
-        <section aria-labelledby="docs-heading" className="stack">
-          <div
-            className={dropping ? 'dropzone is-over' : 'dropzone'}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setDropping(true)
-            }}
-            onDragLeave={() => setDropping(false)}
-            onDrop={(event) => {
-              event.preventDefault()
-              setDropping(false)
-              void add([...event.dataTransfer.files])
-            }}
-          >
-            <Icon name="upload" size={28} />
-            <div className="dropzone-text">
-              <p className="dropzone-title">{uploading ? `Adding ${uploading}` : 'Drop a document here'}</p>
-              <p className="hint">A handbook, a checklist, house rules. Markdown, text or PDF, up to 10 MB each.</p>
+    <Page headerText="Documents" enableSystemBarInset={false} className="route">
+      <div className="split">
+        <section className="split-list" aria-labelledby="docs-heading">
+          <VerticalList insetForHeader ariaLabel="Documents">
+            <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-lede">
+              Your own instructions, as you already have them. Owl answers workers' questions from these and from nothing else, and says so when the answer is not in them.
+            </TextView>
+            <div
+              className={dropping ? 'dropzone is-over' : 'dropzone'}
+              onDragOver={(event) => {
+                event.preventDefault()
+                setDropping(true)
+              }}
+              onDragLeave={() => setDropping(false)}
+              onDrop={(event) => {
+                event.preventDefault()
+                setDropping(false)
+                void add([...event.dataTransfer.files])
+              }}
+            >
+              <Panel width="100%">
+                <div className="panel-body dropzone-body">
+                  <span className="dropzone-icon" aria-hidden="true">
+                    <IconImage source={ICONS.upload} style={{ inlineSize: '100%', blockSize: '100%' }} />
+                  </span>
+                  <div className="panel-body-text">
+                    <TextView as="p" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                      {uploading ? `Adding ${uploading}` : 'Drop a document here'}
+                    </TextView>
+                    <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                      A handbook, a checklist, house rules. Markdown, text or PDF, up to 10 MB each.
+                    </TextView>
+                  </div>
+                  <input ref={picker} id="doc-file" className="visually-hidden" type="file" accept=".md,.txt,.pdf" multiple onChange={(event) => void add([...(event.target.files ?? [])])} />
+                  <PrimaryButton title={uploading ? 'Adding' : 'Choose a file'} icon={ICONS.plus} showLoader={uploading !== null} disabled={uploading !== null} onClick={() => picker.current?.click()} />
+                </div>
+              </Panel>
             </div>
-            <input ref={picker} id="doc-file" className="visually-hidden" type="file" accept=".md,.txt,.pdf" multiple onChange={(event) => void add([...(event.target.files ?? [])])} />
-            <button type="button" className="button button-primary" onClick={() => picker.current?.click()} disabled={uploading !== null}>
-              Choose a file
-            </button>
-          </div>
 
-          {problem && <Problem>{problem}</Problem>}
+            {problem && (
+              <div className="form-block">
+                <Problem>{problem}</Problem>
+              </div>
+            )}
 
-          <h2 id="docs-heading">What Owl has read</h2>
-          {docs === null ? (
-            !problem && <Loading what="Getting your documents" />
-          ) : docs.length === 0 ? (
-            <EmptyState title="No documents yet">Add the handbook a new worker would get on paper. Until then Owl answers every question with "ask your shift lead".</EmptyState>
-          ) : (
-            <ul className="rows" aria-label="Documents">
-              {docs.map((doc) => (
-                <li key={doc.id}>
-                  {confirmId === doc.id ? (
-                    <div className="row row-confirm" role="group" aria-label={`Delete ${doc.title}`}>
-                      <p className="row-main">
-                        <span className="row-title">Delete {doc.title}?</span>
-                        <span className="row-meta">Owl stops answering from it straight away, and the file is deleted from your server.</span>
-                      </p>
-                      <div className="row-actions">
-                        <button type="button" className="button button-quiet button-small" onClick={() => setConfirmId(null)} disabled={deleting}>
-                          Keep it
-                        </button>
-                        <button type="button" className="button button-danger button-small" onClick={() => void remove(doc)} disabled={deleting}>
-                          {deleting ? 'Deleting' : 'Delete document'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="row">
-                      <span className="thumb thumb-icon" aria-hidden="true">
-                        <Icon name="documents" />
-                      </span>
-                      <span className="row-main">
-                        <span className="row-title">{doc.title}</span>
-                        <span className="row-meta">
-                          {doc.filename} · {lengthText(doc.chars)} · added {timeAgo(doc.uploaded_at, now)}
-                        </span>
-                      </span>
-                      <button type="button" className="button button-quiet button-small" onClick={() => setConfirmId(doc.id)} aria-label={`Delete ${doc.title}`}>
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+            <TextView as="h2" id="docs-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="list-label">
+              WHAT OWL HAS READ
+            </TextView>
+            {docs === null && !problem && <Waiting what="Getting your documents" />}
+            {docs !== null && docs.length === 0 && (
+              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-note">
+                No documents yet. Add the handbook a new worker would get on paper. Until then Owl answers every question with "ask your shift lead".
+              </TextView>
+            )}
+            {(docs ?? []).map((doc) => (
+              <ListItem
+                key={doc.id}
+                title={doc.title}
+                subtitle={`${doc.filename} · ${lengthText(doc.chars)} · added ${timeAgo(doc.uploaded_at, now)}`}
+                subtitleMaxLines={2}
+                icon={ICONS.documents}
+                accessoryIcon={ICONS.trash}
+                accessoryIconAlwaysVisible
+                aria-haspopup="dialog"
+                ariaLabel={`Delete ${doc.title}`}
+                onClick={() => setConfirmId(doc.id)}
+              />
+            ))}
+          </VerticalList>
         </section>
 
-        <TryQuestion hasDocs={!!docs?.length} />
+        <section className="split-detail" aria-labelledby="ask-heading">
+          <TryQuestion hasDocs={!!docs?.length} />
+        </section>
       </div>
-    </div>
+
+      {confirming && (
+        <Confirm
+          title={`Delete ${confirming.title}?`}
+          text="Owl stops answering from it straight away, and the file is deleted from your server."
+          onClose={() => setConfirmId(null)}
+          buttons={
+            <>
+              <Button title="Keep it" alwaysShowText disabled={deleting} onClick={() => setConfirmId(null)} />
+              <DangerButton title={deleting ? 'Deleting' : 'Delete document'} icon={ICONS.trash} showLoader={deleting} onClick={() => void remove(confirming)} />
+            </>
+          }
+        />
+      )}
+    </Page>
   )
 }
 
@@ -167,9 +174,8 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
 
-  const ask = async (event: React.FormEvent) => {
-    event.preventDefault()
-    const text = question.trim()
+  const ask = async (words: string) => {
+    const text = words.trim()
     if (!text || asking) return
     setAsking(true)
     setAnswer(null)
@@ -187,61 +193,82 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
   const owl = asking ? 'thinking' : answer ? (answer.found ? 'done' : 'unsure') : 'listening'
 
   return (
-    <section className="panel ask" aria-labelledby="ask-heading">
-      <h2 id="ask-heading">Try a question</h2>
-      <p className="hint">Ask the way a new worker would on the glasses. You see what Owl answers and which document it took it from.</p>
-      <form className="ask-form" onSubmit={(event) => void ask(event)}>
-        <label className="visually-hidden" htmlFor="ask-question">
-          Your question
-        </label>
-        <input
-          id="ask-question"
-          className="input"
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="What do I do if an item is out of stock?"
-          maxLength={500}
-          autoComplete="off"
-        />
-        <button type="submit" className="button button-secondary" disabled={asking || !question.trim()}>
-          {asking ? 'Asking' : 'Ask Owl'}
-        </button>
-      </form>
-
-      <div className="answer" aria-live="polite">
-        <OwlFace state={owl} size={56} />
-        <div className="answer-body">
-          {asking && <p className="answer-label">Owl is reading your documents</p>}
-          {!asking && !answer && !problem && <p className="muted">{hasDocs ? 'The answer shows here, with its source.' : 'Add a document first, then ask about something in it.'}</p>}
-          {problem && <Problem>{problem}</Problem>}
-          {answer && (
-            <>
-              <p className="answer-question">"{asked}"</p>
-              {answer.found ? (
+    <ScrollView ariaLabel="Try a question" className="detail-scroll" tabIndex={answer ? 0 : undefined}>
+      <Panel width="100%">
+        <div className="panel-body ask-body">
+          <TextView as="h2" id="ask-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+            Try a question
+          </TextView>
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            Ask the way a new worker would on the glasses. You see what Owl answers and which document it took it from.
+          </TextView>
+          <InputTextView
+            size={InputTextViewSize.FULL}
+            text={question}
+            hint="What do I do if an item is out of stock?"
+            actionLabel="Ask Owl"
+            actionIcon={ICONS.send}
+            showLoader={asking}
+            loadingLabel="Asking"
+            onTextChange={setQuestion}
+            onSend={(words) => void ask(words)}
+            inputProps={{ 'aria-label': 'Your question', maxLength: 500 }}
+          />
+          <div className="answer" aria-live="polite">
+            <Avatar src={`/owl/states/${owl}.png`} alt="" size={AvatarSize.LARGE} />
+            <div className="answer-body">
+              {asking && (
+                <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                  Owl is reading your documents
+                </TextView>
+              )}
+              {!asking && !answer && !problem && (
+                <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                  {hasDocs ? 'The answer shows here, with its source.' : 'Add a document first, then ask about something in it.'}
+                </TextView>
+              )}
+              {problem && <Problem>{problem}</Problem>}
+              {answer && (
                 <>
-                  <p className="answer-label">Owl answers</p>
-                  <p className="answer-text">{answer.text}</p>
-                  {answer.sources.map((source, i) => (
-                    <figure className="source" key={i}>
-                      <figcaption>
-                        From {source.doc}
-                        {source.section ? `, ${source.section}` : ''}
-                      </figcaption>
-                      <blockquote>{source.quote}</blockquote>
-                    </figure>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <p className="answer-label">Not in your documents</p>
-                  <p className="answer-text">{answer.text}</p>
-                  <p className="hint">Owl does not guess. Add the document that covers this and it can answer.</p>
+                  <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                    {`"${asked}"`}
+                  </TextView>
+                  {answer.found ? (
+                    <>
+                      <TextView as="p" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                        Owl answers
+                      </TextView>
+                      <TextView as="p" textStyle={TextStyle.BODY2}>
+                        {answer.text}
+                      </TextView>
+                      {answer.sources.map((source, i) => (
+                        <figure className="source" key={i}>
+                          <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY}>
+                            {`From ${source.doc}${source.section ? `, ${source.section}` : ''}`}
+                          </TextView>
+                          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                            {source.quote}
+                          </TextView>
+                        </figure>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <StatusText tone="warning">Not in your documents</StatusText>
+                      <TextView as="p" textStyle={TextStyle.BODY2}>
+                        {answer.text}
+                      </TextView>
+                      <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                        Owl does not guess. Add the document that covers this and it can answer.
+                      </TextView>
+                    </>
+                  )}
                 </>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </Panel>
+    </ScrollView>
   )
 }

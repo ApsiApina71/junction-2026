@@ -521,6 +521,68 @@ body {
   }
 }
 
+/* Documents: a place to drop files, what Owl has read, and a question to try. */
+
+.dropzone {
+  padding: 0 var(--uit-spacing-large) var(--uit-spacing-medium);
+}
+
+.dropzone.is-over {
+  outline: 4px dashed var(--uit-color-text-accent);
+  outline-offset: -2px;
+  border-radius: var(--uit-corner-radius-medium);
+}
+
+.panel-body.dropzone-body {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--uit-spacing-large);
+}
+
+.dropzone-icon {
+  display: inline-flex;
+  flex: none;
+  inline-size: 56px;
+  block-size: 56px;
+  color: var(--uit-color-text-accent);
+}
+
+.dropzone-body .panel-body-text {
+  flex: 1 1 320px;
+}
+
+.list-label {
+  padding: var(--uit-spacing-large) var(--uit-spacing-large) var(--uit-spacing-small);
+}
+
+.panel-body.ask-body {
+  align-items: stretch;
+}
+
+.answer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--uit-spacing-large);
+}
+
+.answer-body {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+}
+
+.source {
+  margin: var(--uit-spacing-small) 0 0;
+  padding-inline-start: var(--uit-spacing-medium);
+  border-inline-start: 4px solid var(--uit-color-border-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xsmall);
+}
+
 /* The task editor: the task's state and details, then the steps, the open step and what the worker sees. */
 
 .editor-shell {
