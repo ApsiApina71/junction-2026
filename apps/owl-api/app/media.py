@@ -86,9 +86,9 @@ def blur_faces(jpeg: bytes) -> bytes:
 # Video
 
 
-def _open(data: bytes) -> av.container.InputContainer:
+def _open(data: bytes, options: dict | None = None) -> av.container.InputContainer:
     try:
-        container = av.open(io.BytesIO(data), mode="r")
+        container = av.open(io.BytesIO(data), mode="r", options=options or {})
     except (av.FFmpegError, ValueError) as e:
         raise MediaError("Not a video this server can read. Send MP4 or MOV.") from e
     if not container.streams.video:
@@ -109,11 +109,37 @@ def _frames(data: bytes):
         container.close()
 
 
-def last_frame(data: bytes) -> bytes:
-    """The newest frame of a short clip, as a JPEG."""
+def _last_frame_raw(data: bytes) -> av.VideoFrame | None:
+    """Second try for clips the normal path decodes to nothing, such as a one-sample MP4 whose sample has no
+    duration (an edit list of length 0 hides it): ignore the edit list, feed every packet to the decoder, flush it."""
+    container = _open(data, {"ignore_editlist": "1"})
     last = None
-    for frame in _frames(data):
-        last = frame
+    try:
+        stream = container.streams.video[0]
+        ctx = stream.codec_context
+        for packet in container.demux(stream):
+            for frame in ctx.decode(packet if packet.size else None):
+                last = frame
+        for frame in ctx.decode(None):
+            last = frame
+    except av.FFmpegError:
+        pass
+    finally:
+        container.close()
+    return last
+
+
+def last_frame(data: bytes) -> bytes:
+    """The newest frame of a short clip, as a JPEG. A clip of a single frame works too."""
+    last = None
+    try:
+        for frame in _frames(data):
+            last = frame
+    except MediaError:
+        if not data:
+            raise
+    if last is None:
+        last = _last_frame_raw(data)
     if last is None:
         raise MediaError("The clip has no frames.")
     out = io.BytesIO()

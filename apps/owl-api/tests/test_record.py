@@ -80,6 +80,36 @@ def test_last_frame_of_an_hevc_clip():
         assert img.convert("L").getpixel((360, 270)) > 200  # the white last frame, not an earlier dark one
 
 
+def first_packet_only(data: bytes, duration: int | None = None) -> bytes:
+    """A one-frame clip as the glasses send it: hvc1 passthrough of the first (key) frame, remuxed without decoding."""
+    buf = io.BytesIO()
+    with av.open(io.BytesIO(data)) as src, av.open(buf, "w", format="mp4") as out:
+        stream = out.add_stream_from_template(src.streams.video[0])
+        packet = next(p for p in src.demux(src.streams.video[0]) if p.size)
+        packet.stream = stream
+        if duration is not None:
+            packet.duration = duration
+        out.mux(packet)
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize("codec", ["libx265", "libx264"])
+@pytest.mark.parametrize("duration", [None, 0])
+def test_last_frame_of_a_one_frame_clip(codec, duration):
+    one = first_packet_only(make_clip(codec=codec, seconds=0.5), duration)
+    with av.open(io.BytesIO(one)) as c:
+        assert sum(1 for p in c.demux(c.streams.video[0]) if p.size) == 1
+    with Image.open(io.BytesIO(media.last_frame(one))) as img:
+        assert img.size == (720, 540)
+
+
+def test_last_frame_falls_back_to_decoding_packets(monkeypatch):
+    data = make_clip(seconds=0.5)
+    monkeypatch.setattr(media, "_frames", lambda _data: iter(()))  # the normal path finds nothing
+    with Image.open(io.BytesIO(media.last_frame(data))) as img:
+        assert img.size == (720, 540)
+
+
 def test_blur_faces_hides_the_face_region(monkeypatch):
     rng = np.random.default_rng(0)
     rgb = rng.integers(0, 255, size=(300, 400, 3), dtype=np.uint8)
