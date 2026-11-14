@@ -31,6 +31,9 @@
   /* The exact glasses screen: a 600x600 render from DAT's own display renderer. Black is see-through on the glasses. */
   .display.still { padding: 0; background: #000; overflow: hidden; }
   .display.still img { width: 100%; height: 100%; display: block; }
+  /* The expert's clip as the glasses show it: a rounded card centred on the black display. */
+  .display.clip { padding: 0; background: #000; align-items: center; justify-content: center; }
+  .display.clip video { height: 92%; max-width: 92%; border-radius: 18px; display: block; }
   .caption { margin-top: 16px; padding: 12px 16px; background: var(--panel); border-radius: 12px; border-left: 4px solid var(--gold); font-size: 20px; min-height: 52px; }
   .caption small { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
   .camera { width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 16px; border: 1px solid var(--line); object-fit: cover; }
@@ -116,6 +119,7 @@
     const t = `${s.title || ""} ${s.text || ""}`.toLowerCase();
     const last = (g.events || [])[0] || {};
     const check = (g.events || []).find((ev) => ev.kind === "check");
+    if (/expert.s clip/i.test(t)) return "clip";
     switch (s.kind) {
       case "welcome": return "welcome";
       case "tasks": return t.includes("training") ? "training" : "tasks";
@@ -152,7 +156,13 @@
     const s = g && g.screen;
     const still = stillFor(g);
     const box = el("display");
-    if (still && !missing.has(still)) {
+    if (still === "clip" && g.clip_url) {
+      // The same clip the glasses play, from the start, without sound like on the glasses.
+      if (!box.querySelector("video")) {
+        box.className = "display clip";
+        box.innerHTML = `<video src="${esc(g.clip_url)}" autoplay muted playsinline></video>`;
+      }
+    } else if (still && !missing.has(still)) {
       const src = `/static/glasses/${still}.png`;
       const img = box.querySelector("img");
       if (!img || img.dataset.still !== still) {

@@ -1222,6 +1222,11 @@ def stage_state(glasses: str) -> dict:
     snap = stage.snapshot(glasses or None)
     if snap["glasses"]:
         snap["glasses"]["employee"] = stage_employee(snap["glasses"].get("employee_id")) or snap["glasses"].get("employee")
+        # The step's expert clip, so the stage plays the same video while the glasses play it.
+        st = snap["glasses"].get("step") or {}
+        process = store.processes.get(st.get("process_id", ""))
+        found = next((x for x in process.steps if x.id == st.get("step_id")), None) if process else None
+        snap["glasses"]["clip_url"] = found.clip_url if found else None
     return snap
 
 
