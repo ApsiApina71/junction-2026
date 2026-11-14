@@ -15,11 +15,11 @@ updates:
   #   groups: { npm: { patterns: ["*"] } }
 
   - package-ecosystem: npm
-    directories: [/apps/coach-web, /apps/owl-site, /apps/owl-studio]
+    directories: [/apps/owl-site, /apps/owl-studio]
     schedule: { interval: weekly }
     groups: { npm: { patterns: ["*"] } }
 
   - package-ecosystem: uv
-    directories: [/apps/coach-api, /apps/glasses-api, /apps/copilot-api, /apps/owl-api]
+    directories: [/apps/owl-api]
     schedule: { interval: weekly }
     groups: { uv: { patterns: ["*"] } }

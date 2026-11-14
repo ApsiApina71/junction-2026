@@ -1,30 +1,16 @@
 ---
 status: active
 tags: [context, challenge]
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 ---
 
 # Challenge
 
 Junction 2026, Hype Areena, Espoo, 13–15.11.2026. Theme: **European Tech Renaissance**.
-The challenge brief is TODO(team): fill it in after the challenge videos (Fri 19:10–19:30). Agents use this file to judge what matters.
 
-## Brief
+We submit to **Meta, "AI Glasses for Everyone, Everyday"**. On the first night we also tried the S-Bank challenge (a money coach) and a calorie tracker for camera glasses. We dropped both, and their code was removed from the repo in [JUN-52](https://linear.app/junction-2026-bossit/issue/JUN-52); it is still in git history.
 
-- **Challenge name and partner:** S-Bank (S-Pankki), FinTech track: "Explore how AI can turn personal banking data into a trusted financial coach for everyday life."
-- **Problem statement:** Banking stops at statements and transaction lists. Build a mobile-first AI financial coach that lets people talk with their own money, from "How much did I spend on taxis last month?" to "What kind of spender am I?", "What is safe for me to spend this week?" and "How much could I save if I reduced dining out by 20%?".
-- **What S-Bank says it values:**
-  - A pedagogical angle built on three baskets: mandatory and regular (rent), mandatory and irregular (a broken washing machine), and everyday spending that slips through your fingers (coffees). Help people understand where their money really goes.
-  - The spirit of MyData: let users explore their own data freely rather than fixed charts the bank picked.
-  - Plain-language explanations, what-if scenarios, safe-to-spend and safe-to-save guidance, healthier habits, financial literacy, especially for young adults.
-  - Benchmarks against open population data (for example Statistics Finland) are encouraged, not required.
-  - Output: a mobile app, or a web app that can be embedded in one (S-mobiili).
-  - Optional bonus: a multi-bank view through PSD2 account access.
-- **Provided data, APIs and constraints:** https://github.com/hackjunction/Junction-2026-S-pankki (synthetic, modelled on S-Bank data). 3.63 million transactions for 5,100 customers, one account each, 1 Oct 2024 to 30 Sep 2026, all in postal codes 00, 01 and 02; customer age and postal code; 200 mortgage applications with event histories. Fields are described in the brief PDF. Partner material is subject to the partner's terms.
-- **Side challenges:** "Best use of Verda" is open to any team that solves a Junction challenge using a Verda service (see [ADR-002](../architecture/adr-002-coach-architecture.md)). A Nemotron challenge was mentioned; its rules are TODO(team) from Discord or the platform.
-- **Partner workshop (time, place):** TODO(team), see the schedule below.
-
-## Second challenge: Meta, "AI Glasses for Everyone, Everyday"
+## Brief: Meta, "AI Glasses for Everyone, Everyday"
 
 - **The challenge:** demonstrate how a first-person field of view enables new or better interactions in everyday scenarios, beyond mirroring a phone screen. Turn a clear everyday need into an intuitive, inclusive experience for people with all abilities.
 - **Judged on:** creativity, technical execution, real-world impact, and inclusive interaction design for people with all abilities. Display and audio-first experiences count equally, as do Web Apps and Device Access Toolkit (DAT) mobile integrations.
@@ -39,10 +25,10 @@ The challenge partner picks the challenge winners with its own criteria. The top
 
 | Criterion | Source | What it asks | How we score on it |
 |---|---|---|---|
-| Innovation | Junction | Is it new or different from what others present? | TODO(team) |
-| Impact | Junction | Does it solve a real problem for most of the people who have it? | TODO(team) |
-| Implementation | Junction | Is it realistic, viable and feasible to build? | TODO(team) |
-| TODO(team) | Partner | | |
+| Innovation | Junction | Is it new or different from what others present? | Owl teaches and checks a task from the worker's own view. An expert's recorded working day becomes the training, and V-JEPA 2 recognises which step the worker is on. |
+| Impact | Junction | Does it solve a real problem for most of the people who have it? | Physical work has no onboarding tools. "Hire anyone": immigrants, supported employment, people with dyslexia. Research: [JUN-99](https://linear.app/junction-2026-bossit/issue/JUN-99). |
+| Implementation | Junction | Is it realistic, viable and feasible to build? | A working DAT iOS app, owl-api and Owl Studio. Demo mode runs without a model key. Rehearsal on real glasses: [JUN-53](https://linear.app/junction-2026-bossit/issue/JUN-53). |
+| Creativity, technical execution, real-world impact, inclusive interaction design | Meta | See the brief above. | Audio-first, display-first and easy-language profiles. Consent and the data flow are built into the product, not only the deck. |
 
 ## Rules (prize eligibility)
 

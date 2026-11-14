@@ -59,9 +59,7 @@ Team key `JUN`. States: **Backlog → Todo → In Progress → In Review → Don
 | Linear project | App | Path |
 |---|---|---|
 | [Research](https://linear.app/junction-2026-bossit/project/research-02b541f065e9) | none (docs only) | `docs/context/`, `docs/specs/` |
-| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) coach-api, coach-web | `apps/coach-api/`, `apps/coach-web/` |
-| TBD (Meta glasses challenge) | glasses-api | `apps/glasses-api/` |
-| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) copilot-api, glasses-ios, owl-glasses and owl-api (Onboarding Owl) | `apps/copilot-api`, `apps/glasses-ios`, `apps/owl-glasses`, `apps/owl-api` |
+| [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | owl-glasses and owl-api (Onboarding Owl) | `apps/owl-glasses/`, `apps/owl-api/` |
 | [Launch Page](https://linear.app/junction-2026-bossit/project/launch-page-5e64dd64e4ff) | owl-site | `apps/owl-site/` |
 | [Software](https://linear.app/junction-2026-bossit/project/software-e68385965606) | owl-studio (Onboarding Owl, the company's web app) | `apps/owl-studio/` |
 | [Prototyping](https://linear.app/junction-2026-bossit/project/prototyping-8076b0344cc5) | none (Claude Design) | `design/` |

@@ -1,7 +1,7 @@
 ---
 status: active
 tags: [adr, ios, glasses, meta]
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 ---
 
 # ADR-003: Glasses app on Meta DAT iOS, with copilot-api
@@ -9,6 +9,8 @@ last-updated: 2026-11-13
 - **Decision status:** accepted
 - **Ticket:** [JUN-18](https://linear.app/junction-2026-bossit/issue/JUN-18/decide-glasses-app-on-meta-dat-ios-copilot-api-adr-002)
 - **Date:** 2026-11-13
+
+> **Update 2026-11-14:** the decision stands, the names changed. The glasses app is now [`apps/owl-glasses`](../../apps/owl-glasses/README.md) and the backend [`apps/owl-api`](../../apps/owl-api/README.md). `glasses-ios` and `copilot-api` were early prototypes and were removed in [JUN-52](https://linear.app/junction-2026-bossit/issue/JUN-52); they are in git history.
 
 ## Context
 

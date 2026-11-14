@@ -27,88 +27,11 @@ jobs:
           filters: |
             ci:
               - '.github/workflows/ci.yml'
-            coach-api: ['apps/coach-api/**', 'shared/**', '.github/workflows/ci.yml']
-            coach-web: ['apps/coach-web/**', 'shared/**', '.github/workflows/ci.yml']
-            glasses-api: ['apps/glasses-api/**', 'shared/**', '.github/workflows/ci.yml']
-            copilot-api: ['apps/copilot-api/**', 'shared/**', '.github/workflows/ci.yml']
             owl-api: ['apps/owl-api/**', 'shared/**', '.github/workflows/ci.yml']
             owl-site: ['apps/owl-site/**', 'shared/**', '.github/workflows/ci.yml']
             owl-studio: ['apps/owl-studio/**', 'shared/**', '.github/workflows/ci.yml']
 
   # /new-app adds one job per app here, gated on needs.changes.outputs.apps.
-
-  coach-api:
-    needs: changes
-    if: contains(fromJSON(needs.changes.outputs.apps), 'coach-api')
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/coach-api
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-          working-directory: apps/coach-api
-      - run: uv sync --locked
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pytest
-
-  coach-web:
-    needs: changes
-    if: contains(fromJSON(needs.changes.outputs.apps), 'coach-web')
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/coach-web
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: apps/coach-web/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
-
-  glasses-api:
-    needs: changes
-    if: contains(fromJSON(needs.changes.outputs.apps), 'glasses-api')
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/glasses-api
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-          working-directory: apps/glasses-api
-      - run: uv sync --locked
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pytest
-
-  copilot-api:
-    needs: changes
-    if: contains(fromJSON(needs.changes.outputs.apps), 'copilot-api')
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/copilot-api
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-          working-directory: apps/copilot-api
-      - run: uv sync --locked
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pytest
 
   owl-api:
     needs: changes
@@ -169,7 +92,7 @@ jobs:
   ci-ok:
     # The single required check. Passes when every app job succeeded or was skipped.
     if: always()
-    needs: [changes, coach-api, coach-web, glasses-api, copilot-api, owl-api, owl-site, owl-studio]
+    needs: [changes, owl-api, owl-site, owl-studio]
     runs-on: ubuntu-latest
     steps:
       - env:
