@@ -18,7 +18,7 @@ enum SampleAppItem: String, CaseIterable, Identifiable {
 
   var title: String {
     switch self {
-    case .carMaintenance: "Onboarding Owl"
+    case .carMaintenance: "Owl Boarding"
     }
   }
 

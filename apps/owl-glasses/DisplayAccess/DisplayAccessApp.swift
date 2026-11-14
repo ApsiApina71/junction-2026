@@ -63,7 +63,7 @@ struct DisplayAccessApp: App {
           )
         }
         .tabItem {
-          Label("Owl", systemImage: "graduationcap")
+          Label("Owl Boarding", systemImage: "graduationcap")
         }
         .tag(AppTab.samples)
 

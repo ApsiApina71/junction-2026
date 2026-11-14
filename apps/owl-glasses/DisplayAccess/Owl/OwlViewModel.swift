@@ -1,7 +1,7 @@
 //
 // OwlViewModel.swift
 //
-// Onboarding Owl on the glasses (JUN-29). The worker never takes out the phone:
+// Owl Boarding on the glasses (JUN-29). The worker never takes out the phone:
 // "Hey Meta, start Owl" opens Owl on the display, buttons are picked with the Neural Band,
 // questions are spoken into the glasses and answers come on the display and in the
 // glasses speakers. The phone in the pocket only computes and talks to owl-api.
@@ -108,7 +108,7 @@ final class OwlViewModel {
   /// Display-first: the last spoken line, shown on the step card under what Owl knows.
   @ObservationIgnored private var lastCaption: String?
   /// What the display shows now, for the stage page (JUN-79).
-  @ObservationIgnored private var stageScreen = OwlStageScreen(kind: "start", title: "Owl", text: nil)
+  @ObservationIgnored private var stageScreen = OwlStageScreen(kind: "start", title: "Owl Boarding", text: nil)
   @ObservationIgnored private var stageFrameTask: Task<Void, Never>?
   /// Step recognition (JUN-34): short clips while a step runs, only as a hint.
   @ObservationIgnored private var recognizeTask: Task<Void, Never>?
@@ -300,7 +300,7 @@ final class OwlViewModel {
     let number = newScene()
     await show(
       OwlScreens.status(
-        "Owl", detail: OwlStrings.gettingTasks, mood: .listening, leave: OwlStrings.tryAgain,
+        "Owl Boarding", detail: OwlStrings.gettingTasks, mood: .listening, leave: OwlStrings.tryAgain,
         leaveIcon: .twoArrowsClockwise, onCancel: waitAction { await $0.open() }),
       deviceIdentifier: deviceIdentifier)
     watchGlasses()
