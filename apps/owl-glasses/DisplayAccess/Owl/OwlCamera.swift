@@ -3,24 +3,36 @@
 //
 // The glasses camera on the display session. Owl only uses stream frames, never photo
 // capture: Meta's known issue says capture holds back display updates on Display glasses
-// until the photo has transferred. The latest frame feeds Owl Check and Help, and Record
-// writes the frames of one step to a small H.264 MP4 (`ClipRecorder`).
+// until the photo has transferred.
+//
+// The stream is HEVC (`.hvc1`), not `.raw`: raw frames stop when the app goes to the
+// background (DAT docs, VideoCodec), and the worker's phone is locked in a pocket. Owl
+// keeps the frames since the last key frame and decodes them only when it needs a picture
+// (Owl Check, Help, Record's reference photo). Record writes the HEVC frames of one step
+// to an MP4 without re-encoding (`ClipRecorder`); the server converts it for the display.
 //
 
 import AVFoundation
+import CoreImage
 import CoreMedia
 import Foundation
 import MWDATCamera
 import MWDATCore
 import UIKit
+import VideoToolbox
 
 final class OwlCamera: @unchecked Sendable {
   private let camera: Camera
   private let tokens = ListenerTokenBag()
   private let lock = NSLock()
-  private var latestFrame: VideoFrame?
+  /// Compressed frames from the last key frame on, enough to decode the newest one.
+  private var gop: [CMSampleBuffer] = []
+  /// The newest decoded frame, when the stream delivers decoded frames (the simulator can).
+  private var latestPixels: CVPixelBuffer?
   private var latestFrameAt: Date?
   private var recorder: ClipRecorder?
+  private var frameCount = 0
+  private let decoder = FrameDecoder()
 
   /// Called on stream errors after the camera has started (glasses taken off, link lost).
   var onError: (@Sendable (String) -> Void)?
@@ -31,7 +43,7 @@ final class OwlCamera: @unchecked Sendable {
 
   @MainActor
   static func open(on session: DeviceSession) async throws -> OwlCamera {
-    let config = StreamConfiguration(videoCodec: .raw, resolution: .medium, frameRate: 15)
+    let config = StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 15)
     guard let camera = try session.addCamera(config: config) else { throw OwlError.noCamera }
     let owlCamera = OwlCamera(camera: camera)
     try await owlCamera.start()
@@ -41,7 +53,7 @@ final class OwlCamera: @unchecked Sendable {
   private func start() async throws {
     let stream = camera.stream
     stream.videoFramePublisher.listen { [weak self] frame in
-      self?.receive(frame)
+      self?.receive(frame.sampleBuffer)
     }.store(in: tokens)
     stream.errorPublisher.listen { [weak self] error in
       NSLog("[Owl] stream error: \(error)")
@@ -61,27 +73,33 @@ final class OwlCamera: @unchecked Sendable {
     }
   }
 
-  private var frameCount = 0
-
-  private func receive(_ frame: VideoFrame) {
+  private func receive(_ sample: CMSampleBuffer) {
+    let pixels = CMSampleBufferGetImageBuffer(sample)
     let recorder = lock.withLock {
       frameCount += 1
-      if frameCount == 1 || frameCount % 300 == 0 { NSLog("[Owl] camera frames: \(frameCount)") }
-      latestFrame = frame
+      if frameCount == 1 || frameCount % 300 == 0 {
+        NSLog("[Owl] camera frames: \(frameCount) (\(pixels == nil ? "hevc" : "decoded"))")
+      }
       latestFrameAt = Date()
+      if let pixels {
+        latestPixels = pixels
+      } else if sample.owlIsKeyFrame {
+        gop = [sample]
+      } else if !gop.isEmpty, gop.count < 300 {
+        gop.append(sample)
+      }
       return self.recorder
     }
-    recorder?.append(frame.sampleBuffer)
+    recorder?.append(sample)
   }
 
   /// The newest stream frame as JPEG, scaled so its longest side is at most `maxSide`.
   /// Nil when no frame arrived in the last `maxAge` seconds (stream stalled or glasses off).
   func latestJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3) -> Data? {
-    let (frame, at) = lock.withLock { (latestFrame, latestFrameAt) }
-    guard let frame, let at, Date().timeIntervalSince(at) <= maxAge,
-      let image = frame.makeUIImage()
-    else { return nil }
-    return image.owlScaled(maxSide: maxSide).jpegData(compressionQuality: 0.75)
+    let (gop, pixels, at) = lock.withLock { (gop, latestPixels, latestFrameAt) }
+    guard let at, Date().timeIntervalSince(at) <= maxAge else { return nil }
+    guard let frame = pixels ?? decoder.decodeLast(of: gop) else { return nil }
+    return UIImage.owlImage(from: frame)?.owlScaled(maxSide: maxSide).jpegData(compressionQuality: 0.75)
   }
 
   /// Waits up to `timeout` for a fresh frame (the stream needs a moment after opening).
@@ -115,14 +133,89 @@ final class OwlCamera: @unchecked Sendable {
   }
 
   func close() {
-    lock.withLock { recorder = nil }
+    lock.withLock {
+      recorder = nil
+      gop = []
+      latestPixels = nil
+    }
     tokens.clear()
     camera.stop()
   }
 }
 
-/// Writes raw stream frames to an H.264 MP4. The server re-encodes it to display size
-/// (≤ 400 px per side, faststart), so this keeps the source size.
+/// Decodes HEVC stream frames with VideoToolbox. The glasses can lower the resolution
+/// mid-stream, so the session is rebuilt whenever the format changes.
+final class FrameDecoder: @unchecked Sendable {
+  private let lock = NSLock()
+  private var session: VTDecompressionSession?
+  private var format: CMFormatDescription?
+
+  /// Decodes `samples` (a key frame and the frames after it) and returns the last picture.
+  func decodeLast(of samples: [CMSampleBuffer]) -> CVPixelBuffer? {
+    guard let first = samples.first, let format = CMSampleBufferGetFormatDescription(first) else {
+      return nil
+    }
+    return lock.withLock {
+      guard let session = session(for: format) else { return nil }
+      var last: CVPixelBuffer?
+      for sample in samples {
+        let status = VTDecompressionSessionDecodeFrame(
+          session, sampleBuffer: sample, flags: [], infoFlagsOut: nil
+        ) { status, _, image, _, _ in
+          if status == noErr, let image { last = image }
+        }
+        if status != noErr {
+          NSLog("[Owl] decode failed: \(status)")
+          // An invalid session (for example after the app went to the background) is rebuilt next time.
+          invalidate()
+          return nil
+        }
+      }
+      return last
+    }
+  }
+
+  private func session(for format: CMFormatDescription) -> VTDecompressionSession? {
+    if let session, let current = self.format, CMFormatDescriptionEqual(current, otherFormatDescription: format) {
+      return session
+    }
+    invalidate()
+    var newSession: VTDecompressionSession?
+    let attributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA] as CFDictionary
+    let status = VTDecompressionSessionCreate(
+      allocator: nil, formatDescription: format, decoderSpecification: nil,
+      imageBufferAttributes: attributes, outputCallback: nil, decompressionSessionOut: &newSession)
+    guard status == noErr, let newSession else {
+      NSLog("[Owl] decoder create failed: \(status)")
+      return nil
+    }
+    let size = CMVideoFormatDescriptionGetDimensions(format)
+    NSLog("[Owl] decoder for \(size.width)×\(size.height)")
+    session = newSession
+    self.format = format
+    return newSession
+  }
+
+  private func invalidate() {
+    if let session { VTDecompressionSessionInvalidate(session) }
+    session = nil
+    format = nil
+  }
+}
+
+extension CMSampleBuffer {
+  /// True for HEVC key frames (no `NotSync` attachment).
+  var owlIsKeyFrame: Bool {
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(self, createIfNecessary: false)
+      as? [[CFString: Any]], let first = attachments.first
+    else { return true }
+    return !(first[kCMSampleAttachmentKey_NotSync] as? Bool ?? false)
+  }
+}
+
+/// Writes one step's stream frames to an MP4. HEVC frames are copied as they are, starting
+/// at a key frame; decoded frames (simulator) are encoded to H.264. The server converts the
+/// clip to a display-sized H.264 MP4 (≤ 400 px per side, faststart).
 final class ClipRecorder: @unchecked Sendable {
   private let url: URL
   private let lock = NSLock()
@@ -136,32 +229,47 @@ final class ClipRecorder: @unchecked Sendable {
     self.url = url
   }
 
-  func append(_ sampleBuffer: CMSampleBuffer) {
-    guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-    let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+  func append(_ sample: CMSampleBuffer) {
+    let time = CMSampleBufferGetPresentationTimeStamp(sample)
+    let pixels = CMSampleBufferGetImageBuffer(sample)
     lock.withLock {
       guard !failed else { return }
-      if writer == nil { setUp(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer), at: time) }
-      guard let input, let adaptor, input.isReadyForMoreMediaData else { return }
-      if adaptor.append(pixelBuffer, withPresentationTime: time) { frames += 1 }
+      if writer == nil {
+        // A compressed clip has to start at a key frame to be playable.
+        guard pixels != nil || sample.owlIsKeyFrame else { return }
+        setUp(sample: sample, pixels: pixels, at: time)
+      }
+      guard let input, input.isReadyForMoreMediaData else { return }
+      if let pixels, let adaptor {
+        if adaptor.append(pixels, withPresentationTime: time) { frames += 1 }
+      } else if pixels == nil, input.append(sample) {
+        frames += 1
+      }
     }
   }
 
-  private func setUp(width: Int, height: Int, at time: CMTime) {
+  private func setUp(sample: CMSampleBuffer, pixels: CVPixelBuffer?, at time: CMTime) {
     do {
       try? FileManager.default.removeItem(at: url)
       let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
       writer.shouldOptimizeForNetworkUse = true
-      let input = AVAssetWriterInput(
-        mediaType: .video,
-        outputSettings: [
-          AVVideoCodecKey: AVVideoCodecType.h264,
-          AVVideoWidthKey: width,
-          AVVideoHeightKey: height,
-          AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 1_200_000],
-        ])
+      let input: AVAssetWriterInput
+      if let pixels {
+        input = AVAssetWriterInput(
+          mediaType: .video,
+          outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: CVPixelBufferGetWidth(pixels),
+            AVVideoHeightKey: CVPixelBufferGetHeight(pixels),
+            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 1_200_000],
+          ])
+        adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
+      } else {
+        input = AVAssetWriterInput(
+          mediaType: .video, outputSettings: nil,
+          sourceFormatHint: CMSampleBufferGetFormatDescription(sample))
+      }
       input.expectsMediaDataInRealTime = true
-      let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
       writer.add(input)
       guard writer.startWriting() else {
         failed = true
@@ -171,7 +279,6 @@ final class ClipRecorder: @unchecked Sendable {
       writer.startSession(atSourceTime: time)
       self.writer = writer
       self.input = input
-      self.adaptor = adaptor
     } catch {
       failed = true
       NSLog("[Owl] clip writer: \(error)")
@@ -183,11 +290,21 @@ final class ClipRecorder: @unchecked Sendable {
     guard let writer, let input, frames > 0 else { return nil }
     input.markAsFinished()
     await writer.finishWriting()
+    NSLog("[Owl] clip: \(frames) frames, \(writer.status == .completed ? "ok" : "failed \(String(describing: writer.error))")")
     return writer.status == .completed ? url : nil
   }
 }
 
 extension UIImage {
+  private static let ciContext = CIContext()
+
+  /// A picture of a decoded video frame.
+  static func owlImage(from pixels: CVPixelBuffer) -> UIImage? {
+    let image = CIImage(cvPixelBuffer: pixels)
+    guard let cgImage = ciContext.createCGImage(image, from: image.extent) else { return nil }
+    return UIImage(cgImage: cgImage)
+  }
+
   /// A copy whose longest side is at most `maxSide` points (scale 1).
   func owlScaled(maxSide: CGFloat) -> UIImage {
     let longest = max(size.width, size.height)

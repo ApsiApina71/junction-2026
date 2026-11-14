@@ -24,7 +24,7 @@ What works in the simulator chain (iOS Simulator + MockDeviceKit + mock owl-api)
 |---|---|
 | `DisplayAccess/Owl/OwlViewModel.swift` | The Owl flow on the glasses |
 | `DisplayAccess/Owl/OwlVoice.swift` | Voice invocations and glasses speech |
-| `DisplayAccess/Owl/OwlCamera.swift` | Stream frames and clip recording |
+| `DisplayAccess/Owl/OwlCamera.swift` | HEVC stream (keeps working in the background), on-demand decode, clip recording |
 | `DisplayAccess/Owl/OwlAPI.swift`, `OwlModels.swift` | owl-api client and contract shapes |
 | `DisplayAccess/Owl/OwlBasicScreens.swift` | Plain screens until JUN-36 lands |
 | `DisplayAccess/Owl/Display/` | Owl glasses screens and art (JUN-36) |
