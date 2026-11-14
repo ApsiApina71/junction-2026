@@ -1,6 +1,6 @@
 // The views of Owl Studio and their addresses. The address is the part after # so a link can be shared or reloaded.
 
-export type View = 'tasks' | 'documents' | 'people' | 'help' | 'data'
+export type View = 'tasks' | 'documents' | 'people' | 'training' | 'map' | 'help' | 'data'
 
 export interface Route {
   view: View
@@ -8,12 +8,14 @@ export interface Route {
   id: string | null
 }
 
-export const VIEWS: View[] = ['tasks', 'documents', 'people', 'help', 'data']
+export const VIEWS: View[] = ['tasks', 'documents', 'people', 'training', 'map', 'help', 'data']
 
 export const VIEW_TITLE: Record<View, string> = {
   tasks: 'Tasks',
   documents: 'Documents',
   people: 'People',
+  training: 'Training',
+  map: 'Map',
   help: 'Help',
   data: 'Data',
 }

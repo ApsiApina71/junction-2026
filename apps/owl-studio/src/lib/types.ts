@@ -54,6 +54,14 @@ export interface Step {
   source: Source | null
   /** False on a step Owl wrote from a recording that no person has read yet. Left out by older servers, which means true. */
   reviewed?: boolean
+  /** Where the step happens (JUN-97). During training it is locked on the glasses until the worker gets there. */
+  checkpoint?: Checkpoint | null
+}
+
+export interface Checkpoint {
+  zone_id: string
+  /** "Aisle C · Shelf 12", at most 40 characters. */
+  label: string
 }
 
 export interface Process {
@@ -139,4 +147,89 @@ export interface Stats {
 export interface Health {
   status: string
   model_id: string
+}
+
+// Training period and target level (JUN-96)
+
+export interface TargetStep {
+  process_id: string
+  step_id: string
+  required: number
+}
+
+export interface TrainingPlan {
+  id: string
+  role: string
+  days: number
+  target: TargetStep[]
+  /** JUN-98: workers in this role may turn on customer service mode on the glasses during training. */
+  customer_service?: boolean
+}
+
+export interface TrainingRow extends TargetStep {
+  title: string
+  task: string
+  done_without_help: number
+  met: boolean
+}
+
+export type TrainingResult = 'ready' | 'more_practice'
+
+export interface Training {
+  employee_id: string
+  plan_id: string
+  starts: string
+  ends: string
+  day: number
+  days: number
+  days_left: number
+  active: boolean
+  target: TrainingRow[]
+  practise: { process_id: string; step_id: string; title: string }[]
+  /** Owl's suggestion. In Studio's list it stays null until the worker has seen it on the glasses. */
+  suggestion: TrainingResult | null
+  seen_at: string | null
+  confirmed: { result: TrainingResult; by: string; at: string; note: string | null } | null
+}
+
+/** A row of Studio's training list: the worker's training with their name. */
+export interface Trainee extends Training {
+  name: string
+  role: string
+  /** Owl has a suggestion, but the worker has not seen it on the glasses yet. */
+  waiting_for_worker?: boolean
+}
+
+// Location during training (JUN-97)
+
+export type ZoneKind = 'aisle' | 'packing' | 'loading' | 'other'
+
+/** An area on the map. x, y, w and h are shares of the map's width and height, from the top left. */
+export interface Zone {
+  id: string
+  name: string
+  kind: ZoneKind
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface Marker {
+  payload: string
+  kind: 'zone' | 'checkpoint'
+  label: string
+  zone_id: string
+  process_id: string | null
+  step_id: string | null
+  step_title?: string
+  task?: string
+  svg: string
+}
+
+export interface TraineePlace {
+  employee_id: string
+  name: string
+  zone: { id: string; name: string } | null
+  entered_at: string | null
 }

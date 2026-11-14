@@ -111,7 +111,7 @@ def fake_client(draft):
 DOCS = [
     (
         "Café Kide: counter handbook",
-        "## Returns and refunds\n- Packaged products such as coffee beans can be returned unopened within 14 days with the receipt.",
+        "## Returns and refunds\n- Unopened coffee beans can be returned within 14 days with the receipt.",
     )
 ]
 
@@ -120,7 +120,7 @@ def test_model_bullets_need_a_real_quote(monkeypatch):
     good = assist.Draft(
         found=True,
         bullets=["Unopened beans: return within 14 days", "Receipt needed"],
-        sources=[{"doc": "Café Kide: counter handbook", "section": "Returns and refunds", "quote": "can be returned unopened within 14 days with the receipt"}],
+        sources=[{"doc": "Café Kide: counter handbook", "section": "Returns and refunds", "quote": "can be returned within 14 days with the receipt"}],
     )
     monkeypatch.setattr(assist, "client", fake_client(good))
     a = assist.answer("can I return these beans", DOCS, "en")

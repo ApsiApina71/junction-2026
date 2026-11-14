@@ -12,12 +12,14 @@ import { UnsavedContext } from './ui/toast.ts'
 import { DataView } from './views/DataView.tsx'
 import { DocumentsView } from './views/DocumentsView.tsx'
 import { HelpView } from './views/HelpView.tsx'
+import { MapView } from './views/MapView.tsx'
 import { PeopleView } from './views/PeopleView.tsx'
 import { SettingsDialog } from './views/SettingsDialog.tsx'
 import { TaskEditor } from './views/TaskEditor.tsx'
 import { TasksView } from './views/TasksView.tsx'
+import { TrainingView } from './views/TrainingView.tsx'
 
-const NAV_ICON: Record<View, IconName> = { tasks: 'tasks', documents: 'documents', people: 'people', help: 'help', data: 'data' }
+const NAV_ICON: Record<View, IconName> = { tasks: 'tasks', documents: 'documents', people: 'people', training: 'training', map: 'map', help: 'help', data: 'data' }
 
 export default function App({ api }: { api?: Api }) {
   return (
@@ -184,6 +186,8 @@ function Shell() {
           {route.view === 'tasks' && (route.id ? <TaskEditor key={route.id} processId={route.id} /> : <TasksView />)}
           {route.view === 'documents' && <DocumentsView />}
           {route.view === 'people' && <PeopleView selectedId={route.id} />}
+          {route.view === 'training' && <TrainingView />}
+          {route.view === 'map' && <MapView />}
           {route.view === 'help' && <HelpView selectedId={route.id} />}
           {route.view === 'data' && <DataView />}
         </main>

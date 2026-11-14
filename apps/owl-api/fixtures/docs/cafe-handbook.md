@@ -19,7 +19,7 @@ Example knowledge base for the Owl demo. In customer service mode, Owl suggests 
 ## Returns and refunds
 
 - A drink that is wrong or cold is remade at once, free of charge. No receipt needed.
-- Packaged products such as coffee beans can be returned unopened within 14 days with the receipt.
+- Unopened coffee beans can be returned within 14 days with the receipt.
 - Refunds go back to the card that paid. Cash is refunded in cash.
 - Opened coffee beans cannot be returned. Offer a different roast instead.
 

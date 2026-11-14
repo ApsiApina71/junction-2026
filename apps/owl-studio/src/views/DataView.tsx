@@ -6,7 +6,8 @@ import type { Stats } from '../lib/types.ts'
 import { StatusTag } from '../ui/parts.tsx'
 
 // Every sentence here says what the code does today and no more (apps/owl-api: main.py, media.py, record.py,
-// ask.py, verifier.py, progress.py, persist.py, jepa.py, stage.py, translate.py, docs_process.py; apps/owl-glasses:
+// ask.py, verifier.py, progress.py, persist.py, jepa.py, stage.py, translate.py, docs_process.py, training.py,
+// location.py, assist.py; apps/owl-glasses:
 // Info.plist, OwlViewModel.swift, OwlCamera.swift). Two things are kept apart on purpose: what Owl's own server
 // stores and deletes, which Owl controls and can state exactly, and what happens to data once it has gone to
 // someone else (the model provider, Meta), which follows their terms. The same list is in
@@ -81,8 +82,23 @@ export function DataView() {
                 After each check the server notes, for that run of the task: when it started and finished, which task it was, how many steps were done, and how many problems Owl caught and how many of them were then fixed. The run is linked to the worker when
                 the glasses say who is wearing them. It does not keep what the problem was, and no picture. Saved in a file on the server, so it is still there after a restart. The worker erases their own with Forget me on the glasses.
               </dd>
+              <dt>The end of training</dt>
+              <dd>
+                For a worker in a training period, the server counts per step of the level how many times Owl verified it without the worker asking Owl or calling for help. At the end it suggests Ready or More practice. The worker sees it on the
+                glasses first; only then does the <a href={href('training')}>Training</a> page show it, with those counts, and a person confirms it. No pictures, places or times go into it. Forget me drops it.
+              </dd>
+              <dt>Where a trainee is</dt>
+              <dd>
+                Only during a training period, and only after the worker agreed on the glasses: the area of the last marker the glasses saw, and today's areas. Kept in the server's memory only, never saved to disk, and deleted when training ends, when the
+                worker says no, or when the server restarts. The <a href={href('map')}>Map</a> shows the current area.
+              </dd>
+              <dt>Customer service mode</dt>
+              <dd>
+                Only during training, only for a role that has it, and only while the worker has it on. On a Hint the glasses send the last half minute of the conversation as text. The server uses it for one suggestion and drops it: no sound and no text is
+                saved or logged.
+              </dd>
               <dt>What each worker agreed to</dt>
-              <dd>Whether they allowed camera checks and recording, and when. Saved on the server and on the phone. Without a yes to camera checks the server refuses the pictures.</dd>
+              <dd>Whether they allowed camera checks, recording and following their area during training, and when. Saved on the server and on the phone. Without a yes to camera checks the server refuses the pictures.</dd>
               <dt>Tasks, translations, people and recordings</dt>
               <dd>Saved in a file on the server, so they are still there after a restart. Questions and answers are not saved.</dd>
               <dt>The stage view</dt>
@@ -106,6 +122,8 @@ export function DataView() {
             <dl>
               <dt>A check</dt>
               <dd>One picture from the glasses camera, with the step and the expert's photo of it. The model describes what it sees, and your server decides.</dd>
+              <dt>A customer service hint</dt>
+              <dd>The last half minute of the counter conversation as text, and your documents for that worker's company. The model suggests up to three points; each must rest on words found in a document.</dd>
               <dt>A question</dt>
               <dd>The worker's question, the task and step they are on, and your documents: all of them while they are short enough to fit, otherwise the parts that match the question best.</dd>
               <dt>A new recording</dt>
@@ -158,8 +176,8 @@ export function DataView() {
             <dl>
               <dt>A worker's progress is not locked away</dt>
               <dd>
-                The worker sees their own progress on their glasses, and Studio shows only totals for everyone together. That is how these screens are made, not a lock: the server has one access token for everything, so anyone who has it can read one
-                worker's runs from the server.
+                The worker sees their own progress on their glasses, and Studio shows only totals for everyone together, plus the end-of-training result after the worker has seen it. That is how these screens are made, not a lock: the server has one access
+                token for everything, so anyone who has it can read one worker's runs from the server.
               </dd>
               <dt>Blurring can miss a face</dt>
               <dd>A detector finds the faces. One it does not find, such as a face turned away, far off or half covered, is saved as it is. Look through a recorded task's photos and clips before you publish it.</dd>

@@ -99,6 +99,9 @@ What the code does today. Owl Studio shows the same list to the company ("Where 
 | A task's words | Kept | The first time a worker needs the task in another language |
 | A worker's view during Help | Kept only while the request is open, then deleted | Never |
 | Learning progress | Per run: start, finish, task, steps done, problems caught and fixed. Linked to the worker, saved in a file, erased by "Forget me" | Never |
+| The end-of-training result (JUN-96) | Per step of the level, how many times it was verified without help; Owl's suggestion; who confirmed it. Shown in Studio only after the worker has seen it. Dropped by "Forget me" | Never |
+| Where a trainee is (JUN-97) | Only during training and with consent: the current area and today's areas, in memory only, never saved; deleted when training ends or consent is taken back | Never |
+| A customer service hint (JUN-98) | Not saved, not logged | The last ~30 s of the conversation as text, and the company's documents |
 | What a worker agreed to | Saved, with the time | Never |
 | The stage view (off by default) | The current screen, Owl's last sentence and the newest camera picture, held in memory and replaced, never saved | Never |
 

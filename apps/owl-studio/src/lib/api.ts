@@ -1,6 +1,6 @@
 // The owl-api client. Every failure becomes an ApiError with a sentence a shift lead can act on.
 
-import type { Answer, Doc, Employee, EmployeeInput, Health, HelpSession, Mark, Process, Recording, Stats } from './types.ts'
+import type { Answer, Doc, Employee, EmployeeInput, Health, HelpSession, Marker, Mark, Process, Recording, Stats, Trainee, Training, TrainingPlan, TrainingResult, TraineePlace, Zone } from './types.ts'
 
 export type ApiErrorKind = 'offline' | 'unauthorized' | 'not_found' | 'server'
 
@@ -141,6 +141,30 @@ export function createApi(config: ApiConfig = apiConfig(), fetchFn: Fetch = (inp
     say: (helpId: string, text: string, mark: Mark | null = null) =>
       request<HelpSession>(`/help/${id(helpId)}/say`, json('POST', mark ? { from: 'expert', text, mark } : { from: 'expert', text })),
     endHelp: (helpId: string) => request<HelpSession>(`/help/${id(helpId)}/end`, { method: 'POST' }),
+
+    // Training period and target level (JUN-96)
+    trainingPlans: () => request<{ plans: TrainingPlan[] }>('/training/plans').then((r) => r.plans),
+    saveTrainingPlan: (plan: TrainingPlan) => request<TrainingPlan>(`/training/plans/${id(plan.id)}`, json('PUT', plan)),
+    trainees: () => request<{ trainees: Trainee[] }>('/training').then((r) => r.trainees),
+    /** starts null ends the training period. */
+    startTraining: (employeeId: string, starts: string | null, planId: string | null = null) =>
+      request<Training | { employee_id: string; plan_id: null }>(`/employees/${id(employeeId)}/training`, json('PUT', { starts, plan_id: planId })),
+    confirmTraining: (employeeId: string, result: TrainingResult, by: string, extendDays = 3) =>
+      request<Training>(`/employees/${id(employeeId)}/training/confirm`, json('POST', { result, by, extend_days: extendDays })),
+
+    // Location during training (JUN-97)
+    zones: () => request<{ zones: Zone[] }>('/zones').then((r) => r.zones),
+    saveZone: (zone: Zone) => request<Zone>(`/zones/${id(zone.id)}`, json('PUT', zone)),
+    deleteZone: (zoneId: string) => request<void>(`/zones/${id(zoneId)}`, { method: 'DELETE' }),
+    markers: () => request<{ markers: Marker[] }>('/markers').then((r) => r.markers),
+    places: () => request<{ trainees: TraineePlace[] }>('/locations').then((r) => r.trainees),
+    /** A marker is missing or damaged: the trainer opens the step on the worker's glasses. */
+    unlockStep: (employeeId: string, processId: string, stepId: string) =>
+      request<unknown>(`/employees/${id(employeeId)}/unlock`, json('POST', { process_id: processId, step_id: stepId, by: 'trainer' })),
+
+    // Customer service mode (JUN-98)
+    assistSign: () => request<{ text: string }>('/assist/sign').then((r) => r.text),
+    saveAssistSign: (text: string) => request<{ text: string }>('/assist/sign', json('PUT', { text })).then((r) => r.text),
   }
 }
 

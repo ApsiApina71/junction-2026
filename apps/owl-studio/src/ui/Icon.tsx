@@ -26,6 +26,9 @@ export type IconName =
   | 'sound'
   | 'undo'
   | 'info'
+  | 'training'
+  | 'map'
+  | 'print'
 
 const PATHS: Record<IconName, ReactNode> = {
   tasks: (
@@ -113,6 +116,23 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v6" />
       <circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),  training: (
+    <>
+      <path d="M2.5 9L12 4.5 21.5 9 12 13.5z" />
+      <path d="M6.5 11v4.5c1.6 1.6 3.4 2.5 5.5 2.5s3.9-.9 5.5-2.5V11M21.5 9v5.5" />
+    </>
+  ),
+  map: (
+    <>
+      <path d="M3.5 6.5l5.5-2 6 2 5.5-2v13l-5.5 2-6-2-5.5 2z" />
+      <path d="M9 4.5v13M15 6.5v13" />
+    </>
+  ),
+  print: (
+    <>
+      <path d="M7 9V3.5h10V9M7 17H4.5V10a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1v7H17" />
+      <path d="M7 14h10v6.5H7z" />
     </>
   ),
 }
