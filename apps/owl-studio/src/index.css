@@ -445,6 +445,82 @@ body {
   }
 }
 
+/* A list and the record it opens, side by side: each column has one scroller and its actions docked under it. */
+
+.split {
+  box-sizing: border-box;
+  block-size: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: var(--uit-spacing-xlarge);
+  padding: 0 var(--uit-spacing-large) 0 0;
+}
+
+.split-list,
+.split-detail,
+.detail-shell {
+  min-inline-size: 0;
+  min-block-size: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.split-detail {
+  grid-template-rows: minmax(0, 1fr);
+  padding-block-start: calc(var(--uit-spacing-5xl) + var(--uit-spacing-large));
+}
+
+.detail-scroll {
+  min-block-size: 0;
+}
+
+.list-lede,
+.list-note {
+  padding: var(--uit-spacing-small) var(--uit-spacing-large) var(--uit-spacing-medium);
+  max-inline-size: 64ch;
+}
+
+.list-panel {
+  margin-block-start: var(--uit-spacing-large);
+}
+
+.form-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-large);
+  padding: var(--uit-spacing-medium) var(--uit-spacing-large) var(--uit-spacing-large);
+}
+
+.steps-list {
+  margin: 0;
+  padding-inline-start: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xsmall);
+  color: var(--uit-color-text-primary);
+}
+
+/* A person's initial inside the toolkit's Avatar, centred in its circle. */
+.initial {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  color: var(--uit-color-text-primary);
+}
+
+@media (max-width: 1200px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    padding-inline-end: 0;
+  }
+
+  .split-detail {
+    padding-block-start: 0;
+  }
+}
+
 /* Shared parts on the toolkit (ui/meta.tsx) */
 
 .panel-body {
@@ -509,6 +585,28 @@ body {
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--uit-spacing-medium);
+}
+
+/* Field labels are short and in capitals, the toolkit's convention for secondary labels. */
+.field-label {
+  text-transform: uppercase;
+}
+
+.choice-frame {
+  inline-size: min(100%, 760px);
+}
+
+.choice-list {
+  max-block-size: 60vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* A text field the toolkit has no component for (a masked secret), drawn with its input tokens. */

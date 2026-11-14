@@ -180,12 +180,12 @@ function Shell() {
             <div className="view-slot">
               {route.view === 'tasks' && !route.id && <TasksView />}
               {route.view === 'help' && <HelpView selectedId={route.id} />}
+              {route.view === 'people' && <PeopleView selectedId={route.id} />}
             </div>
           ) : (
             <div className="view-slot legacy" key={`${route.view}/${route.id ?? ''}`}>
               {route.view === 'tasks' && route.id && <TaskEditor key={route.id} processId={route.id} />}
               {route.view === 'documents' && <DocumentsView />}
-              {route.view === 'people' && <PeopleView selectedId={route.id} />}
               {route.view === 'training' && <TrainingView />}
               {route.view === 'map' && <MapView />}
               {route.view === 'data' && <DataView />}
@@ -214,7 +214,7 @@ function Shell() {
 
 /** The views already built from toolkit components (JUN-101); the rest still render inside .legacy. */
 function onToolkit(route: Route): boolean {
-  return (route.view === 'tasks' && !route.id) || route.view === 'help'
+  return (route.view === 'tasks' && !route.id) || route.view === 'help' || route.view === 'people'
 }
 
 /** Which server Studio talks to, said in a Chip at the foot of the sidebar. */

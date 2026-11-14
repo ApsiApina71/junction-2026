@@ -4,8 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/owl/icon-64.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#F3F5F4" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0B1416" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#000000" />
+    <!--
+      Meta's UI toolkit loads Noto Sans from Google Fonts unless this id is already on the page. Studio bundles the font
+      (@fontsource/noto-sans), so nothing about the person using Studio goes to Google for it.
+    -->
+    <meta id="uit-noto-sans-font" name="fonts" content="bundled" />
     <title>Owl Studio</title>
     <meta name="description" content="Owl Studio is where a company gives Owl Boarding its own instructions, reviews recorded tasks, adds new workers and answers them when they ask for help." />
   </head>

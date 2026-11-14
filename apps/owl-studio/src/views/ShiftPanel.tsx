@@ -1,11 +1,16 @@
+import { TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { OnShift } from '../lib/types.ts'
+import { ChoiceRow } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
-/** JUN-100: who is the manager on shift now. A worker's Help call rings that person's glasses first. */
-export function ShiftPanel() {
+/**
+ * JUN-100: who is the manager on shift now. A worker's Help call rings that person's glasses first. Rows for the
+ * People list (one per workplace), so they sit in its VerticalList.
+ */
+export function ShiftRows() {
   const { api, employees } = useStudio()
   const toast = useToast()
   const [onShift, setOnShift] = useState<OnShift[] | null>(null)
@@ -38,29 +43,20 @@ export function ShiftPanel() {
   }
 
   return (
-    <section className="panel" aria-labelledby="shift-heading">
-      <h2 id="shift-heading">On shift now</h2>
-      <p className="hint">When a new worker calls for help, the manager on shift answers on their own glasses and sees the worker's view. If they do not answer in 30 seconds, the call comes to Help here.</p>
+    <>
+      <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="list-note">
+        When a new worker calls for help, the manager on shift answers on their own glasses and sees the worker's view. If they do not answer in 30 seconds, the call comes to Help here.
+      </TextView>
       {companies.map((company) => {
         const current = onShift.find((row) => row.company === company)?.employee_id ?? ''
-        const id = `shift-${company.replace(/\W+/g, '-')}`
-        return (
-          <div className="field" key={company}>
-            <label htmlFor={id}>{companies.length > 1 ? `Manager on shift at ${company}` : 'Manager on shift'}</label>
-            <select id={id} className="input" value={current} onChange={(event) => void choose(company, event.target.value)}>
-              <option value="">No one: Help goes to Studio</option>
-              {managers
-                .filter((manager) => manager.company === company)
-                .map((manager) => (
-                  <option key={manager.id} value={manager.id}>
-                    {manager.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-        )
+        const choices = [{ value: '', label: 'No one', detail: 'Help goes to Studio' }, ...managers.filter((manager) => manager.company === company).map((manager) => ({ value: manager.id, label: manager.name, detail: 'Answers on their own glasses' }))]
+        return <ChoiceRow key={company} label={companies.length > 1 ? `Manager on shift at ${company}` : 'Manager on shift'} choices={choices} value={current} onChange={(id) => void choose(company, id)} />
       })}
-      {error && <p className="field-error">{error}</p>}
-    </section>
+      {error && (
+        <TextView as="p" textStyle={TextStyle.META1} className="list-note">
+          <span className="status-text is-negative">{error}</span>
+        </TextView>
+      )}
+    </>
   )
 }

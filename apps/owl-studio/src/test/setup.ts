@@ -2,6 +2,11 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
+// Studio bundles Noto Sans; the marker keeps the toolkit from adding a Google Fonts link (index.html has it too).
+const fontMarker = document.createElement('meta')
+fontMarker.id = 'uit-noto-sans-font'
+document.head.appendChild(fontMarker)
+
 // jsdom has no ResizeObserver; Meta's UI toolkit measures its components with one.
 class NoResizeObserver {
   observe() {}

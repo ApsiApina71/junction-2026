@@ -1,11 +1,12 @@
 // Studio's shared parts, composed from Meta's UI Toolkit for Meta Ray-Ban Display (JUN-101). Each part is one
 // toolkit component, or toolkit components arranged; none of them redraws what the toolkit already has.
 
-import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, MaterialLibrary, Modal, Panel, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
+import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, InputTextView, ListItem, MaterialLibrary, Modal, Panel, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import type { ButtonProps } from '@wearables-ui-toolkit/mrbd'
-import { useEffect, useId, useMemo, useRef } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import alert from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
+import { counterText } from '../lib/steps.ts'
 
 /** The one action a view is for (Publish, Save): the toolkit's themed primary material. */
 export function PrimaryButton(props: ButtonProps) {
@@ -128,6 +129,138 @@ export function Dialog({ title, onClose, children, actions }: { title: string; o
             {children}
             <div className="dialog-actions">
               <ButtonGroup alignment={ButtonGroupAlignment.END}>{actions}</ButtonGroup>
+            </div>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  )
+}
+
+/** "120/300", turning into "320/300, 20 too many" once the limit is passed. */
+export function CharacterCount({ used, limit }: { used: number; limit: number }) {
+  const over = used > limit
+  return (
+    <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} aria-live="polite">
+      <span className="visually-hidden">characters: </span>
+      <span className={over ? 'status-text is-warning' : undefined}>{counterText(used, limit)}</span>
+    </TextView>
+  )
+}
+
+/** A field label: short, secondary, in capitals (drawn by CSS, so it is read as written). */
+export function FieldLabel({ htmlFor, children, extra }: { htmlFor: string; children: ReactNode; extra?: ReactNode }) {
+  return (
+    <div className="field-head">
+      <label htmlFor={htmlFor} className="field-label">
+        <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY}>
+          {children}
+        </TextView>
+      </label>
+      {extra}
+    </div>
+  )
+}
+
+/** Free text: the toolkit's InputTextView under a label, with a hint or the problem under it. */
+export function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  hint,
+  error,
+  placeholder,
+  maxLength,
+  lang,
+  extra,
+  multiline = false,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (text: string) => void
+  hint?: ReactNode
+  error?: string | null
+  placeholder?: string
+  maxLength?: number
+  lang?: string
+  extra?: ReactNode
+  /** Without it, a line break typed or pasted becomes a space: names and titles are one line. */
+  multiline?: boolean
+}) {
+  const note = error ? `${id}-error` : hint ? `${id}-hint` : undefined
+  return (
+    <div className="field">
+      <FieldLabel htmlFor={id} extra={extra}>
+        {label}
+      </FieldLabel>
+      <InputTextView text={value} hint={placeholder ?? ''} onTextChange={(text) => onChange(multiline ? text : text.replace(/\s*\n\s*/g, ' '))} inputProps={{ id, maxLength, lang, autoComplete: 'off', 'aria-invalid': error ? true : undefined, 'aria-describedby': note }} />
+      {error ? (
+        <TextView as="p" id={`${id}-error`} textStyle={TextStyle.META1}>
+          <span className="status-text is-negative">{error}</span>
+        </TextView>
+      ) : hint ? (
+        <TextView as="p" id={`${id}-hint`} textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+          {hint}
+        </TextView>
+      ) : null}
+    </div>
+  )
+}
+
+export interface Choice<T extends string> {
+  value: T
+  label: string
+  detail?: string
+}
+
+/** A setting with one answer: a row that says the current answer and opens the choices. Goes inside a VerticalList. */
+export function ChoiceRow<T extends string>({ label, choices, value, onChange, note, warn }: { label: string; choices: Choice<T>[]; value: T; onChange: (value: T) => void; note?: string; warn?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const current = choices.find((choice) => choice.value === value)
+  return (
+    <>
+      <ListItem title={label} subtitle={note ?? current?.label ?? ''} subtitleTextColor={warn ? SubtitleTextColor.WARNING : SubtitleTextColor.SECONDARY} subtitleMaxLines={2} aria-haspopup="dialog" onClick={() => setOpen(true)} />
+      {open && (
+        <ChoiceDialog
+          title={label}
+          choices={choices}
+          value={value}
+          onChoose={(next) => {
+            onChange(next)
+            setOpen(false)
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  )
+}
+
+/** One answer from a few: a radio list over a shade, the toolkit's single-choice pattern. Choosing closes it. */
+export function ChoiceDialog<T extends string>({ title, choices, value, onChoose, onClose }: { title: string; choices: Choice<T>[]; value: T; onChoose: (value: T) => void; onClose: () => void }) {
+  const { frame, onKeyDown } = useTrap(onClose)
+  const titleId = useId()
+  return (
+    <div className="dialog-shade" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="dialog-frame choice-frame" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={frame} onKeyDown={onKeyDown}>
+        <Panel width="100%">
+          <div className="dialog-content">
+            <TextView as="h2" id={titleId} textStyle={TextStyle.BODY1_EMPHASIZED}>
+              {title}
+            </TextView>
+            <div role="radiogroup" aria-labelledby={titleId} className="choice-list">
+              <VerticalList ariaLabel={title}>
+                {choices.map((choice) => (
+                  <ListItem key={choice.value} title={choice.label} subtitle={choice.detail} showRadioButton checked={choice.value === value} onCheckedChange={() => onChoose(choice.value)} />
+                ))}
+              </VerticalList>
+            </div>
+            <div className="dialog-actions">
+              <ButtonGroup alignment={ButtonGroupAlignment.END}>
+                <Button title="Cancel" alwaysShowText onClick={onClose} />
+              </ButtonGroup>
             </div>
           </div>
         </Panel>

@@ -350,9 +350,12 @@ describe('adding a person', () => {
 
     await user.type(screen.getByLabelText('Name'), 'Aino')
     await user.type(screen.getByLabelText('Job'), 'Packer')
-    await user.selectOptions(screen.getByLabelText('Language'), 'fi')
-    await user.click(screen.getByLabelText(/Pick and pack an order/))
-    await user.selectOptions(screen.getByLabelText('Glasses'), 'glasses-1')
+    // A setting with one answer opens its choices; choosing closes them.
+    await user.click(screen.getByRole('button', { name: /^Language/ }))
+    await user.click(screen.getByRole('radio', { name: /^Suomi/ }))
+    await user.click(screen.getByRole('switch', { name: /Pick and pack an order/ }))
+    await user.click(screen.getByRole('button', { name: /^Glasses/ }))
+    await user.click(screen.getByRole('radio', { name: /^Glasses 1/ }))
     // Sami has that pair, and the form says what saving does about it.
     expect(screen.getByText('Sami has this pair now. Saving gives it to Aino and leaves Sami without glasses.')).toBeTruthy()
 
