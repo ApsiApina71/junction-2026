@@ -723,6 +723,10 @@ final class OwlViewModel {
       isOffline = false
       // A server that does not pace the checks gets the default interval.
       nextCheckDelay = result.nextCheckMs.map { .milliseconds($0) } ?? Self.checkInterval
+      if result.isOK, result.stepDone {
+        doneByWatching(step, result: result, ticket: ticket)
+        return
+      }
       await applyLive(result, number)
     } catch {
       guard isCurrent(number), OwlCheckRules.isCurrent(ticket, self.ticket) else { return }
@@ -740,6 +744,25 @@ final class OwlViewModel {
         await setLive(.blocked(block(for: error)), number)
       }
     }
+  }
+
+  /// Owl saw the step done while watching (owl-api's `done_when`, two clear looks in a row):
+  /// it counts exactly like a passed Done check, with no pinch. ✓, the hoot, the spoken
+  /// "Well done", verified in the run log, then the next step or the finished screen.
+  private func doneByWatching(_ step: OwlStep, result: OwlCheckResult, ticket: OwlCheckTicket) {
+    guard log.verify(step, result: result, ticket: ticket, current: self.ticket) else { return }
+    NSLog("[Owl] check \(step.id) live: verified without a pinch")
+    // No other answer for this step counts from here on, and the loop stops looking. A Done
+    // pinch before the next step opens finds the step finishing and does nothing, so it can
+    // never skip a step (the next scene clears this).
+    self.ticket = nil
+    finishingAttempt = ticket.attempt
+    stopCheckLoop()
+    phoneState = nil
+    correction = nil
+    speaker.hoot()
+    // Its own task: the next step cancels the check loop this answer arrived on.
+    Task { await self.nextStep(after: result.say) }
   }
 
   /// owl-api has no consent on record (JUN-80): stop checking, keep guiding.
