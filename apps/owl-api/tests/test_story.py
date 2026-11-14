@@ -43,8 +43,8 @@ def test_only_junction_is_left(store):
 
 def test_the_people(store):
     jose, mika = store.employees["emp-jose"], store.employees["emp-mika"]
-    assert (jose.language, jose.welcome_language, jose.glasses_id, jose.process_ids) == ("en", "es", "glasses-1", ["proc-recycling"])
-    assert jose.welcome.startswith("¡Bienvenido") and "emp-jose" in store.custom_welcomes
+    assert (jose.language, jose.welcome_language, jose.glasses_id, jose.process_ids) == ("en", None, "glasses-1", ["proc-recycling"])
+    assert jose.welcome.startswith("Welcome to Junction, Jose") and "emp-jose" in store.custom_welcomes
     assert store.consents["emp-jose"]["camera_checks"] and store.consents["emp-jose"]["location"]
     assert mika.shift_manager and store.on_shift == {"Junction 2026": "emp-mika"}
     assert (store.employees["emp-sami"].role, store.employees["emp-sami"].glasses_id) == ("Crew lead", None)
@@ -117,3 +117,47 @@ def test_an_older_cast_is_replaced(tmp_path):
     story.apply(s, "junction", today=DAY)
     assert set(s.employees) == {"emp-jose", "emp-sami", "emp-mika"}
     assert s.employees["emp-jose"].glasses_id == "glasses-1" and s.employees["emp-sami"].glasses_id is None
+
+
+def _look(step, met: list[str], visibility="clear"):
+    criteria = [*step.check.criteria, step.check.done_when]
+    return Observation(
+        visibility=visibility,
+        hint=None,
+        items=[],
+        criteria=[CriterionSeen(index=i + 1, criterion=c, met=m, note="") for i, (c, m) in enumerate(zip(criteria, met, strict=True))],
+        matches_reference="no_reference",
+        summary="synthetic",
+    )
+
+
+def test_owl_marks_the_step_done_by_itself(store):
+    """done_when seen in two looks in a row: done and "Well done", with no Done pinch."""
+    step = store.processes["proc-recycling"].steps[0]
+    assert step.check.done_when
+    tracker = Tracker()
+
+    def look(met, visibility="clear", final=False):
+        obs = _look(step, met, visibility)
+        return main.verifier.run_check(step, b"", None, "run-auto", final, "en", tracker, observe=lambda *_: obs, jev=lambda *_: None)
+
+    walking_up = look(["yes", "yes", "no"])  # the done_when "no" never warns
+    assert (walking_up.status, walking_up.step_done) == ("ok", False)
+    first = look(["yes", "yes", "yes"])
+    assert first.step_done is False
+    done = look(["yes", "yes", "yes"])
+    assert (done.status, done.step_done, done.say) == ("ok", True, "Well done. Step done.")
+
+
+def test_a_wrong_or_unclear_look_does_not_mark_it_done(store):
+    step = store.processes["proc-recycling"].steps[0]
+    tracker = Tracker()
+
+    def look(met, visibility="clear"):
+        obs = _look(step, met, visibility)
+        return main.verifier.run_check(step, b"", None, "run-auto2", False, "en", tracker, observe=lambda *_: obs, jev=lambda *_: None)
+
+    assert look(["yes", "yes", "yes"]).step_done is False
+    assert look(["no", "no", "yes"]).status in ("checking", "warning")  # over the PLASTIC opening: never done
+    assert look(["yes", "yes", "yes"]).step_done is False  # the streak started again
+    assert look(["yes", "yes", "yes"], visibility="partial").step_done is False

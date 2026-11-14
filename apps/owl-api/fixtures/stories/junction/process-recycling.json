@@ -23,10 +23,18 @@
           "A can that is over an opening is over the round CANS opening"
         ],
         "order_lines": null,
-        "warning": "That's a deposit can. It goes in the CANS hole."
+        "warning": "That's a deposit can. It goes in the CANS hole.",
+        "done_when": "A hand is putting a can into the round CANS opening"
       },
-      "source": {"doc": "Sami's recording", "quote": "Deposit cans go in the round CANS opening, not the plastic."},
-      "checkpoint": {"zone_id": "zone-recycling", "label": "Recycling point", "photo_urls": []}
+      "source": {
+        "doc": "Sami's recording",
+        "quote": "Deposit cans go in the round CANS opening, not the plastic."
+      },
+      "checkpoint": {
+        "zone_id": "zone-recycling",
+        "label": "Recycling point",
+        "photo_urls": []
+      }
     },
     {
       "id": "step-2",
@@ -36,8 +44,15 @@
       "say": "When the bin is full, tie the bag and put a new one in.",
       "reference_image_url": null,
       "clip_url": null,
-      "check": {"kind": "none", "criteria": [], "order_lines": null},
-      "source": {"doc": "Sami's recording", "quote": "When a bin is full, tie the bag and put a new one in."}
+      "check": {
+        "kind": "none",
+        "criteria": [],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Sami's recording",
+        "quote": "When a bin is full, tie the bag and put a new one in."
+      }
     }
   ]
 }

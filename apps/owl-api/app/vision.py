@@ -103,9 +103,10 @@ def _step_text(step: Step) -> str:
     if step.check.kind == "order":
         lines.append("Order lines (id: product × quantity):")
         lines += [f"- {line_id(i, ol.sku)}: {ol.name} × {ol.qty}" for i, ol in enumerate(step.check.order_lines or [])]
-    if step.check.criteria:
+    criteria = [*step.check.criteria, *([step.check.done_when] if step.check.done_when and step.check.kind == "visual" else [])]
+    if criteria:
         lines.append("Criteria:")
-        lines += [f"{n}. {c}" for n, c in enumerate(step.check.criteria, start=1)]
+        lines += [f"{n}. {c}" for n, c in enumerate(criteria, start=1)]
     return "\n".join(lines)
 
 

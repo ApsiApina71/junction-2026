@@ -186,10 +186,12 @@ export function normalizeForSave(process: Process): Process {
     steps: renumber(process.steps).map((step) => {
       const criteria = step.check.criteria.map((c) => c.trim()).filter(Boolean)
       const lines = (step.check.order_lines ?? []).map((line) => ({ sku: line.sku?.trim() || null, name: line.name.trim(), qty: line.qty }))
+      // The expert's warning line and done_when are not edited here, but they must survive a save (JUN-106).
+      const kept = { warning: step.check.warning?.trim() || null, done_when: step.check.kind === 'visual' ? step.check.done_when?.trim() || null : null }
       const check: Check =
         step.check.kind === 'order'
-          ? { kind: 'order', criteria, order_lines: lines }
-          : { kind: step.check.kind, criteria: step.check.kind === 'visual' ? criteria : [], order_lines: null }
+          ? { kind: 'order', criteria, order_lines: lines, ...kept }
+          : { kind: step.check.kind, criteria: step.check.kind === 'visual' ? criteria : [], order_lines: null, ...kept }
       return { ...step, title: step.title.trim(), instruction: step.instruction.trim(), say: step.say.trim(), check, reviewed: isReviewed(step) }
     }),
   }

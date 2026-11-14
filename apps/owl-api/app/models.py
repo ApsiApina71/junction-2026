@@ -94,6 +94,10 @@ class Check(BaseModel):
     # JUN-106: the expert's own sentence for a check that does not match ("That's a deposit bottle. It goes to the
     # return crate."). Shown and spoken as it is, instead of "Check again: <criterion>".
     warning: str | None = Field(default=None, max_length=140)
+    # Owl marks the step done by itself when the camera shows this in two looks in a row ("A hand is putting a can
+    # into the round CANS opening"), with no Done pinch. It is asked about like a criterion but never warns: the
+    # criteria above still decide what is wrong. Without it the worker pinches Done, as before.
+    done_when: str | None = Field(default=None, max_length=140)
 
 
 class Source(BaseModel):

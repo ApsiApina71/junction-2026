@@ -191,9 +191,15 @@ describe('what is sent to the server', () => {
     expect(sent.title).toBe('Pick and pack')
     expect(indexes(sent.steps)).toEqual([1, 2, 3])
     expect(sent.steps[0].title).toBe('Take a box')
-    expect(sent.steps[0].check).toEqual({ kind: 'none', criteria: [], order_lines: null })
-    expect(sent.steps[1].check).toEqual({ kind: 'visual', criteria: ['The box is open'], order_lines: null })
-    expect(sent.steps[2].check).toEqual({ kind: 'order', criteria: ['Every order line is in the box'], order_lines: [{ sku: null, name: 'Coffee 500 g', qty: 2 }] })
+    expect(sent.steps[0].check).toEqual({ kind: 'none', criteria: [], order_lines: null, warning: null, done_when: null })
+    expect(sent.steps[1].check).toEqual({ kind: 'visual', criteria: ['The box is open'], order_lines: null, warning: null, done_when: null })
+    expect(sent.steps[2].check).toEqual({ kind: 'order', criteria: ['Every order line is in the box'], order_lines: [{ sku: null, name: 'Coffee 500 g', qty: 2 }], warning: null, done_when: null })
+  })
+
+  it("keeps the expert's warning line and done_when when the task is saved (JUN-106)", () => {
+    const check = { kind: 'visual' as const, criteria: ['No can is over the PLASTIC opening'], order_lines: null, warning: "That's a deposit can. It goes in the CANS hole.", done_when: 'A hand is putting a can into the round CANS opening' }
+    const sent = normalizeForSave(process({ steps: [step(1, { check })] }))
+    expect(sent.steps[0].check).toEqual(check)
   })
 
   it('starts a new check with one empty line to fill in, and keeps what was written when switching back', () => {

@@ -37,6 +37,10 @@ export interface Check {
   kind: CheckKind
   criteria: string[]
   order_lines: OrderLine[] | null
+  /** The expert's own sentence when a visual check does not match (JUN-106). Older servers leave it out. */
+  warning?: string | null
+  /** What the camera shows when the step is done: Owl marks it done without a Done pinch. Older servers leave it out. */
+  done_when?: string | null
 }
 
 export interface Source {

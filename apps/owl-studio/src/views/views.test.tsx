@@ -247,7 +247,7 @@ describe('reviewing a task', () => {
     await user.click(screen.getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => expect(studio.api.saveProcess).toHaveBeenCalled())
-    expect(sentTask(studio.api).steps[0].check).toEqual({ kind: 'visual', criteria: ['The box is taped shut'], order_lines: null })
+    expect(sentTask(studio.api).steps[0].check).toEqual({ kind: 'visual', criteria: ['The box is taped shut'], order_lines: null, warning: null, done_when: null })
   })
 
   it('keeps the name, sentence and language folded away until asked, and lets the reviewer correct the language Owl guessed', async () => {

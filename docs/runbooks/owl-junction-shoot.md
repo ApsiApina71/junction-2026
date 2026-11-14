@@ -10,7 +10,7 @@ How to set up the software for the demo video. Owl trains Jose, a new Junction v
 |---|---|
 | Company | Junction 2026. The other demo companies are removed, so Studio shows only Junction |
 | Sami (`emp-sami`) | Crew lead, the expert. No glasses until the Record scene |
-| Jose (`emp-jose`) | Volunteer on `glasses-1`. Language `en`, so Owl's lines match the script word for word. His welcome is Spanish, with a Spanish voice (`welcome_language: es`): check that the iPhone has one (Settings → Accessibility → Spoken Content → Voices → Spanish). Camera and location consent given. Day 1 of 3 of training, with customer service mode |
+| Jose (`emp-jose`) | Volunteer on `glasses-1`. Everything in English, the welcome too. Camera and location consent given. Day 1 of 3 of training, with customer service mode |
 | Mika (`emp-mika`) | Shift manager, on shift, answers Help on his phone (`answers_on: phone`, JUN-107) |
 | Task | "Recycling round" (`proc-recycling`). Step 1 "Sort the cans" opens at the place "Recycling point" (the white sorting bin with the round CANS opening and the black square PLASTIC opening). If a can is over the PLASTIC opening, Owl says "That's a deposit can. It goes in the CANS hole." (JUN-106). Step 2 "Swap a full bag" is not in the video |
 | Handbook | "Junction 2026: volunteer handbook" (`apps/owl-api/fixtures/stories/junction/`). It has the final deadline and the deposit rule, and nothing about lost devices, so Hint for the found device is honestly "Not in the handbook. Ask a colleague." |
@@ -46,8 +46,8 @@ OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
 | # | Scene | What to do |
 |---|---|---|
 | 1 | Sami records | Studio → People: give `glasses-1` to Sami. On the glasses: Record, then agree (clips stored, faces blurred). Sami walks the round and says the deposit rule. Studio → Tasks: review the draft and Publish. Check that the deposit step got the warning line, then add the place "Recycling point" to it. Then give `glasses-1` back to Jose and put Sami's task on Jose (or keep the placeholder task). |
-| 2 | Jose starts | "Hey Meta, start Owl". The welcome is in Spanish. Display: "Go to: Recycling point" |
-| 3 | Deposit can | Jose holds a can over the black square PLASTIC opening. Owl warns after two looks in a row (about 2–4 s with Nemotron): "That's a deposit can. It goes in the CANS hole." He moves it over the round CANS opening and pinches Done **while the can is still over the opening** (once it has dropped in, the camera cannot see it): ✓ and a hoot. Tested with the venue footage: the warning, the ✓ and no warning while he walks up with the can |
+| 2 | Jose starts | "Hey Meta, start Owl". The welcome: "Welcome to Junction, Jose!" Display: "Go to: Recycling point" |
+| 3 | Deposit can | Jose holds a can over the black square PLASTIC opening. Owl warns after two looks in a row (about 2–4 s with Nemotron): "That's a deposit can. It goes in the CANS hole." He moves it to the round CANS opening and puts it in: **Owl sees it go in and marks the step done by itself** ("Well done. Step done.", ✓, the hoot), **no Done pinch** (`done_when`). Keep the hand and the can in view while it goes in. Walking up with a can neither warns nor completes. Tested with the venue footage |
 | 4 | Stage view | `https://<tunnel>/stage?token=<API_TOKEN>` on a laptop, recorded for the split screen |
 | 5 | Info desk | Customer service on. The hacker asks "When's the final deadline?" Hint pinch: Sun 10:00 · set to FINAL on Junction Platform · peer review 10:30 |
 | 6 | Found device | "Found this under a table. Whose is it?" Hint: "Not in the handbook. Ask a colleague." Help pinch → "Calling Mika, shift manager…" → Mika answers on the phone → "Mika is watching your view". Mika talks, and Sami hears and reads it |

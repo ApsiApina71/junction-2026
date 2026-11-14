@@ -5,10 +5,9 @@
       "id": "emp-jose",
       "name": "Jose",
       "language": "en",
-      "welcome_language": "es",
       "role": "Volunteer",
       "company": "Junction 2026",
-      "welcome": "¡Bienvenido a Junction, Jose! Hoy aprenderás la ronda de reciclaje y el mostrador de información. Soy Owl y te mostraré cada paso.",
+      "welcome": "Welcome to Junction, Jose! Today you learn the recycling round and the info desk. I'm Owl. I'll show you every step.",
       "process_ids": [
         "proc-recycling"
       ],

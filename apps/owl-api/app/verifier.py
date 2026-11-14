@@ -114,6 +114,15 @@ def criteria_answers(step: Step, obs: Observation) -> list[str | None]:
     return answers
 
 
+def done_seen(step: Step, obs: Observation) -> bool:
+    """The step's done_when is answered "yes" (it is asked as the criterion after the step's own criteria)."""
+    if not step.check.done_when:
+        return False
+    number, wanted = len(step.check.criteria) + 1, _norm(step.check.done_when)
+    answers = [c.met for c in obs.criteria if (c.index == number and _norm(c.criterion) in ("", wanted)) or _norm(c.criterion) == wanted]
+    return bool(answers) and all(a == "yes" for a in answers)
+
+
 def _compare_visual(step: Step, obs: Observation) -> Verdict:
     """The step's criteria decide. The expert's photo is context for vision and never decides on its own."""
     answers = criteria_answers(step, obs)
@@ -332,6 +341,7 @@ class RunState:
     ok_said: bool = False
     warned: str | None = None  # the problem signature last spoken as a warning
     new_warning: bool = False  # this frame's warning is new, so it is spoken
+    done_streak: int = 0  # looks in a row that showed the step's done_when
     touched: float = field(default_factory=time.monotonic)
 
 
@@ -399,6 +409,13 @@ class Tracker:
                 return "warning"
             return "checking"
 
+    def done_for(self, run_id: str, step_id: str, seen: bool) -> bool:
+        """The step's done_when in CONFIRM_FRAMES looks in a row: Owl marks it done without a Done pinch."""
+        with self._lock:
+            state = self._runs.setdefault((run_id, step_id), RunState())
+            state.done_streak = state.done_streak + 1 if seen else 0
+            return state.done_streak >= CONFIRM_FRAMES
+
     def warning_is_new(self, run_id: str, step_id: str) -> bool:
         with self._lock:
             state = self._runs.get((run_id, step_id))
@@ -424,6 +441,10 @@ def run_check(
     rules = compare(step, obs)
     verdict, confidence, decider = decide(rules, jev(step, obs) if rules.verdict != "unsure" else None)
     status = tracker.status_for(run_id, step.id, verdict, final)
+    # Owl saw the step done, twice in a row, on a clear view with nothing wrong: done without a Done pinch.
+    auto = step.check.done_when and step.check.kind == "visual" and not final
+    if auto and tracker.done_for(run_id, step.id, status == "ok" and obs.visibility == "clear" and done_seen(step, obs)):
+        return build_result(step, verdict, confidence, decided_by or decider, "ok", True, language, obs.hint)
     first_ok = tracker.first_ok(run_id, step.id) if status == "ok" else False
     new_warning = tracker.warning_is_new(run_id, step.id)
     return build_result(step, verdict, confidence, decided_by or decider, status, final, language, obs.hint, first_ok, new_warning)
