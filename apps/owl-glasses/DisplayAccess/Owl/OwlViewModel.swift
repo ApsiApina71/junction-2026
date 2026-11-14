@@ -162,6 +162,14 @@ final class OwlViewModel {
     self.invocations = OwlInvocations(wearables: wearables)
     self.listener = OwlListener(wearables: wearables)
     OwlCamera.removeLeftoverClips()
+    // The first screen is drawn before owl-api has said who wears the glasses: the last
+    // worker's language if there was one, otherwise the phone's.
+    if let last = OwlCache.load()?.employee.language {
+      speaker.language = last
+      OwlStrings.language = last
+    } else {
+      usePhoneLanguage()
+    }
 
     invocations.onLaunch = { [weak self] device in
       await self?.open(deviceIdentifier: device) ?? false
@@ -260,6 +268,7 @@ final class OwlViewModel {
     guard isCurrent(number) else { return displayViewModel.isConnected }
     if !welcomed, let employee {
       welcomed = true
+      statusText = "Welcome, \(employee.name)"
       speaker.say(employee.welcome ?? OwlStrings.welcomeBody)
       await showScreen(stage: .init(kind: "welcome", title: OwlStrings.welcome(employee.name), text: employee.welcome)) {
         OwlScreens.welcome(employee: employee, onStart: self.action { await $0.showTasks(refresh: false) })
@@ -337,6 +346,8 @@ final class OwlViewModel {
       glassesNotAssigned = true
       employee = nil
       processes = []
+      // Nobody's glasses: not the last worker's language, the phone's.
+      usePhoneLanguage()
     } catch {
       NSLog("[Owl] loading tasks failed: \(error)")
       isOffline = (error as? OwlError)?.isServiceProblem ?? true
@@ -361,6 +372,14 @@ final class OwlViewModel {
     speaker.language = employee.language
     OwlStrings.language = employee.language
     applyProfile(employee)
+  }
+
+  /// With no worker known, Owl's own words follow the phone: Finnish on a Finnish phone,
+  /// otherwise English.
+  private func usePhoneLanguage() {
+    let language = Locale.preferredLanguages.first?.hasPrefix("fi") == true ? "fi" : "en"
+    speaker.language = language
+    OwlStrings.language = language
   }
 
   // MARK: - Learn & Check
@@ -1787,7 +1806,9 @@ extension OwlViewModel {
     case "back": await closeCard()
     // "Back" while a final check is running.
     case "cancel": await cancelFinalCheck()
-    case "continue": await continueUnverified(.cantSee)
+    // "Continue unverified" exists only on the cannot-check card, and records that card's reason.
+    case "continue":
+      if case .cannotCheck(let why, _) = card { await continueUnverified(why) } else { NSLog("[Owl] test: no cannot-check card to continue from") }
     case "step": await backToStep()
     case "watch": await watchHow()
     case "ask": await ask()
