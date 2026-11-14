@@ -115,6 +115,21 @@ body {
   position: relative;
   min-inline-size: 0;
   min-block-size: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* The open view always takes the second row, under a problem when there is one. The toolkit's Page brings the main landmark. */
+.view-slot {
+  grid-row: 2;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+/* A view still on its old layout scrolls on its own (legacy.css). */
+.view-slot.legacy {
+  box-sizing: border-box;
   overflow: auto;
 }
 
@@ -123,7 +138,112 @@ body {
 }
 
 .main-problem {
+  grid-row: 1;
   padding: var(--uit-spacing-large) var(--uit-spacing-large) 0;
+}
+
+/* A route: the toolkit's Page (its header floats at the top) over one ScrollView or VerticalList. */
+
+.route {
+  min-block-size: 0;
+}
+
+.route-content {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 2000px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xlarge);
+  padding: 0 var(--uit-spacing-xlarge) var(--uit-spacing-5xl);
+}
+
+.lede {
+  max-inline-size: 64ch;
+}
+
+.card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
+  gap: var(--uit-spacing-large);
+}
+
+.task-card {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+
+.card-photo {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.card-photo.is-owl {
+  object-fit: contain;
+  padding: var(--uit-spacing-large) var(--uit-spacing-large) 30%;
+  box-sizing: border-box;
+  background: var(--uit-color-background-elevation1);
+}
+
+/* The toolkit's stylesheet loads after this one; two classes keep the label pinned to the bottom of the card. */
+.task-card .card-label {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xsmall);
+  padding: var(--uit-spacing-large);
+}
+
+.recording-tile {
+  block-size: 100%;
+}
+
+/* A state said in words, with the toolkit's status colours supporting them. */
+.status-text.is-warning {
+  color: var(--uit-color-persistent-warning);
+}
+
+.status-text.is-positive {
+  color: var(--uit-color-persistent-positive);
+}
+
+.status-text.is-negative {
+  color: var(--uit-color-persistent-negative);
+}
+
+.status-text.is-info {
+  color: var(--uit-color-persistent-info);
+}
+
+.status-text.is-quiet {
+  color: var(--uit-color-text-secondary);
+}
+
+.panel-owl {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--uit-spacing-xlarge);
+}
+
+.panel-body-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  max-inline-size: 64ch;
+}
+
+.owl-figure {
+  flex: none;
+  inline-size: auto;
 }
 
 /* Shared parts on the toolkit (ui/meta.tsx) */

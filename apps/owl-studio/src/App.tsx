@@ -160,7 +160,7 @@ function Shell() {
           </div>
         </header>
 
-        <main id="main" className="main" tabIndex={-1}>
+        <div id="main" className="main" tabIndex={-1}>
           {offline && (
             <div className="main-problem">
               <Problem
@@ -175,16 +175,22 @@ function Shell() {
               </Problem>
             </div>
           )}
-          <div className="legacy">
-            {route.view === 'tasks' && (route.id ? <TaskEditor key={route.id} processId={route.id} /> : <TasksView />)}
-            {route.view === 'documents' && <DocumentsView />}
-            {route.view === 'people' && <PeopleView selectedId={route.id} />}
-            {route.view === 'training' && <TrainingView />}
-            {route.view === 'map' && <MapView />}
-            {route.view === 'help' && <HelpView selectedId={route.id} />}
-            {route.view === 'data' && <DataView />}
-          </div>
-        </main>
+          {onToolkit(route) ? (
+            <div className="view-slot">
+              {route.view === 'tasks' && !route.id && <TasksView />}
+            </div>
+          ) : (
+            <div className="view-slot legacy" key={`${route.view}/${route.id ?? ''}`}>
+              {route.view === 'tasks' && route.id && <TaskEditor key={route.id} processId={route.id} />}
+              {route.view === 'documents' && <DocumentsView />}
+              {route.view === 'people' && <PeopleView selectedId={route.id} />}
+              {route.view === 'training' && <TrainingView />}
+              {route.view === 'map' && <MapView />}
+              {route.view === 'help' && <HelpView selectedId={route.id} />}
+              {route.view === 'data' && <DataView />}
+            </div>
+          )}
+        </div>
       </div>
 
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
@@ -203,6 +209,11 @@ function Shell() {
       )}
     </UnsavedContext.Provider>
   )
+}
+
+/** The views already built from toolkit components (JUN-101); the rest still render inside .legacy. */
+function onToolkit(route: Route): boolean {
+  return route.view === 'tasks' && !route.id
 }
 
 /** Which server Studio talks to, said in a Chip at the foot of the sidebar. */

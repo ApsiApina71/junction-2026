@@ -19,6 +19,20 @@ export function DangerButton(props: ButtonProps) {
   return <Button alwaysShowText material={material} {...props} />
 }
 
+export type Tone = 'warning' | 'positive' | 'negative' | 'info' | 'quiet'
+
+/**
+ * A state said in words, tinted with the toolkit's status colour (the words carry it; colour only supports them).
+ * TextView writes its own colour inline, so the tint sits on a span inside it.
+ */
+export function StatusText({ tone, children, as = 'p', textStyle = TextStyle.META1_EMPHASIZED }: { tone: Tone; children: ReactNode; as?: 'p' | 'span'; textStyle?: TextStyle }) {
+  return (
+    <TextView as={as} textStyle={textStyle}>
+      <span className={`status-text is-${tone}`}>{children}</span>
+    </TextView>
+  )
+}
+
 /** Something went wrong: what, and what to do next. */
 export function Problem({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   return (
@@ -43,12 +57,12 @@ export function Problem({ children, actions }: { children: ReactNode; actions?: 
 /** A wait whose end is not known. */
 export function Waiting({ what }: { what: string }) {
   return (
-    <p className="loading-line" role="status">
+    <div className="loading-line" role="status">
       <IndeterminateLoader size={IndeterminateLoaderSize.SMALL} />
       <TextView as="span" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
         {what}
       </TextView>
-    </p>
+    </div>
   )
 }
 
