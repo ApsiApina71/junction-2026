@@ -170,6 +170,26 @@ def test_plain_draft_keeps_the_whole_narration_for_the_reviewer():
     assert step.source.quote == " ".join(long.split())
 
 
+def test_a_recorded_draft_cannot_be_published_until_every_step_is_reviewed(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "store", Store(data_dir=tmp_path))
+    process = record.write_process("proc-rec-6", REC, [None, None], "Kide Logistics", use_model=False)
+    assert [s.reviewed for s in process.steps] == [False, False]
+    main.store.processes[process.id] = process
+    with TestClient(main.app) as client:
+        body = client.get("/processes/proc-rec-6").json()
+        # Rewriting the words is not a review: the reviewer says so, step by step.
+        body["steps"][0]["instruction"] = "Take a medium box."
+        assert client.put("/processes/proc-rec-6", json={**body, "status": "published"}).status_code == 422
+        body["steps"][0]["reviewed"] = True
+        r = client.put("/processes/proc-rec-6", json={**body, "status": "published"})
+        assert r.status_code == 422 and "step 2" in r.json()["detail"]
+        assert client.put("/processes/proc-rec-6", json=body).status_code == 200  # saving a draft is always fine
+        assert client.get("/processes/proc-rec-6").json()["status"] == "draft"
+        body["steps"][1]["reviewed"] = True
+        assert client.put("/processes/proc-rec-6", json={**body, "status": "published"}).status_code == 200
+        assert client.get("/processes/proc-rec-6").json()["status"] == "published"
+
+
 def test_plain_draft_guesses_the_language_of_the_narration():
     finnish = Recording(
         id="rec-7",

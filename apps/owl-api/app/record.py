@@ -153,6 +153,8 @@ def build_process(process_id: str, rec: Recording, draft: ProcessDraft, company:
                 source={"doc": f"{rec.expert or 'Expert'}'s recording", "quote": re.sub(r"\s+", " ", recorded.narration).strip()}
                 if recorded.narration
                 else None,
+                # Owl wrote this step. A person reads it against the narration in Owl Studio before it can be published.
+                reviewed=False,
             )
         )
     return Process(

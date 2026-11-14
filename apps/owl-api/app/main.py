@@ -218,6 +218,10 @@ def update_process(process_id: str, body: Process, request: Request, language: L
             if step[key] and step[key].startswith(base + "/media/"):
                 step[key] = step[key][len(base) :]
     updated = Process.model_validate(data)
+    waiting = [step.index for step in updated.steps if not step.reviewed]
+    if updated.status == "published" and waiting:
+        # A recording is written into steps by Owl. Nobody learns from them before a person has read every one.
+        raise HTTPException(status_code=422, detail=f"Review every step before publishing. Not reviewed yet: step {', '.join(map(str, waiting))}.")
     if language and lang_key(language) != lang_key(original.language):
         # ?language=sv: the body is this process in another language, kept beside the original, which does not change.
         if step_ids != [step.id for step in original.steps]:

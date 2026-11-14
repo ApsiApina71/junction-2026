@@ -73,6 +73,8 @@ class Step(BaseModel):
     clip_url: str | None = None
     check: Check
     source: Source | None = None
+    # False on a step that Owl wrote from a recording and no person has checked yet. Such a process cannot be published.
+    reviewed: bool = True
 
 
 class Process(BaseModel):

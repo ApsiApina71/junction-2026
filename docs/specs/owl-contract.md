@@ -98,7 +98,8 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
     "criteria": ["Every order line is in the box", "No extra items"],
     "order_lines": [{"sku": "OAT-1L", "name": "Oat drink 1 l", "qty": 2}]
   },
-  "source": {"doc": "Laura's recording", "quote": "Always check the litre size, the 0.5 l and 1 l cartons look the same."}
+  "source": {"doc": "Laura's recording", "quote": "Always check the litre size, the 0.5 l and 1 l cartons look the same."},
+  "reviewed": true
 }
 ```
 
@@ -111,7 +112,8 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
   - `order`: the products and quantities seen are compared with `order_lines`.
   - `none`: no check. The worker confirms the step with a pinch.
 - `check.order_lines` is set only for `order` checks.
-- `source` is where the step comes from, or `null`.
+- `source` is where the step comes from, or `null`. For a recorded step its `quote` is the expert's whole narration.
+- `reviewed` (default `true`): `false` on a step that Owl wrote from a recording and that no person has checked yet. Owl Studio sets it to `true` when the reviewer has read the step against the narration. `PUT /processes/{id}` answers `422` when the body is `published` and a step is not reviewed; saving a draft is always allowed.
 
 ### CheckResult
 
