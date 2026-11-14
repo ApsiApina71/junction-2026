@@ -1,0 +1,4 @@
+off
+# The Site workflow (.github/workflows/site.yml) publishes main to owlboarding.com only when the first line is "on".
+# Turn it on once the launch site that is live is the one in apps/owl-site, so the first automatic publish does not
+# take owlboarding.com back to an older page. Turn it off to stop publishing; the workflow still builds and checks.

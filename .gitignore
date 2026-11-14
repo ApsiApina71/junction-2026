@@ -45,3 +45,6 @@ CLAUDE.local.md
 xcuserdata/
 DerivedData/
 *.xcuserstate
+
+# infra/build-site.sh output (owlboarding.com)
+site-dist/

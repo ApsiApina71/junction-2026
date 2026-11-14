@@ -1,0 +1,84 @@
+name: Site
+
+# owlboarding.com from main (ADR-005): the launch site and the public Owl Studio demo, checked, built into one folder
+# and published to Netlify. Publishing needs the NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID secrets and "on" in
+# infra/site-publish; without them the workflow still checks and builds.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/owl-site/**'
+      - 'apps/owl-studio/**'
+      - 'shared/**'
+      - 'infra/build-site.sh'
+      - 'infra/site-publish'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+# One publish at a time, in order; a newer push waits instead of cancelling one that is publishing.
+concurrency:
+  group: site-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            apps/owl-site/package-lock.json
+            apps/owl-studio/package-lock.json
+
+      - name: Check the launch site
+        working-directory: apps/owl-site
+        run: |
+          npm ci
+          npm run lint
+          npm test
+
+      - name: Check Owl Studio
+        working-directory: apps/owl-studio
+        run: |
+          npm ci
+          npm run lint
+          npm test
+
+      - name: Build owlboarding.com
+        run: SKIP_INSTALL=1 infra/build-site.sh site-dist
+
+      - name: Publish to owlboarding.com
+        id: publish
+        if: github.ref == 'refs/heads/main'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          if [ "$(head -n 1 infra/site-publish)" != "on" ]; then
+            echo "::notice::Built and checked, not published: infra/site-publish is not on."
+            exit 0
+          fi
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
+            echo "::notice::Built and checked, not published: the repository has no NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID secrets (infra/README.md)."
+            exit 0
+          fi
+          subject="$(git log -1 --format=%s)"
+          npx --yes netlify-cli@27.14.2 deploy --prod --dir site-dist --site "$NETLIFY_SITE_ID" --message "main ${GITHUB_SHA::7}: ${subject:0:120}"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check the live site
+        if: steps.publish.outputs.published == 'true'
+        run: |
+          # Both pages answer, and the live demo is the build just published.
+          curl -fsS --retry 3 -o /dev/null https://owlboarding.com/
+          curl -fsS --retry 3 https://owlboarding.com/studio/ -o live-studio.html
+          diff -q live-studio.html site-dist/studio/index.html
+          curl -fsS --retry 3 https://owlboarding.com/ -o live-index.html
+          diff -q live-index.html site-dist/index.html
