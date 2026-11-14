@@ -26,7 +26,7 @@ The shared JSON shapes and endpoints of `apps/owl-api`. The glasses app (`apps/o
 | 404 | Unknown process, step, help or record id | Reload the process list |
 | 422 | Missing or invalid field | Bug; log it |
 | 429 | Model rate limited | Retry after 2 s |
-| 502 / 503 | Model or network error on the server | "Owl can't see right now" and keep going without the check |
+| 500, 502, 503, no answer | Server bug, model or network error | "Owl can't see right now" and keep going without the check. A step finished this way is **not checked**: never show it as verified (JUN-57) |
 
 - **Languages** are BCP 47 tags (`en`, `fi`, `uk`, `ar`). `say` and `text` fields come in the employee's language. See [Languages](#languages).
 
