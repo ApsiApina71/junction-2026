@@ -75,6 +75,8 @@ class Step(BaseModel):
     source: Source | None = None
     # False on a step that Owl wrote from a recording and no person has checked yet. Such a process cannot be published.
     reviewed: bool = True
+    # The company rule from the handbooks that backs this step, found locally (JUN-70). Shown as "Company rule".
+    rule: Source | None = None
 
 
 class Process(BaseModel):
@@ -188,6 +190,11 @@ class Recording(BaseModel):
     status: Literal["recording", "processing", "done", "failed"]
     steps: list[RecordedStep] = []
     process_id: str | None = None
+
+
+class FromDocs(BaseModel):
+    doc_id: str
+    title: str | None = Field(default=None, max_length=80)
 
 
 class RecordStart(BaseModel):

@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from . import ask as ask_engine
 from . import demo as demo_engine
+from . import docs_process as docs_engine
 from . import media as media_engine
 from . import people, verifier, vision
 from . import progress as progress_engine
@@ -31,6 +32,7 @@ from .models import (
     CheckResult,
     Doc,
     Employee,
+    FromDocs,
     HelpMessage,
     HelpSession,
     Mark,
@@ -346,6 +348,23 @@ async def ask(body: AskRequest, request: Request):
     return out(request, await call_model(lambda: ask_engine.answer(body.question, docs, language, context)))
 
 
+@app.post("/processes/from-docs", response_model=Process, dependencies=[Auth])
+async def process_from_docs(body: FromDocs, request: Request):
+    """A draft guided process from one company document (JUN-70). A person reviews and publishes it in Owl Studio."""
+    entry = store.docs.get(body.doc_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"No document {body.doc_id}.")
+    doc, text = entry
+    process_id = store.next_id("proc-doc")
+    use_model = not (DEMO or MOCK_RECORD)
+    try:
+        process = await run_in_threadpool(docs_engine.from_doc, process_id, doc.title, text, body.title, store.company(), use_model)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    store.processes[process_id] = process
+    return out(request, process)
+
+
 @app.get("/docs", dependencies=[Auth])
 def docs(request: Request) -> dict:
     return {"docs": [out(request, doc) for doc, _ in store.docs.values()]}
@@ -442,7 +461,9 @@ def finish_recording(rec: Recording, process_id: str) -> None:
             path = store.media_path(step.photo_url.removeprefix("/media/")) if step.photo_url else None
             photos.append(path.read_bytes() if path else None)
         company = store.company()
-        store.processes[process_id] = record_engine.write_process(process_id, rec, photos, company, use_model=not MOCK_RECORD)
+        process = record_engine.write_process(process_id, rec, photos, company, use_model=not MOCK_RECORD)
+        # Each recorded step also gets the handbook rule that backs it, when one matches (JUN-70).
+        store.processes[process_id] = docs_engine.attach_rules(process, [(doc.title, text) for doc, text in store.docs.values()])
         rec.process_id, rec.status = process_id, "done"
     except Exception:
         log.exception("Record: could not write the process for %s", rec.id)

@@ -45,6 +45,10 @@ Speech is in English or Finnish (`TEXTS` in `app/verifier.py`); other languages 
 
 On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-C runtime prints a warning about duplicate `AVF*Receiver` classes at start-up. Those classes are for camera capture, which owl-api does not use.
 
+## Process from documents
+
+`app/docs_process.py` (JUN-70): `POST /processes/from-docs` turns a company document into a draft process. Claude writes the steps with word-for-word quotes (quotes not in the document are dropped); without a model, the document's numbered list or sections become the steps. Recorded steps also get `Step.rule`: the handbook sentence that backs each step, found with the local search.
+
 ## Demo mode
 
 `OWL_DEMO=1` plays the demo story without models (JUN-69). `app/demo.py` replaces only the vision call with a scripted observation from `fixtures/demo-script.json`; the rules, the two-frames rule, the Done pinch and speech are the real engine, and every check says `decided_by: "demo"`. Ask answers with the best sentence of the best handbook section from the local index, and Record writes drafts from the narration. Edit the script, not the code, to change the story.

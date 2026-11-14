@@ -112,8 +112,9 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
   - `order`: the products and quantities seen are compared with `order_lines`.
   - `none`: no check. The worker confirms the step with a pinch.
 - `check.order_lines` is set only for `order` checks.
-- `source` is where the step comes from, or `null`. For a recorded step its `quote` is the expert's whole narration.
 - `reviewed` (default `true`): `false` on a step that Owl wrote from a recording and that no person has checked yet. Owl Studio sets it to `true` when the reviewer has read the step against the narration. `PUT /processes/{id}` answers `422` when the body is `published` and a step is not reviewed; saving a draft is always allowed.
+- `source` is where the step comes from, or `null`: the document quote for a process written from documents, the expert's whole narration for a recorded one.
+- `rule`: the company rule from the handbooks that backs this step (`{doc, section, quote}`, quoted word for word), or `null`. Owl finds it locally for recorded steps (JUN-70). Show it as "Company rule".
 
 ### CheckResult
 
@@ -228,6 +229,7 @@ Answer to one camera frame during a step.
 | `GET /glasses/{glasses_id}/employee` | none | `Employee`, or `404` when the pair is not assigned | glasses |
 | `GET /processes` | none; optional `?language=fi` | `{"processes": [Process]}` (published and drafts, steps included) | glasses, Studio |
 | `GET /processes/{id}` | none; optional `?language=fi` | `Process` | glasses, Studio |
+| `POST /processes/from-docs` | JSON `{"doc_id", "title"?}` | `Process` (a new **draft**, `source: "docs"`) | Studio |
 | `PUT /processes/{id}` | `Process` | `Process` (edit, reorder, publish or translate; below) | Studio |
 | `POST /check` | multipart (below) | `CheckResult` | glasses |
 | `POST /ask` | JSON (below) | `Answer` | glasses |
@@ -302,6 +304,10 @@ Send one frame at a time and wait for the answer, about one frame every 1–2 s 
 Only `question` is required. The question is the final transcription from the glasses' Speech capability.
 
 When all documents together are larger than `ASK_MAX_CHARS`, only the best sections for the question go to the model, picked by a local BM25 index on this server (JUN-71). Source quotes are still checked against the whole documents.
+
+### `POST /processes/from-docs`
+
+The third knowledge level: a written instruction becomes a guided process in one click (JUN-70). With a model, Claude writes the steps (title, instruction, spoken sentence, check criteria) and quotes the document for each; a quote that is not in the document is dropped, never passed on. Without a model (demo or mock mode, or a model error), the document's first numbered list, or else its sections, become the steps. The result is a draft that a person reviews and publishes in Owl Studio. A document with no list and no sections answers `422`.
 
 ### Learning progress (JUN-73)
 
