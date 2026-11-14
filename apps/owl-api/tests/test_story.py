@@ -59,7 +59,7 @@ def test_the_deposit_step(store):
     step = store.processes["proc-recycling"].steps[0]
     assert step.checkpoint and step.checkpoint.label == "Recycling point"
     assert step.check.kind == "visual"
-    assert step.check.warning == "That's a deposit bottle. It goes to the return crate."
+    assert step.check.warning == "That's a deposit can. It goes in the CANS hole."
 
 
 def test_the_deposit_warning_is_the_script_line(store):
@@ -76,7 +76,7 @@ def test_the_deposit_warning_is_the_script_line(store):
     look = lambda: main.verifier.run_check(step, b"", None, "run-s", False, "en", tracker, observe=lambda *_: obs, jev=lambda *_: None)
     look()
     warned = look()
-    assert (warned.status, warned.say) == ("warning", "That's a deposit bottle. It goes to the return crate.")
+    assert (warned.status, warned.say) == ("warning", "That's a deposit can. It goes in the CANS hole.")
 
 
 def test_hint_the_final_deadline(client):

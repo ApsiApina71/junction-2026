@@ -12,7 +12,7 @@ How to set up the software for the demo video. Owl trains Sami, a new Junction v
 | Laura (`emp-laura`) | Crew lead, the expert. No glasses until the Record scene |
 | Sami (`emp-sami`) | Volunteer on `glasses-1`. Language `en`, so Owl's lines match the script word for word. His welcome is Finnish with the Finnish voice (`welcome_language: fi`). Camera and location consent given. Day 1 of 3 of training, with customer service mode |
 | Mika (`emp-mika`) | Shift manager, on shift, answers Help on his phone (`answers_on: phone`, JUN-107) |
-| Task | "Recycling round" (`proc-recycling`). Step 1 "Sort the bottles" opens at the place "Recycling point". If a deposit bottle is not in the return crate, Owl says "That's a deposit bottle. It goes to the return crate." (JUN-106). Step 2 is "Swap a full bag" |
+| Task | "Recycling round" (`proc-recycling`). Step 1 "Sort the cans" opens at the place "Recycling point" (the white sorting bin with the round CANS opening and the black square PLASTIC opening). If a can is over the PLASTIC opening, Owl says "That's a deposit can. It goes in the CANS hole." (JUN-106). Step 2 "Swap a full bag" is not in the video |
 | Handbook | "Junction 2026: volunteer handbook" (`apps/owl-api/fixtures/stories/junction/`). It has the final deadline and the deposit rule, and nothing about lost devices, so Hint for the found device is honestly "Not in the handbook. Ask a colleague." |
 | Areas | Recycling point, Info desk, Main hall |
 | Desk sign | "Owl is listening during training. …" (Studio → Training → print the sign) |
@@ -39,7 +39,7 @@ OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
 1. **Photo of the recycling point:** Studio → Map → Recycling point, or the step's picture in the task editor. Take it at the real spot, from head height. Without a photo, the step cannot open by itself.
 2. **Mika's phone:** open Owl Studio's Help view on the phone and keep it open.
 3. **Print the desk sign** (Studio → Training).
-4. **Props:** deposit bottles, a return crate, a plastic bin, and a device for the found item.
+4. **Props:** deposit cans and the white sorting bin at the venue's recycling point (round CANS opening, black square PLASTIC opening), and a device for the found item. The step's checks name exactly these; with other props, change the step in Studio first.
 
 ## Scene by scene
 
@@ -47,7 +47,7 @@ OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
 |---|---|---|
 | 1 | Laura records | Studio → People: give `glasses-1` to Laura. On the glasses: Record, then agree (clips stored, faces blurred). Laura walks the round and says the deposit rule. Studio → Tasks: review the draft and Publish. Check that the deposit step got the warning line, then add the place "Recycling point" to it. Then give `glasses-1` back to Sami and put Laura's task on Sami (or keep the placeholder task). |
 | 2 | Sami starts | "Hey Meta, start Owl". The welcome is in Finnish. Display: "Go to: Recycling point" |
-| 3 | Deposit bottle | Sami holds a deposit bottle over the plastic bin. Owl warns after two looks in a row (about 2–4 s with Nemotron). He moves it and pinches Done: ✓ and a hoot |
+| 3 | Deposit can | Sami holds a can over the black square PLASTIC opening. Owl warns after two looks in a row (about 2–4 s with Nemotron): "That's a deposit can. It goes in the CANS hole." He moves it over the round CANS opening and pinches Done **while the can is still over the opening** (once it has dropped in, the camera cannot see it): ✓ and a hoot. Tested with the venue footage: the warning, the ✓ and no warning while he walks up with the can |
 | 4 | Stage view | `https://<tunnel>/stage?token=<API_TOKEN>` on a laptop, recorded for the split screen |
 | 5 | Info desk | Customer service on. The hacker asks "When's the final deadline?" Hint pinch: Sun 10:00 · set to FINAL on Junction Platform · peer review 10:30 |
 | 6 | Found device | "Found this under a table. Whose is it?" Hint: "Not in the handbook. Ask a colleague." Help pinch → "Calling Mika, shift manager…" → Mika answers on the phone → "Mika is watching your view". Mika talks, and Sami hears and reads it |

@@ -1,7 +1,7 @@
 {
   "id": "proc-recycling",
   "title": "Recycling round",
-  "summary": "Sort the bottles at the recycling point, then swap a full bag.",
+  "summary": "Sort the cans at the recycling point, then swap a full bag.",
   "company": "Junction 2026",
   "language": "en",
   "status": "published",
@@ -11,21 +11,21 @@
     {
       "id": "step-1",
       "index": 1,
-      "title": "Sort the bottles",
-      "instruction": "Bottles with the deposit mark go to the return crate. Other plastic goes to the plastic bin.",
-      "say": "Bottles with the deposit mark go to the return crate, not the plastic bin.",
+      "title": "Sort the cans",
+      "instruction": "Deposit cans go in the round CANS opening of the white bin. The black square opening is PLASTIC, for other plastic.",
+      "say": "Deposit cans go in the round CANS opening, not the plastic.",
       "reference_image_url": null,
       "clip_url": null,
       "check": {
         "kind": "visual",
         "criteria": [
-          "No bottle with a deposit mark is in or above the plastic bin",
-          "Bottles with a deposit mark are in the return crate"
+          "No can or bottle is over or in the black square PLASTIC opening",
+          "A can that is over an opening is over the round CANS opening"
         ],
         "order_lines": null,
-        "warning": "That's a deposit bottle. It goes to the return crate."
+        "warning": "That's a deposit can. It goes in the CANS hole."
       },
-      "source": {"doc": "Laura's recording", "quote": "Bottles with the deposit mark go to the return crate, not the plastic bin."},
+      "source": {"doc": "Laura's recording", "quote": "Deposit cans go in the round CANS opening, not the plastic."},
       "checkpoint": {"zone_id": "zone-recycling", "label": "Recycling point", "photo_urls": []}
     },
     {
