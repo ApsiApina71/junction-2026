@@ -147,8 +147,43 @@ def last_frame(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def transcode_clip(data: bytes, max_seconds: float = MAX_CLIP_SECONDS, blur: bool = True, start: float = 0.0) -> bytes:
-    """A display-sized H.264 MP4 (faststart, no audio, CLIP_FPS) with faces blurred: max_seconds from `start`."""
+CLIP_RADIUS = 0.07  # of the clip's shorter side: about the 18 px of the photos on the 520 px glasses card
+CLIP_OUTLINE = 0.16  # how much white the thin outline mixes in, like the cards' faint white edge
+
+
+def card_mask(width: int, height: int) -> tuple[np.ndarray, np.ndarray]:
+    """The clip as a card on the glasses: a rounded-corner mask (1 inside) and a thin outline along its edge.
+
+    Black is see-through on the Display glasses, so black corners make the clip a rounded card that floats in
+    view, in the same shape as the photos and cards of Owl's screens, instead of a hard square."""
+    ss = 4  # supersampled, so the corners are smooth
+    r = CLIP_RADIUS * min(width, height) * ss
+    ys, xs = np.mgrid[0 : height * ss, 0 : width * ss] + 0.5
+
+    def inside(inset: float) -> np.ndarray:
+        x0, y0, x1, y1 = inset, inset, width * ss - inset, height * ss - inset
+        rr = max(r - inset, 1.0)
+        cx = np.clip(xs, x0 + rr, x1 - rr)
+        cy = np.clip(ys, y0 + rr, y1 - rr)
+        return ((xs - cx) ** 2 + (ys - cy) ** 2 <= rr**2) & (xs >= x0) & (xs <= x1) & (ys >= y0) & (ys <= y1)
+
+    def down(a: np.ndarray) -> np.ndarray:
+        return a.reshape(height, ss, width, ss).mean(axis=(1, 3)).astype(np.float32)
+
+    outer, inner = down(inside(0.0)), down(inside(1.5 * ss))
+    return outer[..., None], np.clip(outer - inner, 0, 1)[..., None]
+
+
+def as_card(rgb: np.ndarray, mask: tuple[np.ndarray, np.ndarray]) -> np.ndarray:
+    inside, ring = mask
+    out = rgb.astype(np.float32) * inside
+    out = out * (1 - ring * CLIP_OUTLINE) + 255 * ring * CLIP_OUTLINE
+    return out.clip(0, 255).astype(np.uint8)
+
+
+def transcode_clip(data: bytes, max_seconds: float = MAX_CLIP_SECONDS, blur: bool = True, start: float = 0.0, card: bool = True) -> bytes:
+    """A display-sized H.264 MP4 (faststart, no audio, CLIP_FPS) with faces blurred: max_seconds from `start`, shaped
+    as a rounded card for the glasses (card_mask) unless card is False."""
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "clip.mp4"
         written = 0
@@ -170,9 +205,12 @@ def transcode_clip(data: bytes, max_seconds: float = MAX_CLIP_SECONDS, blur: boo
                     stream = out.add_stream("libx264", rate=CLIP_FPS, options={"preset": "veryfast", "crf": "26", "profile": "baseline"})
                     stream.width, stream.height, stream.pix_fmt = w, h, "yuv420p"
                     stream.time_base = Fraction(1, CLIP_FPS)
+                    mask = card_mask(w, h) if card else None
                 rgb = frame.to_ndarray(format="rgb24", width=stream.width, height=stream.height)
                 if blur:
                     rgb, _ = blur_faces_rgb(rgb)
+                if mask is not None:
+                    rgb = as_card(rgb, mask)
                 video = av.VideoFrame.from_ndarray(rgb, format="rgb24")
                 video.pts = written
                 out.mux(stream.encode(video))
