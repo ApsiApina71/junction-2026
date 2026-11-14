@@ -249,7 +249,7 @@ enum OwlScreens {
   }
 
   /// Owl could not check. The worker can try again or go on, and going on is named for
-  /// what it is: a row that always shows its words and its consequence, never just an icon.
+  /// what it is: its consequence is on the card, and its button always shows its word.
   static func cannotCheck(
     step: OwlStep, why: OwlCheckBlock, hint: String?, onCheckAgain: OwlAction?,
     onContinue: @escaping OwlAction, onBack: @escaping OwlAction
@@ -258,21 +258,21 @@ enum OwlScreens {
       card {
         header(.unsure, meta: step.title, title: OwlStrings.cannotCheck)
         Text(hint ?? OwlStrings.cannotCheckBody(why), style: .body)
+        Text("\(OwlStrings.continueUnverified): \(OwlStrings.notVerifiedNote)", style: .meta, color: .secondary)
       }
-      FlexBox(direction: .column, spacing: 2) {
-        Text(OwlStrings.continueUnverified, style: .body)
-        Text(OwlStrings.notVerifiedNote, style: .meta, color: .secondary)
-      }
-      .padding(20)
-      .background(.card)
-      .onTap(onContinue)
+      // Real buttons only (JUN-53): a pinch did not reach tappable rows on the glasses. The
+      // card keeps what going on means in view; the button has no icon, so it always shows
+      // its word too.
       buttonRow {
         if let onCheckAgain {
           Button(label: OwlStrings.checkAgain, style: .primary, iconName: .twoArrowsClockwise, onClick: onCheckAgain)
             .actionRole(.primary)
+          Button(label: OwlStrings.continueShort, style: .secondary, onClick: onContinue)
           Button(label: OwlStrings.back, style: .secondary, iconName: .arrowLeft, onClick: onBack)
         } else {
           Button(label: OwlStrings.back, style: .primary, iconName: .arrowLeft, onClick: onBack)
+            .actionRole(.primary)
+          Button(label: OwlStrings.continueShort, style: .secondary, onClick: onContinue)
             .actionRole(.primary)
         }
       }
@@ -315,8 +315,8 @@ enum OwlScreens {
   // MARK: - Consent and progress
 
   /// Consent, asked once (JUN-80): what the camera does, then a choice with a pinch. The
-  /// texts come translated. Neither answer is drawn as the right one: both are rows that
-  /// always show their words, the same size and the same weight.
+  /// texts come translated. Neither answer is drawn as the right one: both are buttons that
+  /// always show their words, in the same style.
   static func consent(
     title: String, lines: [String], allowLabel: String, declineLabel: String,
     onAllow: @escaping OwlAction, onDecline: @escaping OwlAction
@@ -328,8 +328,12 @@ enum OwlScreens {
           Text(line, style: .meta, color: .primary)
         }
       }
-      choice(allowLabel, onAllow)
-      choice(declineLabel, onDecline)
+      // Real buttons only (JUN-53): a pinch did not reach tappable rows on the glasses. Both
+      // the same style, without icons, so both always show their words.
+      buttonRow {
+        Button(label: allowLabel, style: .secondary, onClick: onAllow)
+        Button(label: declineLabel, style: .secondary, onClick: onDecline)
+      }
     }
   }
 
@@ -339,20 +343,8 @@ enum OwlScreens {
     source.map { "\(meta) · \(OwlStrings.unreal($0))" } ?? meta
   }
 
-  /// One answer to a question, as a row that can be picked with the Neural Band.
-  private static func choice(_ label: String, _ action: @escaping OwlAction) -> FlexBox {
-    FlexBox(direction: .column) {
-      Text(label, style: .body)
-    }
-    .padding(18)
-    .background(.card)
-    .onTap(action)
-  }
-
   /// The worker's own progress (JUN-76): a few encouraging lines, for the worker only, and
   /// the way to erase them.
-  /// "Forget me" is a row that shows its words. As a button it collapsed to an X when it was
-  /// not in focus, which reads as "close", and one pinch erased the progress.
   /// `training` (JUN-96): the days left as the quiet line over the title, and what is still
   /// missing from the target level first, before the encouraging lines.
   static func progress(
@@ -370,18 +362,14 @@ enum OwlScreens {
           Text(line, style: trainingLines.isEmpty ? .body : .meta, color: trainingLines.isEmpty ? .primary : .secondary)
         }
       }
-      if let onForget {
-        FlexBox(direction: .column, spacing: 2) {
-          Text(OwlStrings.forgetMe, style: .body)
-          Text(OwlStrings.forgetNote, style: .meta, color: .secondary)
-        }
-        .padding(18)
-        .background(.card)
-        .onTap(onForget)
-      }
+      // Real buttons only (JUN-53). "Forget me" has no icon, so it never shrinks to an X
+      // that reads as "close", and it only opens the question with Keep first.
       buttonRow {
         Button(label: OwlStrings.home, style: .primary, iconName: .house, onClick: onHome)
           .actionRole(.primary)
+        if let onForget {
+          Button(label: OwlStrings.forgetMe, style: .secondary, onClick: onForget)
+        }
       }
     }
   }
@@ -413,8 +401,11 @@ enum OwlScreens {
         header(.unsure, meta: OwlStrings.myProgress, title: OwlStrings.forgetTitle)
         Text(OwlStrings.forgetBody, style: .body)
       }
-      choice(OwlStrings.keepProgress, onKeep)
-      choice(OwlStrings.eraseProgress, onErase)
+      buttonRow {
+        Button(label: OwlStrings.keepShort, style: .primary, onClick: onKeep)
+          .actionRole(.primary)
+        Button(label: OwlStrings.eraseShort, style: .secondary, onClick: onErase)
+      }
     }
   }
 
