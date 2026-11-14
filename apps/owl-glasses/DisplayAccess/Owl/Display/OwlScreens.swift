@@ -184,7 +184,7 @@ enum OwlScreens {
   }
 
   /// A step that opens only at its checkpoint (JUN-97): where to go, the expert's photo of
-  /// the place, and the way out when the marker is missing (Help can unlock it).
+  /// the place, and the way out when Owl does not recognise it (Help can unlock it).
   static func goTo(
     process: OwlProcess, step: OwlStep, label: String, image: UIImage?,
     onHelp: @escaping OwlAction, onHome: @escaping OwlAction
@@ -197,7 +197,7 @@ enum OwlScreens {
         Image(image: OwlArt.framed(image, height: 200), sizePreset: .fill)
       }
       Text(OwlStrings.goToBody, style: .body)
-      Text(OwlStrings.goToNoMarker, style: .meta, color: .secondary)
+      Text(OwlStrings.goToStuck, style: .meta, color: .secondary)
     } buttons: {
       Button(label: OwlStrings.help, style: .primary, iconName: .person, onClick: onHelp)
         .actionRole(.primary)

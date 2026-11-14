@@ -126,10 +126,17 @@ struct OwlAPI: Sendable {
 
   // Location during training (JUN-97)
 
-  /// A marker the camera saw: `owl:zone:<zone_id>` or `owl:cp:<process_id>:<step_id>`.
-  func postLocation(employeeID: String, marker: String) async throws -> OwlLocation {
-    struct Body: Encodable { let employeeId: String; let marker: String }
-    return try await send(try request("location", json: Body(employeeId: employeeID, marker: marker)))
+  /// One look at the camera while a step waits for its place: owl-api says whether the
+  /// worker is there. The step opens after two looks in a row at the same place.
+  func locationFrame(_ frame: OwlFrame, employeeID: String, processID: String, stepID: String) async throws
+    -> OwlLocation
+  {
+    var form = MultipartForm()
+    frame.add(to: &form)
+    form.addField("employee_id", employeeID)
+    form.addField("process_id", processID)
+    form.addField("step_id", stepID)
+    return try await send(try request("location/frame", form: form, timeout: 15))
   }
 
   func location(employeeID: String) async throws -> OwlLocation {

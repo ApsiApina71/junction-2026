@@ -218,7 +218,7 @@ struct OwlConsent: Codable, Equatable, Sendable {
   let cameraChecks: Bool
   let recording: Bool
   let at: String?
-  /// Location tracking during training, by markers (JUN-97). nil from an older server.
+  /// Location tracking during training, from the camera picture (JUN-97). nil from an older server.
   var location: Bool? = nil
 }
 
@@ -320,8 +320,18 @@ struct OwlTraining: Codable, Equatable, Sendable {
 }
 
 /// Where the worker is during training (`/location`, JUN-97). Only the current zone and
-/// today's zones; deleted when the training period ends.
+/// today's zones; deleted when the training period ends. owl-api recognises the place from
+/// the camera picture of a locked step (`POST /location/frame`).
 struct OwlLocation: Codable, Equatable, Sendable {
+  /// What one look at the camera was recognised as. A step opens after two looks in a row.
+  struct Match: Codable, Equatable, Sendable {
+    let zoneId: String?
+    let processId: String?
+    let stepId: String?
+    let score: Double?
+    let decidedBy: String?
+  }
+
   struct Zone: Codable, Equatable, Sendable {
     let id: String
     let name: String
@@ -338,6 +348,9 @@ struct OwlLocation: Codable, Equatable, Sendable {
   let zone: Zone?
   let enteredAt: String?
   let unlocked: [StepRef]?
+  var match: Match? = nil
+  /// When owl-api wants the next picture.
+  var nextCheckMs: Int? = nil
 
   func isUnlocked(processID: String, stepID: String) -> Bool {
     (unlocked ?? []).contains { $0.processId == processID && $0.stepId == stepID }

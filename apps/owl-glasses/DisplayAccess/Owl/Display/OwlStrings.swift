@@ -376,20 +376,22 @@ enum OwlStrings {
   static func goTo(_ label: String) -> String { t("Go to: \(label)", "Mene: \(label)") }
   static var goToBody: String {
     t(
-      "Owl opens this step when it sees the marker there.", "Owl avaa vaiheen, kun se näkee paikan merkin.",
-      easy: "Look at the sign there.", "Katso siellä olevaa merkkiä.")
+      "Owl opens this step when it sees you are there.", "Owl avaa vaiheen, kun se näkee, että olet perillä.",
+      easy: "Go there and look around.", "Mene sinne ja katso ympärillesi.")
   }
-  static var goToNoMarker: String {
-    t("No marker there? Pinch Help.", "Eikö merkkiä löydy? Nipistä Apua.", easy: "No sign? Pinch Help.", "Ei merkkiä? Nipistä Apua.")
+  static var goToStuck: String {
+    t(
+      "Owl doesn't know the place? Pinch Help.", "Eikö Owl tunnista paikkaa? Nipistä Apua.",
+      easy: "Stuck? Pinch Help.", "Jumissa? Nipistä Apua.")
   }
   static var youAreThere: String { t("You are there. The step is open.", "Olet perillä. Vaihe on auki.") }
   static var locationTitle: String { t("Location in training", "Sijainti koulutuksessa") }
   static var locationLines: [String] {
     [
       t(
-        "During training, Owl sees where you are from the markers on the shelves.",
-        "Koulutuksen aikana Owl näkee hyllyjen merkeistä, missä olet.",
-        easy: "Owl reads signs on the shelves to see where you are.", "Owl lukee hyllyjen merkit ja näkee, missä olet."),
+        "During training, Owl recognises from the camera picture where you are. The picture is not saved.",
+        "Koulutuksen aikana Owl tunnistaa kamerakuvasta, missä olet. Kuvaa ei tallenneta.",
+        easy: "Owl sees from the camera where you are.", "Owl näkee kamerasta, missä olet."),
       t("Your trainer sees the area you are in.", "Kouluttajasi näkee, millä alueella olet.",
         easy: "Your trainer sees where you are.", "Kouluttajasi näkee, missä olet."),
       t("It is deleted when training ends.", "Tieto poistetaan, kun koulutus päättyy.",

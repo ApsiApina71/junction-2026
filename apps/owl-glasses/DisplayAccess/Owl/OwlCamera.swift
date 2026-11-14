@@ -158,14 +158,6 @@ final class OwlCamera: @unchecked Sendable {
     return UIImage.owlImage(from: frame)?.owlScaled(maxSide: maxSide).jpegData(compressionQuality: 0.75)
   }
 
-  /// The newest decoded frame as an image, for reading markers on the phone (JUN-97).
-  func latestImage(maxAge: TimeInterval = 2) -> CGImage? {
-    let (gop, gopAt, pixels, pixelsAt) = lock.withLock { (gop, gopLastAt, latestPixels, latestPixelsAt) }
-    guard Self.isFresh(pixels != nil ? pixelsAt : gopAt, maxAge: maxAge, newerThan: nil) else { return nil }
-    guard let frame = pixels ?? decoder.decodeLast(of: gop) else { return nil }
-    return UIImage.owlImage(from: frame)?.cgImage
-  }
-
   private static func isFresh(_ taken: Date?, maxAge: TimeInterval, newerThan: Date?) -> Bool {
     OwlHEVC.isFresh(taken: taken, now: Date(), maxAge: maxAge, newerThan: newerThan)
   }

@@ -6,7 +6,6 @@
 // `OwlHEVC.swift`. Run on the Mac with `Tests/run.sh` (the Xcode project has no test target).
 //
 
-import CoreImage
 import Foundation
 
 nonisolated(unsafe) var failures = 0
@@ -234,37 +233,20 @@ expect(OwlCheckRules.unrealSource(decidedBy: "jev") == nil, "a decision by Jev i
 expect(OwlCheckRules.unrealSource(decidedBy: "rules") == nil, "a decision by the rules is a real check")
 expect(OwlCheckRules.unrealSource(decidedBy: nil) == nil, "no decider named: nothing claimed")
 
-// JUN-97: Owl's markers are read from a picture, other QR codes are not.
-func qr(_ text: String) -> CGImage? {
-  guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-  filter.setValue(Data(text.utf8), forKey: "inputMessage")
-  guard let code = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) else { return nil }
-  // A white border, as on paper.
-  let paper = CIImage(color: .white).cropped(to: code.extent.insetBy(dx: -64, dy: -64))
-  return CIContext().createCGImage(code.composited(over: paper), from: paper.extent)
-}
-
-if let marker = qr("owl:cp:proc-pick-pack:step-2") {
-  expect(OwlMarkers.read(in: marker) == ["owl:cp:proc-pick-pack:step-2"], "a checkpoint marker is read")
-} else {
-  expect(false, "could not draw a QR code")
-}
-if let other = qr("https://example.com") {
-  expect(OwlMarkers.read(in: other).isEmpty, "a QR code that is not Owl's is ignored")
-}
-expect(OwlMarkers.isOwlMarker("owl:zone:zone-c"), "a zone marker is Owl's")
-expect(!OwlMarkers.isOwlMarker("owl:other"), "other owl: texts are not markers")
-
+// JUN-97: where the worker is, from owl-api.
 let decoder = JSONDecoder()
 decoder.keyDecodingStrategy = .convertFromSnakeCase
 let locationJSON = """
   {"employee_id":"emp-sami","tracking":true,"zone":{"id":"zone-c","name":"Aisle C"},"entered_at":"2026-11-14T10:00:00Z",
-   "history":[],"unlocked":[{"process_id":"proc-pick-pack","step_id":"step-2"}]}
+   "history":[],"unlocked":[{"process_id":"proc-pick-pack","step_id":"step-2"}],
+   "match":{"zone_id":"zone-c","process_id":"proc-pick-pack","step_id":"step-2","score":0.91,"decided_by":"demo"},
+   "next_check_ms":2000}
   """
 if let location = try? decoder.decode(OwlLocation.self, from: Data(locationJSON.utf8)) {
   expect(location.isUnlocked(processID: "proc-pick-pack", stepID: "step-2"), "an unlocked step is open")
   expect(!location.isUnlocked(processID: "proc-pick-pack", stepID: "step-4"), "another checkpoint stays locked")
   expect(location.zone?.name == "Aisle C", "the zone is read")
+  expect(location.match?.decidedBy == "demo" && location.nextCheckMs == 2000, "the match and the pace are read")
 } else {
   expect(false, "the location answer decodes")
 }
