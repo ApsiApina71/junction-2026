@@ -370,6 +370,12 @@ enum OwlFrame: Sendable {
   case jpeg(Data)
   case clip(Data)
 
+  var byteCount: Int {
+    switch self {
+    case .jpeg(let data), .clip(let data): data.count
+    }
+  }
+
   func add(to form: inout MultipartForm) {
     switch self {
     case .jpeg(let data):

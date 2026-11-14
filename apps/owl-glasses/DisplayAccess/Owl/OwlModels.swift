@@ -105,6 +105,9 @@ struct OwlCheckResult: Codable, Equatable, Sendable {
   let confidence: Double?
   let decidedBy: String?
   let stepDone: Bool
+  /// When to look again (JUN-82): soon while a problem is confirmed, slower when the step
+  /// looks right, nil when there is nothing more to check until the next step or pinch.
+  let nextCheckMs: Int?
 
   var isOK: Bool { status == "ok" }
   var isWarning: Bool { status == "warning" }

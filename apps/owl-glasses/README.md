@@ -24,6 +24,23 @@ What works in the simulator chain (iOS Simulator + MockDeviceKit + mock owl-api)
 - **Limitation:** the glasses recognise speech in the glasses' own language setting (DAT Speech reports it as `locale`; the app cannot choose it). Set the worker's glasses to their language in Meta AI. Ask still sends the worker's language, so answers come in it.
 - DAT analytics and crash reporting opted out in `Info.plist`.
 
+## Performance (JUN-82)
+
+Owl looks only as often as the moment needs:
+
+- **Rate:** the next live frame waits for owl-api's `next_check_ms` (800 ms while a problem is being confirmed, 1.5 s after a warning or unsure, 3 s while the step looks right). `null` means no more frames until the next step or the Done pinch.
+- **Steps without a check:** no frames, and the camera stream is closed.
+- **Between steps with checks:** the stream stays on. The DAT docs give no start latency, and restarting would delay the first check of the next step.
+- **Logs:** every check logs `perf:` with the frame size, the round trip, the next delay and frames per minute. The stream start time is logged too.
+
+| Measured | Simulator (mock glasses, owl-api on the same Mac, demo mode) | Real glasses |
+|---|---|---|
+| Frames per minute, pick and pack | ~19 (every-second baseline: 60) | JUN-53 |
+| Frame size | 6–93 KB JPEG (longest side ≤ 1024 px) | JUN-53 |
+| Round trip | 4–17 ms (local) | JUN-53, on the hotspot |
+| Stream start | 8 ms (mock) | JUN-53 |
+| Battery over 15 min | n/a | JUN-53 |
+
 ## Where things are
 
 | Path | What |

@@ -70,11 +70,14 @@ final class OwlCamera: @unchecked Sendable {
         continuation.yield(state)
       }.store(in: tokens)
     }
+    let started = ContinuousClock.now
     stream.start()
     try await withOwlTimeout(.seconds(20)) {
       for await state in states where state == .streaming { return }
       throw OwlError.noCamera
     }
+    // JUN-82: how long the stream takes to start, to decide whether to keep it on between steps.
+    NSLog("[Owl] perf: camera stream started in \(Int((ContinuousClock.now - started) / .milliseconds(1))) ms")
   }
 
   private func receive(_ sample: CMSampleBuffer) {

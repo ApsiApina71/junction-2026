@@ -68,6 +68,12 @@ final class OwlViewModel {
   @ObservationIgnored private var stepStatus: String?
   @ObservationIgnored private var checkTask: Task<Void, Never>?
   @ObservationIgnored private var checkFailures = 0
+  /// When to send the next live frame (JUN-82), from the last answer's `next_check_ms`.
+  /// Nil means Owl does not look again until the next step or a pinch.
+  @ObservationIgnored private var nextCheckDelay: Duration? = checkInterval
+  /// Performance numbers for JUN-82: frames sent in the current task, and since when.
+  @ObservationIgnored private var framesSent = 0
+  @ObservationIgnored private var framesSince = ContinuousClock.now
   @ObservationIgnored private var isFinishing = false
   /// What the display shows now, so it can be sent again (glasses back on, display woke).
   @ObservationIgnored private var currentScreen: (() async -> Void)?
@@ -240,6 +246,8 @@ final class OwlViewModel {
     self.process = process
     stepIndex = 0
     runID = UUID().uuidString
+    framesSent = 0
+    framesSince = .now
     await openStep()
   }
 
@@ -256,6 +264,8 @@ final class OwlViewModel {
     if step.check.usesCamera {
       await startCheckLoop()
     } else {
+      // No check in this step: no frames, and the stream is off to save battery (JUN-82).
+      closeCamera()
       setStepStatus("Pinch Done when ready.")
     }
   }
@@ -300,9 +310,15 @@ final class OwlViewModel {
       return
     }
     setStepStatus("Owl is watching.")
+    nextCheckDelay = Self.checkInterval
     checkTask = Task { [weak self] in
       while !Task.isCancelled {
-        try? await Task.sleep(for: Self.checkInterval)
+        // Follow owl-api's next_check_ms; nil means nothing more to check in this step.
+        guard let delay = self?.nextCheckDelay else {
+          NSLog("[Owl] check: server says no more checks until the next step or a pinch")
+          return
+        }
+        try? await Task.sleep(for: delay)
         guard let self, !Task.isCancelled else { return }
         guard self.glassesOn, !self.isFinishing else { continue }
         guard let jpeg = camera.latestJPEG() else {
@@ -324,11 +340,16 @@ final class OwlViewModel {
   private func checkFrame(_ jpeg: OwlFrame, final: Bool) async -> OwlCheckResult? {
     guard let process, let step else { return nil }
     do {
+      let sentAt = ContinuousClock.now
       let result = try await api.check(
         frame: jpeg, processID: process.id, stepID: step.id, runID: runID, final: final,
         language: language, employeeID: employee?.id, mock: mockCheck)
       checkFailures = 0
-      NSLog("[Owl] check \(step.id) final=\(final): \(result.status)")
+      framesSent += 1
+      let minutes = max((ContinuousClock.now - framesSince) / .seconds(60), 1.0 / 60)
+      NSLog(
+        "[Owl] check \(step.id) final=\(final): \(result.status) · perf: \(jpeg.byteCount / 1024) KB, round trip \(Int((ContinuousClock.now - sentAt) / .milliseconds(1))) ms, next \(result.nextCheckMs.map { "\($0) ms" } ?? "none"), \(String(format: "%.1f", Double(framesSent) / minutes)) frames/min")
+      if !final { nextCheckDelay = result.nextCheckMs.map { .milliseconds($0) } }
       guard self.step?.id == step.id else { return nil }
       if !final { await showLive(result, for: step) }
       return result
