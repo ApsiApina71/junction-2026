@@ -164,6 +164,8 @@ final class OwlViewModel {
   @ObservationIgnored private var cameraClosings = 0
   /// Steps whose clip already played by itself in this run (JUN-102): once per run.
   @ObservationIgnored private var clipsPlayed: Set<String> = []
+  /// Clip URLs the glasses started playing in this app run: known to be there.
+  @ObservationIgnored private var playedClips: Set<URL> = []
   /// Debug builds: `OWL_AUTOPLAY_CLIP=1` plays clips by itself in every task.
   private static let autoplayEverywhere = ProcessInfo.processInfo.environment["OWL_AUTOPLAY_CLIP"] == "1"
 
@@ -1629,17 +1631,30 @@ final class OwlViewModel {
           if let then { await then(model) } else { await model.backToStep() }
         })
     }
-    guard await api.clipIsThere(url) else {
-      guard isCurrent(number) else { return }
-      NSLog("[Owl] clip cannot be fetched: \(url.path)")
-      await failed()
-      return
+    // A clip that already played in this app run is there: no look first (JUN-53, Watch how
+    // after the clip that played by itself failed on a slow look). A failed look is tried once
+    // more before Owl says the clip is missing.
+    if !playedClips.contains(url) {
+      var there = await api.clipIsThere(url)
+      if !there, isCurrent(number) {
+        NSLog("[Owl] clip: first look failed, looking again")
+        there = await api.clipIsThere(url, timeout: 12)
+      }
+      guard there else {
+        guard isCurrent(number) else { return }
+        NSLog("[Owl] clip cannot be fetched: \(url.path)")
+        await failed()
+        return
+      }
     }
     guard isCurrent(number) else { return }
     statusText = "Playing the expert's clip"
     isPlayingClip = true
     let playback = ClipPlayback()
-    await displayViewModel.playVideo(url: url.absoluteString, onStarted: { playback.started = true }) { [weak self] played in
+    await displayViewModel.playVideo(url: url.absoluteString, onStarted: { [weak self] in
+      playback.started = true
+      self?.playedClips.insert(url)
+    }) { [weak self] played in
       guard let self, !playback.finished else { return }
       playback.finished = true
       // The worker may have moved on while the clip played.
