@@ -56,7 +56,14 @@ enum OwlStrings {
   /// The welcome's heading in the welcome's own language (JUN-108).
   static func welcome(_ name: String, in welcomeLanguage: String?) -> String {
     guard let welcomeLanguage else { return welcome(name) }
-    return welcomeLanguage.lowercased().hasPrefix("fi") ? "Tervetuloa, \(name)" : "Welcome, \(name)"
+    switch OwlText.languageCode(welcomeLanguage) {
+    case "fi": return "Tervetuloa, \(name)"
+    case "es": return "Bienvenido, \(name)"
+    case "sv": return "Välkommen, \(name)"
+    case "de": return "Willkommen, \(name)"
+    case "fr": return "Bienvenue, \(name)"
+    default: return "Welcome, \(name)"
+    }
   }
   static var hello: String { t("Hi, I'm Owl", "Hei, olen Owl") }
   static var welcomeBody: String {

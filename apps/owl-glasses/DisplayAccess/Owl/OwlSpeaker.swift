@@ -60,8 +60,11 @@ final class OwlSpeaker {
     let code = OwlText.languageCode(language)
     let voices = AVSpeechSynthesisVoice.speechVoices()
     let matching = voices.filter { OwlText.languageCode($0.language) == code }
-    return matching.first { $0.quality == .enhanced } ?? matching.first
-      ?? AVSpeechSynthesisVoice(language: "en-US")
+    if let found = matching.first(where: { $0.quality == .enhanced }) ?? matching.first { return found }
+    if code != "en" {
+      NSLog("[Owl] voice: no \(code) voice on this phone, speaking with English (Settings → Accessibility → Spoken Content → Voices)")
+    }
+    return AVSpeechSynthesisVoice(language: "en-US")
   }
 
   func stop() {
