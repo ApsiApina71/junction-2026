@@ -61,6 +61,11 @@ export function whereText(session: HelpSession, processes: Process[] | null): st
   return 'Not in a task'
 }
 
+/** A call ringing or answered on the shift manager's glasses (JUN-100). Its live view is theirs, not the console's. */
+export function onManagerGlasses(session: HelpSession): boolean {
+  return session.status === 'ringing' || session.status === 'accepted'
+}
+
 export function waiting(sessions: HelpSession[] | null): HelpSession[] {
   return (sessions ?? []).filter((session) => session.status === 'waiting')
 }

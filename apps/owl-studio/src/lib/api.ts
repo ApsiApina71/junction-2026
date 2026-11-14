@@ -1,6 +1,6 @@
 // The owl-api client. Every failure becomes an ApiError with a sentence a shift lead can act on.
 
-import type { Answer, Doc, Employee, EmployeeInput, Health, HelpSession, Mark, Process, Recording, Stats, Trainee, Training, TrainingPlan, TrainingResult, TraineePlace, Zone } from './types.ts'
+import type { Answer, Doc, Employee, EmployeeInput, Health, HelpSession, Mark, OnShift, Process, Recording, Stats, Trainee, Training, TrainingPlan, TrainingResult, TraineePlace, Zone } from './types.ts'
 
 export type ApiErrorKind = 'offline' | 'unauthorized' | 'not_found' | 'server'
 
@@ -141,6 +141,9 @@ export function createApi(config: ApiConfig = apiConfig(), fetchFn: Fetch = (inp
     say: (helpId: string, text: string, mark: Mark | null = null) =>
       request<HelpSession>(`/help/${id(helpId)}/say`, json('POST', mark ? { from: 'expert', text, mark } : { from: 'expert', text })),
     endHelp: (helpId: string) => request<HelpSession>(`/help/${id(helpId)}/end`, { method: 'POST' }),
+    // The manager on shift answers Help on their own glasses (JUN-100)
+    onShift: () => request<{ on_shift: OnShift[] }>('/shift').then((r) => r.on_shift),
+    setOnShift: (company: string, employeeId: string | null) => request<{ on_shift: OnShift[] }>('/shift', json('PUT', { company, employee_id: employeeId })).then((r) => r.on_shift),
 
     // Training period and target level (JUN-96)
     trainingPlans: () => request<{ plans: TrainingPlan[] }>('/training/plans').then((r) => r.plans),

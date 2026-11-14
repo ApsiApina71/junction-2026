@@ -87,6 +87,8 @@ export function fakeApi(patch: Partial<Record<keyof Api, unknown>> = {}): Api {
     helpSession: vi.fn(async () => helpSession()),
     say: vi.fn(async (_id, text, mark) => helpSession({ status: 'connected', messages: [{ id: 1, from: 'expert', text, at: new Date().toISOString(), image_url: mark ? 'http://test/media/help/help-1-abc/mark-1.jpg' : null }] })),
     endHelp: vi.fn(async () => helpSession({ status: 'ended', latest_frame_url: null })),
+    onShift: vi.fn(async () => []),
+    setOnShift: vi.fn(async () => []),
     ...patch,
   } as unknown as Api
 }

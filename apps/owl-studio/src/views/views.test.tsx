@@ -357,7 +357,7 @@ describe('adding a person', () => {
     expect(screen.getByText('Sami has this pair now. Saving gives it to Aino and leaves Sami without glasses.')).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: 'Add this person' }))
-    await waitFor(() => expect(studio.api.addEmployee).toHaveBeenCalledWith({ name: 'Aino', language: 'fi', role: 'Packer', process_ids: ['proc-1'], glasses_id: 'glasses-1' }))
+    await waitFor(() => expect(studio.api.addEmployee).toHaveBeenCalledWith({ name: 'Aino', language: 'fi', role: 'Packer', process_ids: ['proc-1'], glasses_id: 'glasses-1', shift_manager: false }))
     expect(studio.reload).toHaveBeenCalled()
   })
 

@@ -7,7 +7,7 @@ import { StatusTag } from '../ui/parts.tsx'
 
 // Every sentence here says what the code does today and no more (apps/owl-api: main.py, media.py, record.py,
 // ask.py, verifier.py, progress.py, persist.py, jepa.py, stage.py, translate.py, docs_process.py, training.py,
-// location.py, place.py, assist.py; apps/owl-glasses:
+// location.py, place.py, assist.py, shift.py; apps/owl-glasses:
 // Info.plist, OwlViewModel.swift, OwlCamera.swift). Two things are kept apart on purpose: what Owl's own server
 // stores and deletes, which Owl controls and can state exactly, and what happens to data once it has gone to
 // someone else (the model provider, Meta), which follows their terms. The same list is in
@@ -69,7 +69,10 @@ export function DataView() {
                 a login.
               </dd>
               <dt>A worker's view during Help</dt>
-              <dd>Kept only while that request is open, in a folder with a random name. Deleted when help ends, and anything left over is deleted when the server starts.</dd>
+              <dd>
+                Kept only while that request is open, in a folder with a random name. Deleted when help ends, and anything left over is deleted when the server starts. It is seen by the expert here, or, when the worker calls the manager on shift, only by that
+                manager on their own glasses. Neither records it.
+              </dd>
               <dt>Pictures sent for a check</dt>
               <dd>Never saved. The server reads the picture, sends it to the model and drops it. Owl keeps no record of what a worker's camera saw while they worked.</dd>
               <dt>Short clips for knowing which step it is</dt>

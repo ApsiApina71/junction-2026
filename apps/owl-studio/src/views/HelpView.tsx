@@ -5,7 +5,7 @@ import { languageName, speechLocale } from '../lib/languages.ts'
 import { CENTER, markFromPoint, markPosition, nudgeMark } from '../lib/mark.ts'
 import { href } from '../lib/route.ts'
 import { startedAt } from '../lib/seen.ts'
-import { stepOf, taskOf, useStudio, whereText, workerName, workerOf } from '../lib/studio.ts'
+import { onManagerGlasses, stepOf, taskOf, useStudio, whereText, workerName, workerOf } from '../lib/studio.ts'
 import { clockTime, duration, freshness, timeAgo } from '../lib/time.ts'
 import type { HelpSession, Mark } from '../lib/types.ts'
 import { Icon } from '../ui/Icon.tsx'
@@ -52,14 +52,23 @@ function HelpList() {
         <ul className="rows" aria-label="Open help requests">
           {open.map((session) => (
             <li key={session.id}>
-              <a className="row row-link" href={href('help', session.id)}>
+              <a className="row row-link" href={onManagerGlasses(session) ? undefined : href('help', session.id)} aria-disabled={onManagerGlasses(session) || undefined}>
                 <span className={session.status === 'waiting' ? 'lamp is-on lamp-lg' : 'lamp lamp-lg'} aria-hidden="true" />
                 <span className="row-main">
                   <span className="row-title">{workerName(session, employees)}</span>
                   <span className="row-meta">{whereText(session, processes)}</span>
                 </span>
-                {session.status === 'waiting' ? (
+                {session.status === 'ringing' ? (
+                  <StatusTag tone="muted" shape="ring">
+                    Calling {session.assignee_name ?? 'the shift manager'}
+                  </StatusTag>
+                ) : session.status === 'accepted' ? (
+                  <StatusTag tone="accent" shape="ring">
+                    {session.assignee_name ?? 'The shift manager'} is helping
+                  </StatusTag>
+                ) : session.status === 'waiting' ? (
                   <StatusTag tone="signal" shape="diamond">
+                    {session.fallback === 'no_answer' && session.assignee_name ? `${session.assignee_name} did not answer · ` : ''}
                     Waiting {duration(Math.max(0, Math.round((now - startedAt(session, now)) / 1000)))}
                   </StatusTag>
                 ) : (
@@ -172,6 +181,19 @@ function HelpConsole({ helpId }: { helpId: string }) {
       <div className="view">
         <BackToHelp />
         {problem ? <Problem>{problem}</Problem> : <Loading what="Opening the help request" />}
+      </div>
+    )
+  }
+
+  if (onManagerGlasses(session)) {
+    return (
+      <div className="view">
+        <BackToHelp />
+        <p className="lede">
+          {session.status === 'ringing'
+            ? `Calling ${session.assignee_name ?? 'the shift manager'} on their glasses. If they do not answer in 30 seconds, the request comes here.`
+            : `${session.assignee_name ?? 'The shift manager'} is helping on their own glasses. The live view is only for them.`}
+        </p>
       </div>
     )
   }

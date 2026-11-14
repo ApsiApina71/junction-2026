@@ -9,6 +9,8 @@ export interface Employee {
   welcome: string
   process_ids: string[]
   glasses_id: string | null
+  /** JUN-100: can be the manager on shift, who answers Help on their own glasses. */
+  shift_manager?: boolean
 }
 
 /** What Studio sends to add or change an employee. A field that is left out stays as it is. */
@@ -20,6 +22,7 @@ export interface EmployeeInput {
   glasses_id?: string | null
   /** An empty string hands the welcome back to Owl's own wording. */
   welcome?: string | null
+  shift_manager?: boolean
 }
 
 export type CheckKind = 'visual' | 'order' | 'none'
@@ -96,7 +99,7 @@ export interface Doc {
 
 export interface HelpMessage {
   id: number
-  from: 'worker' | 'expert'
+  from: 'worker' | 'expert' | 'manager'
   text: string
   at: string
   image_url: string | null
@@ -104,7 +107,14 @@ export interface HelpMessage {
 
 export interface HelpSession {
   id: string
-  status: 'waiting' | 'connected' | 'ended'
+  /** waiting/connected: this console. ringing/accepted: the manager on shift, on their own glasses (JUN-100). */
+  status: 'waiting' | 'connected' | 'ringing' | 'accepted' | 'ended'
+  routed?: 'manager' | 'studio'
+  assignee?: string | null
+  /** Who the call rang for. Stays after a fall back to Studio, to say who did not answer. */
+  assignee_name?: string | null
+  rang_at?: string | null
+  fallback?: 'no_answer' | 'later' | 'no_manager' | null
   employee_id: string | null
   process_id: string | null
   step_id: string | null
@@ -222,4 +232,11 @@ export interface TraineePlace {
   name: string
   zone: { id: string; name: string } | null
   entered_at: string | null
+}
+
+/** The manager on shift at a company (JUN-100). */
+export interface OnShift {
+  company: string
+  employee_id: string
+  name: string
 }

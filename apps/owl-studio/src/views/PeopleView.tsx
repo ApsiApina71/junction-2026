@@ -9,6 +9,7 @@ import { Icon } from '../ui/Icon.tsx'
 import { OwlFigure } from '../ui/Owl.tsx'
 import { Counter, EmptyState, Loading, Problem, StatusTag } from '../ui/parts.tsx'
 import { useToast } from '../ui/toast.ts'
+import { ShiftPanel } from './ShiftPanel.tsx'
 
 const GLASSES = ['glasses-1', 'glasses-2', 'glasses-3']
 const WELCOME_LIMIT = 300
@@ -54,7 +55,7 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
                     <span className="row-main">
                       <span className="row-title">{employee.name}</span>
                       <span className="row-meta">
-                        {[severalCompanies && employee.company, employee.role, languageName(employee.language), tasksText(employee, processes)].filter(Boolean).join(' · ')}
+                        {[severalCompanies && employee.company, employee.role, employee.shift_manager && 'Shift manager', languageName(employee.language), tasksText(employee, processes)].filter(Boolean).join(' · ')}
                       </span>
                     </span>
                     {employee.glasses_id ? (
@@ -74,6 +75,8 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
               ))}
             </ul>
           )}
+
+          <ShiftPanel />
 
           <section className="panel checklist" aria-labelledby="once-heading">
             <h2 id="once-heading">Once, before the first shift</h2>
@@ -117,6 +120,7 @@ function PersonForm({ employee }: { employee: Employee | null }) {
   const [language, setLanguage] = useState(employee?.language ?? 'en')
   const [processIds, setProcessIds] = useState<string[]>(employee?.process_ids ?? [])
   const [glassesId, setGlassesId] = useState(employee?.glasses_id ?? '')
+  const [shiftManager, setShiftManager] = useState(Boolean(employee?.shift_manager))
   const [welcome, setWelcome] = useState(employee?.welcome ?? '')
   const [welcomeEdited, setWelcomeEdited] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -141,7 +145,7 @@ function PersonForm({ employee }: { employee: Employee | null }) {
     }
     setBusy(true)
     setProblem(null)
-    const input: EmployeeInput = { name: name.trim(), language, role: role.trim(), process_ids: processIds, glasses_id: glassesId || null }
+    const input: EmployeeInput = { name: name.trim(), language, role: role.trim(), process_ids: processIds, glasses_id: glassesId || null, shift_manager: shiftManager }
     try {
       if (employee) {
         // The welcome is sent only when it was changed by hand; otherwise Owl keeps it in step with the name and the task.
@@ -269,6 +273,14 @@ function PersonForm({ employee }: { employee: Employee | null }) {
             : 'A pair has one wearer at a time. Giving it to someone takes it from whoever had it.'}
         </p>
       </div>
+
+      <label className="check-row">
+        <input type="checkbox" checked={shiftManager} onChange={(event) => setShiftManager(event.target.checked)} />
+        <span>
+          Shift manager
+          <span className="hint"> When on shift, answers a new worker's Help call on their own glasses and sees the worker's view.</span>
+        </span>
+      </label>
 
       <section className="welcome" aria-labelledby="welcome-heading">
         <h3 id="welcome-heading">The welcome</h3>
