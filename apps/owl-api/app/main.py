@@ -29,7 +29,7 @@ from . import ask as ask_engine
 from . import assist as assist_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
-from . import jepa, location, people, persist, place, shift, story, training, verifier, vision
+from . import jepa, location, people, persist, place, shift, training, verifier, vision
 from . import media as media_engine
 from . import progress as progress_engine
 from . import record as record_engine
@@ -115,10 +115,6 @@ if DEMO:
     # JUN-100: Mika is the manager on shift at Kide Logistics, unless Studio set someone.
     if "emp-mika" in store.employees and store.employees["emp-mika"].company not in store.on_shift:
         store.on_shift[store.employees["emp-mika"].company] = "emp-mika"
-# JUN-105: the Junction volunteer story for the demo video, on the real engine (no scripted camera).
-if os.getenv("OWL_STORY", ""):
-    story.apply(store, os.environ["OWL_STORY"])
-    persist.save(store, progress)
 
 
 @asynccontextmanager
