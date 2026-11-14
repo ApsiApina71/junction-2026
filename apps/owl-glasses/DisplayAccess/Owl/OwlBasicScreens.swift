@@ -31,7 +31,7 @@ enum OwlBasicScreens {
   /// The published tasks to learn, and Record for experts.
   static func taskList(
     processes: [OwlProcess], onSelect: @escaping @Sendable (String) -> Void,
-    onRecord: @escaping OwlAction
+    onRecord: @escaping OwlAction, onProgress: OwlAction? = nil
   ) -> FlexBox {
     FlexBox(direction: .column, spacing: 12) {
       card {
@@ -45,6 +45,9 @@ enum OwlBasicScreens {
           Button(
             label: process.title, style: .primary, iconName: .graduationCap,
             onClick: { onSelect(process.id) })
+        }
+        if let onProgress {
+          Button(label: "My progress", style: .secondary, iconName: .star, onClick: onProgress)
         }
         Button(label: "Record a task", style: .secondary, iconName: .videoCamera, onClick: onRecord)
       }
@@ -112,6 +115,22 @@ enum OwlBasicScreens {
       card {
         Text("Well done!", style: .heading)
         Text("You finished \(process.title.lowercased()).", style: .body)
+      }
+      buttons {
+        Button(label: "Home", style: .primary, iconName: .house, onClick: onHome)
+          .actionRole(.primary)
+      }
+    }
+  }
+
+  /// The worker's own progress: a few encouraging lines, only for the worker.
+  static func progress(title: String, lines: [String], onHome: @escaping OwlAction) -> FlexBox {
+    FlexBox(direction: .column, spacing: 12) {
+      card {
+        Text(title, style: .heading)
+        for line in lines.prefix(4) {
+          Text(line, style: .body)
+        }
       }
       buttons {
         Button(label: "Home", style: .primary, iconName: .house, onClick: onHome)

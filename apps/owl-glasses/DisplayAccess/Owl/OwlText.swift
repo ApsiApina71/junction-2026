@@ -25,6 +25,45 @@ enum OwlText {
     (language ?? "en").split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map { $0.lowercased() } ?? "en"
   }
 
+  /// The worker's own progress as a few encouraging sentences (JUN-76). Never a score:
+  /// it counts what the worker finished and fixed, not mistakes. After a task it talks about
+  /// that run; from "My progress" about everything so far.
+  static func progressLines(_ progress: OwlProgress?, afterTask: Bool, language: String?) -> [String] {
+    let fi = languageCode(language) == "fi"
+    guard let progress else {
+      return [fi ? "Owl ei saanut edistymistäsi juuri nyt." : "Owl couldn't load your progress right now."]
+    }
+    var lines: [String] = []
+    let run = afterTask ? progress.runs.first : nil
+    if afterTask {
+      if progress.tasksDone <= 1 {
+        lines.append(fi ? "Teit ensimmäisen tehtäväsi." : "You finished your first task.")
+      }
+    } else {
+      let n = progress.tasksDone
+      lines.append(
+        fi
+          ? (n == 1 ? "Olet tehnyt yhden tehtävän." : "Olet tehnyt \(n) tehtävää.")
+          : (n == 1 ? "You have finished 1 task." : "You have finished \(n) tasks."))
+    }
+    let fixed = run?.problemsFixed ?? progress.problemsFixed
+    let caught = run?.problemsCaught ?? progress.problemsCaught
+    if fixed > 0 {
+      lines.append(
+        fi
+          ? (fixed == 1 ? "Korjasit yhden ongelman, jonka Owl huomasi." : "Korjasit \(fixed) ongelmaa, jotka Owl huomasi.")
+          : (fixed == 1 ? "You fixed 1 problem Owl caught." : "You fixed \(fixed) problems Owl caught."))
+    } else if caught == 0 {
+      lines.append(fi ? "Ei ongelmia matkalla. Hyvää työtä." : "No problems on the way. Good work.")
+    }
+    switch progress.fasterThanFirst {
+    case true?: lines.append(fi ? "Nopeammin kuin ensimmäisellä kerralla." : "Faster than your first time.")
+    case false?: lines.append(fi ? "Ota rauhassa, vauhti tulee harjoittelemalla." : "Take your time. Speed comes with practice.")
+    case nil: break
+    }
+    return lines
+  }
+
   private static func table(for language: String?) -> [String: String]? {
     switch languageCode(language) {
     case "fi": finnish
@@ -35,6 +74,8 @@ enum OwlText {
   private static let finnish: [String: String] = [
     // Spoken
     "Yes?": "Niin?",
+    "Task done!": "Tehtävä tehty!",
+    "Your progress": "Edistymisesi",
     "Well done! You finished the task.": "Hienoa! Teit tehtävän loppuun.",
     "The video isn't available right now.": "Video ei ole nyt saatavilla.",
     "The video couldn't play.": "Videota ei voitu toistaa.",

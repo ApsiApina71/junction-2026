@@ -154,7 +154,8 @@ final class OwlViewModel {
     await showScreen {
       OwlBasicScreens.taskList(
         processes: published, onSelect: select,
-        onRecord: self.action { await $0.startRecording() })
+        onRecord: self.action { await $0.startRecording() },
+        onProgress: self.employee == nil ? nil : self.action { await $0.showProgress() })
     }
   }
 
@@ -271,7 +272,7 @@ final class OwlViewModel {
     do {
       let result = try await api.check(
         frame: jpeg, processID: process.id, stepID: step.id, runID: runID, final: final,
-        language: language, mock: mockCheck)
+        language: language, employeeID: employee?.id, mock: mockCheck)
       checkFailures = 0
       NSLog("[Owl] check \(step.id) final=\(final): \(result.status)")
       guard self.step?.id == step.id else { return nil }
@@ -332,6 +333,9 @@ final class OwlViewModel {
     if let say = result.say { speaker.say(say) }
     if result.isWarning || (result.problem != nil && !result.isOK) {
       await showCheckProblem(result)
+    } else if result.stepDone {
+      // The fix was checked and the step is done: no second Done pinch needed.
+      await nextStep()
     } else {
       if !result.isOK { setStepStatus(result.hint ?? "Owl couldn't see it.") }
       await backToStep()
@@ -392,12 +396,32 @@ final class OwlViewModel {
       stepIndex += 1
       await openStep()
     } else {
-      closeCamera()
-      statusText = "Finished \(process.title)"
-      speaker.say("Well done! You finished the task.")
-      await showScreen {
-        OwlBasicScreens.done(process: process, onHome: self.action { await $0.showTasks() })
-      }
+      await finishTask(process)
+    }
+  }
+
+  // MARK: - Progress (JUN-76)
+
+  /// The last step is done: say so, then show the worker's own progress.
+  private func finishTask(_ process: OwlProcess) async {
+    closeCamera()
+    statusText = "Finished \(process.title)"
+    speaker.say("Well done! You finished the task.")
+    await showProgress(afterTask: true)
+  }
+
+  /// The worker's own progress on the glasses, shown and spoken. Encouraging, never a score.
+  func showProgress(afterTask: Bool = false) async {
+    guard let employee else { return await showTasks() }
+    let progress = try? await api.progress(employeeID: employee.id)
+    let lines = OwlText.progressLines(progress, afterTask: afterTask, language: employee.language)
+    let title = OwlText.localize(afterTask ? "Task done!" : "Your progress", to: employee.language)
+    if !afterTask || progress != nil {
+      // After a task "Well done!" is already playing; queue the progress after it.
+      speaker.say(lines.joined(separator: " "), interrupt: !afterTask)
+    }
+    await showScreen {
+      OwlBasicScreens.progress(title: title, lines: lines, onHome: self.action { await $0.showTasks() })
     }
   }
 
@@ -865,6 +889,7 @@ extension OwlViewModel {
     case "recordstep": await startRecordedStep()
     case "endstep": await endRecordedStep()
     case "finish": await finishRecording()
+    case "progress": await showProgress()
     case "mock": mockCheck = argument.isEmpty ? nil : argument
     case "wait": try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
     default: NSLog("[Owl] test: unknown step \(name)")

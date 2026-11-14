@@ -25,8 +25,9 @@ final class OwlSpeaker {
     }
   }
 
-  /// Speaks `text`, interrupting anything Owl was still saying.
-  func say(_ text: String) {
+  /// Speaks `text`. By default it interrupts anything Owl was still saying; with
+  /// `interrupt: false` it is queued after it.
+  func say(_ text: String, interrupt: Bool = true) {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return }
     let audio = AVAudioSession.sharedInstance()
@@ -36,7 +37,7 @@ final class OwlSpeaker {
     } catch {
       NSLog("[Owl] audio session: \(error)")
     }
-    synthesizer.stopSpeaking(at: .immediate)
+    if interrupt { synthesizer.stopSpeaking(at: .immediate) }
     let utterance = AVSpeechUtterance(string: OwlText.localize(trimmed, to: language))
     utterance.voice = Self.voice(for: language)
     NSLog("[Owl] say (\(utterance.voice?.language ?? "?")): \(utterance.speechString)")

@@ -96,6 +96,11 @@ struct OwlAPI: Sendable {
     try await send(try request("employees/\(id)"))
   }
 
+  /// The worker's own progress, for the glasses only.
+  func progress(employeeID: String) async throws -> OwlProgress {
+    try await send(try request("employees/\(employeeID)/progress"))
+  }
+
   /// Who wears this pair of glasses. `glassesNotAssigned` when no one does.
   func employee(forGlasses glassesID: String) async throws -> OwlEmployee {
     do {
@@ -119,7 +124,7 @@ struct OwlAPI: Sendable {
   /// One camera stream frame for the current step. `final` is the worker's "Done" pinch.
   func check(
     frame: OwlFrame, processID: String, stepID: String, runID: String, final: Bool,
-    language: String?, mock: String? = nil
+    language: String?, employeeID: String? = nil, mock: String? = nil
   ) async throws -> OwlCheckResult {
     var form = MultipartForm()
     frame.add(to: &form)
@@ -128,6 +133,8 @@ struct OwlAPI: Sendable {
     form.addField("run_id", runID)
     form.addField("final", final ? "true" : "false")
     if let language { form.addField("language", language) }
+    // Counts towards the worker's own progress (JUN-73).
+    if let employeeID { form.addField("employee_id", employeeID) }
     // The mock owl-api picks its answer from this field (simulator testing only).
     if let mock, !mock.isEmpty { form.addField("mock", mock) }
     return try await send(try request("check", form: form))

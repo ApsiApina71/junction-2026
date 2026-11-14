@@ -148,3 +148,29 @@ struct OwlRecordedStep: Codable, Equatable, Sendable {
   let photoUrl: String?
   let clipUrl: String?
 }
+
+/// The worker's own learning progress (`GET /employees/{id}/progress`, JUN-73). Only the
+/// glasses show it, to the worker; it is a learning aid, not a score.
+struct OwlProgress: Codable, Equatable, Sendable {
+  let employeeId: String
+  let tasksDone: Int
+  let stepsDone: Int
+  let problemsCaught: Int
+  let problemsFixed: Int
+  /// Newest first.
+  let runs: [OwlRun]
+  /// Whether the newest finished run was faster than the first one, or nil when unknown.
+  let fasterThanFirst: Bool?
+}
+
+struct OwlRun: Codable, Equatable, Sendable {
+  let runId: String
+  let processId: String
+  let title: String
+  let startedAt: String?
+  let finishedAt: String?
+  let seconds: Double?
+  let stepsDone: Int
+  let problemsCaught: Int
+  let problemsFixed: Int
+}
