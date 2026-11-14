@@ -1,6 +1,6 @@
 // The owl-api client. Every failure becomes an ApiError with a sentence a shift lead can act on.
 
-import type { Answer, Doc, Employee, EmployeeInput, Health, HelpSession, Marker, Mark, Process, Recording, Stats, Trainee, Training, TrainingPlan, TrainingResult, TraineePlace, Zone } from './types.ts'
+import type { Answer, Doc, Employee, EmployeeInput, Health, HelpSession, Mark, Process, Recording, Stats, Trainee, Training, TrainingPlan, TrainingResult, TraineePlace, Zone } from './types.ts'
 
 export type ApiErrorKind = 'offline' | 'unauthorized' | 'not_found' | 'server'
 
@@ -156,9 +156,14 @@ export function createApi(config: ApiConfig = apiConfig(), fetchFn: Fetch = (inp
     zones: () => request<{ zones: Zone[] }>('/zones').then((r) => r.zones),
     saveZone: (zone: Zone) => request<Zone>(`/zones/${id(zone.id)}`, json('PUT', zone)),
     deleteZone: (zoneId: string) => request<void>(`/zones/${id(zoneId)}`, { method: 'DELETE' }),
-    markers: () => request<{ markers: Marker[] }>('/markers').then((r) => r.markers),
+    /** A picture of a step's place, so Owl recognises it from more angles (JUN-97). Faces are blurred on the server. */
+    addPlacePhoto: (processId: string, stepId: string, file: File) => {
+      const form = new FormData()
+      form.append('image', file)
+      return request<Process>(`/processes/${id(processId)}/steps/${id(stepId)}/place-photos`, { method: 'POST', body: form })
+    },
     places: () => request<{ trainees: TraineePlace[] }>('/locations').then((r) => r.trainees),
-    /** A marker is missing or damaged: the trainer opens the step on the worker's glasses. */
+    /** Owl does not recognise the place: the trainer opens the step on the worker's glasses. */
     unlockStep: (employeeId: string, processId: string, stepId: string) =>
       request<unknown>(`/employees/${id(employeeId)}/unlock`, json('POST', { process_id: processId, step_id: stepId, by: 'trainer' })),
 

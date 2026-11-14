@@ -3,14 +3,15 @@ import { messageOf } from '../lib/api.ts'
 import { usePolling } from '../lib/hooks.ts'
 import { useStudio } from '../lib/studio.ts'
 import { rectFrom, zoneId } from '../lib/training.ts'
-import type { Marker, Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
+import type { Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
 import { Icon } from '../ui/Icon.tsx'
 import { EmptyState, Problem } from '../ui/parts.tsx'
 import { useToast } from '../ui/toast.ts'
 import './training.css'
 
-// JUN-97. Owl follows which area a worker is in only during their training period and only after they agreed on the
-// glasses. Studio sees the current area, never a trail: the server keeps today's areas in memory and drops them when
+// JUN-97. No markers: Owl recognises a step's place in the worker's camera picture, from the expert's photo of the step
+// and the place photos added here. It follows which area a worker is in only during their training period and only
+// after they agreed on the glasses. Studio sees the current area, never a trail: the server keeps today's areas in memory and drops them when
 // training ends.
 
 const KIND_NAME: Record<ZoneKind, string> = { aisle: 'Aisle', packing: 'Packing', loading: 'Loading', other: 'Other' }
@@ -25,7 +26,6 @@ export function MapView() {
   const [places, setPlaces] = useState<TraineePlace[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [drawing, setDrawing] = useState(false)
-  const [markers, setMarkers] = useState<Marker[] | null>(null)
   const [problem, setProblem] = useState('')
   const toast = useToast()
 
@@ -92,21 +92,6 @@ export function MapView() {
     }
   }
 
-  const print = async () => {
-    try {
-      setMarkers(await api.markers())
-    } catch (error) {
-      setProblem(messageOf(error))
-    }
-  }
-
-  useEffect(() => {
-    if (markers) {
-      const timer = setTimeout(() => window.print(), 300)
-      return () => clearTimeout(timer)
-    }
-  }, [markers])
-
   const chosen = zones?.find((zone) => zone.id === selected) ?? null
 
   return (
@@ -115,13 +100,9 @@ export function MapView() {
         <div>
           <h1>Map</h1>
           <p className="lede">
-            Draw the areas of your workplace and say where each step happens. Print a marker for each. During training a step opens on the glasses when the worker gets to its marker, and you see which area each trainee is in now.
+            Draw the areas of your workplace and say where each step happens. No markers to put up: during training a step opens on the glasses when Owl recognises its place in the camera picture, and you see which area each trainee is in now.
           </p>
         </div>
-        <button type="button" className="button button-secondary" onClick={() => void print()}>
-          <Icon name="print" size={18} />
-          Print the markers
-        </button>
       </header>
 
       {problem && <Problem>{problem}</Problem>}
@@ -152,7 +133,7 @@ export function MapView() {
             <p className="hint" aria-live="polite">
               {places.length === 0
                 ? 'No one in training is being followed right now. It starts when a trainee agrees on the glasses.'
-                : places.map((place) => `${place.name}: ${place.zone ? place.zone.name : 'no marker seen yet'}`).join(' · ')}
+                : places.map((place) => `${place.name}: ${place.zone ? place.zone.name : 'not recognised yet'}`).join(' · ')}
             </p>
           </section>
 
@@ -187,25 +168,13 @@ export function MapView() {
             <ul className="plain-list">
               <li>Only during a worker's training period, and only after they agreed on the glasses. The glasses show when it is on.</li>
               <li>The area they are in now and today's areas, on the server's memory only. Never saved to disk.</li>
+              <li>Owl recognises the place on your own server. The camera pictures are compared and dropped, never saved and never sent to the model.</li>
               <li>Deleted when training ends or the worker says no. Not part of their training result.</li>
             </ul>
           </section>
         </aside>
       </div>
 
-      {markers && (
-        <div className="print-sheet print-markers" aria-hidden="true">
-          {markers.map((marker) => (
-            <figure key={marker.payload} className="marker">
-              <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(marker.svg)}`} alt="" />
-              <figcaption>
-                <strong>{marker.label}</strong>
-                {marker.kind === 'checkpoint' && marker.step_title ? <span>{`${marker.task} · ${marker.step_title}`}</span> : <span>Area</span>}
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -311,7 +280,6 @@ function ZoneForm({ zone, onSave, onRemove, onClose }: { zone: Zone; onSave: (zo
           ))}
         </select>
       </div>
-      <p className="hint">Its marker says owl:zone:{zone.id}.</p>
       <div className="form-actions">
         <button type="button" className="button button-quiet is-danger" onClick={() => void onRemove(zone)}>
           <Icon name="trash" size={18} />
@@ -345,7 +313,7 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
     try {
       const steps = process.steps.map((step) => {
         const cp = current(process, step)
-        return { ...step, checkpoint: cp && cp.zone_id && cp.label.trim() ? { zone_id: cp.zone_id, label: cp.label.trim() } : null }
+        return { ...step, checkpoint: cp && cp.zone_id && cp.label.trim() ? { zone_id: cp.zone_id, label: cp.label.trim(), photo_urls: cp.photo_urls ?? [] } : null }
       })
       const saved = await api.saveProcess({ ...process, steps })
       putProcess(saved)
@@ -361,7 +329,7 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
   return (
     <section aria-labelledby="checkpoints-heading">
       <h2 id="checkpoints-heading">Where each step happens</h2>
-      <p className="hint">A step with a place is locked on the glasses during training until the worker reaches its marker. Leave the place empty for a step that can happen anywhere.</p>
+      <p className="hint">A step with a place is locked on the glasses during training until Owl recognises the place in the camera picture. Owl learns the place from the expert's photo of the step; add photos from other angles so it knows the place better. Leave the place empty for a step that can happen anywhere.</p>
       {zones.length === 0 && <p className="hint">Draw an area first.</p>}
       {error && <p className="field-error">{error}</p>}
       {zones.length > 0 &&
@@ -389,7 +357,7 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
                         id={`${id}-zone`}
                         className="input"
                         value={cp?.zone_id ?? ''}
-                        onChange={(event) => set(process, step, event.target.value ? { zone_id: event.target.value, label: cp?.label || zones.find((z) => z.id === event.target.value)?.name || '' } : null)}
+                        onChange={(event) => set(process, step, event.target.value ? { zone_id: event.target.value, label: cp?.label || zones.find((z) => z.id === event.target.value)?.name || '', photo_urls: cp?.photo_urls ?? [] } : null)}
                       >
                         <option value="">Anywhere</option>
                         {zones.map((zone) => (
@@ -410,11 +378,12 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
                         disabled={!cp}
                         onChange={(event) => cp && set(process, step, { ...cp, label: event.target.value })}
                       />
+                      {step.checkpoint && <PlacePhotos process={process} step={step} />}
                     </li>
                   )
                 })}
               </ul>
-              <p className="hint">The glasses say "Go to:" and the text you write, with the step's photo.</p>
+              <p className="hint">The glasses say "Go to:" and the text you write, with the step's photo. Save a place before you add photos of it.</p>
               <div className="form-actions">
                 <button type="button" className="button button-primary" disabled={!dirty || busy === process.id} onClick={() => void save(process)}>
                   Save the places
@@ -427,7 +396,74 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
   )
 }
 
-/** A marker is missing or damaged: open the step for the worker by hand. */
+/** The pictures Owl recognises a step's place from: the expert's photo of the step, and photos added here. */
+function PlacePhotos({ process, step }: { process: Process; step: Step }) {
+  const { api, putProcess } = useStudio()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const extra = step.checkpoint?.photo_urls ?? []
+  const inputId = `place-photo-${process.id}-${step.id}`
+
+  const add = async (file: File | undefined) => {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      putProcess(await api.addPlacePhoto(process.id, step.id, file))
+      toast({ message: `Owl knows "${step.checkpoint?.label}" from one more angle.` })
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async (url: string) => {
+    setBusy(true)
+    try {
+      const steps = process.steps.map((s) => (s.id === step.id && s.checkpoint ? { ...s, checkpoint: { ...s.checkpoint, photo_urls: extra.filter((u) => u !== url) } } : s))
+      putProcess(await api.saveProcess({ ...process, steps }))
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="place-photos">
+      <span className="place-photos-title">Owl knows this place from</span>
+      <ul className="place-photo-list" aria-label={`Photos of the place of step ${step.index}`}>
+        {step.reference_image_url && (
+          <li>
+            <img src={step.reference_image_url} alt={`The expert's photo of step ${step.index}`} />
+            <span className="muted">Expert's photo</span>
+          </li>
+        )}
+        {extra.map((url, n) => (
+          <li key={url}>
+            <img src={url} alt={`Photo ${n + 1} of the place`} />
+            <button type="button" className="button button-quiet button-small" disabled={busy} onClick={() => void remove(url)}>
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+      {extra.length < 8 && (
+        <label className="button button-secondary button-small" htmlFor={inputId}>
+          <Icon name="plus" size={18} />
+          Add a photo of the place
+          <input id={inputId} className="visually-hidden" type="file" accept="image/jpeg,image/png" disabled={busy} onChange={(event) => void add(event.target.files?.[0])} />
+        </label>
+      )}
+      {!step.reference_image_url && extra.length === 0 && <p className="hint">No picture yet: Owl cannot recognise this place until you add one.</p>}
+      {error && <p className="field-error">{error}</p>}
+    </div>
+  )
+}
+
+/** Owl does not recognise the place (new shelves, bad light): open the step for the worker by hand. */
 function Unlock({ places, processes }: { places: TraineePlace[]; processes: Process[] }) {
   const { api } = useStudio()
   const toast = useToast()
@@ -456,7 +492,7 @@ function Unlock({ places, processes }: { places: TraineePlace[]; processes: Proc
   return (
     <form className="panel" aria-labelledby="unlock-heading" onSubmit={(event) => void open(event)} noValidate>
       <h2 id="unlock-heading">Open a step by hand</h2>
-      <p className="hint">When a marker is missing or damaged.</p>
+      <p className="hint">When Owl does not recognise the place, for example after the shelves have moved.</p>
       <div className="field">
         <label htmlFor="unlock-who">Trainee</label>
         <select id="unlock-who" className="input" value={who} onChange={(event) => setWho(event.target.value)}>

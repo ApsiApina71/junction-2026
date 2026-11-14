@@ -207,6 +207,47 @@ aside .plain-list:not(.zone-list) li::before {
   stroke-dasharray: 8 6;
 }
 
+.place-photos {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.place-photos-title {
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+
+.place-photo-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place-photo-list li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.8125rem;
+}
+
+.place-photo-list img {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
 @media (max-width: 640px) {
   .checkpoint-row {
     grid-template-columns: 1fr;
@@ -235,37 +276,6 @@ aside .plain-list:not(.zone-list) li::before {
     inset: 0;
     background: #fff;
     color: #000;
-  }
-
-  .print-markers {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12mm;
-    padding: 10mm;
-  }
-
-  .marker {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4mm;
-    margin: 0;
-    padding: 6mm;
-    border: 1px dashed #888;
-    break-inside: avoid;
-  }
-
-  .marker img {
-    width: 60mm;
-    height: 60mm;
-  }
-
-  .marker figcaption {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    font-size: 14pt;
   }
 
   .print-sign {

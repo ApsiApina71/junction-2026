@@ -7,7 +7,7 @@ import { StatusTag } from '../ui/parts.tsx'
 
 // Every sentence here says what the code does today and no more (apps/owl-api: main.py, media.py, record.py,
 // ask.py, verifier.py, progress.py, persist.py, jepa.py, stage.py, translate.py, docs_process.py, training.py,
-// location.py, assist.py; apps/owl-glasses:
+// location.py, place.py, assist.py; apps/owl-glasses:
 // Info.plist, OwlViewModel.swift, OwlCamera.swift). Two things are kept apart on purpose: what Owl's own server
 // stores and deletes, which Owl controls and can state exactly, and what happens to data once it has gone to
 // someone else (the model provider, Meta), which follows their terms. The same list is in
@@ -89,8 +89,9 @@ export function DataView() {
               </dd>
               <dt>Where a trainee is</dt>
               <dd>
-                Only during a training period, and only after the worker agreed on the glasses: the area of the last marker the glasses saw, and today's areas. Kept in the server's memory only, never saved to disk, and deleted when training ends, when the
-                worker says no, or when the server restarts. The <a href={href('map')}>Map</a> shows the current area.
+                Only during a training period, and only after the worker agreed on the glasses. While a step waits for its place, the glasses send a camera picture every few seconds; the server compares it with the photos of the place and drops it. The picture
+                is never saved and never sent to the model. Kept: the area the worker is in now and today's areas, in the server's memory only, deleted when training ends, when the worker says no, or when the server restarts. The{' '}
+                <a href={href('map')}>Map</a> shows the current area.
               </dd>
               <dt>Customer service mode</dt>
               <dd>

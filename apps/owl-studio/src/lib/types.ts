@@ -54,7 +54,7 @@ export interface Step {
   source: Source | null
   /** False on a step Owl wrote from a recording that no person has read yet. Left out by older servers, which means true. */
   reviewed?: boolean
-  /** Where the step happens (JUN-97). During training it is locked on the glasses until the worker gets there. */
+  /** Where the step happens (JUN-97). During training it is locked until Owl recognises the place in the camera picture. */
   checkpoint?: Checkpoint | null
 }
 
@@ -62,6 +62,8 @@ export interface Checkpoint {
   zone_id: string
   /** "Aisle C · Shelf 12", at most 40 characters. */
   label: string
+  /** More pictures of the place, added in Studio. The step's own photo is always one of them. */
+  photo_urls?: string[]
 }
 
 export interface Process {
@@ -213,18 +215,6 @@ export interface Zone {
   y: number
   w: number
   h: number
-}
-
-export interface Marker {
-  payload: string
-  kind: 'zone' | 'checkpoint'
-  label: string
-  zone_id: string
-  process_id: string | null
-  step_id: string | null
-  step_title?: string
-  task?: string
-  svg: string
 }
 
 export interface TraineePlace {

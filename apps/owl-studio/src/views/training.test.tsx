@@ -141,7 +141,7 @@ function mapApi(patch = {}) {
     places: vi.fn(async () => [{ employee_id: 'emp-sami', name: 'Sami', zone: { id: 'zone-c', name: 'Aisle C' }, entered_at: '2026-11-15T10:00:00+02:00' }]),
     saveZone: vi.fn(async (zone) => zone),
     deleteZone: vi.fn(async () => undefined),
-    markers: vi.fn(async () => [{ payload: 'owl:zone:zone-c', kind: 'zone', label: 'Aisle C', zone_id: 'zone-c', process_id: null, step_id: null, svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>' }]),
+    addPlacePhoto: vi.fn(async () => process({ steps: [step(1), step(2, { checkpoint: { zone_id: 'zone-c', label: 'Aisle C · Shelf 12', photo_urls: ['http://test/media/places/p/step-2-1.jpg'] } })] })),
     unlockStep: vi.fn(async () => ({})),
     ...patch,
   })
@@ -152,6 +152,7 @@ describe('map', () => {
     renderWith(<MapView />, fakeStudio({ api: mapApi() }))
     expect(await screen.findByRole('img', { name: /Sami is in Aisle C/ })).toBeTruthy()
     expect(await screen.findByText('Sami: Aisle C')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Print/ })).toBeNull()
   })
 
   it('renames an area', async () => {
@@ -179,22 +180,39 @@ describe('map', () => {
     await user.click(screen.getByRole('button', { name: 'Save the places' }))
     await waitFor(() => expect(api.saveProcess).toHaveBeenCalled())
     const sent = vi.mocked(api.saveProcess).mock.calls[0][0] as Process
-    expect(sent.steps.map((s) => s.checkpoint)).toEqual([null, { zone_id: 'zone-c', label: 'Aisle C · Shelf 12' }])
+    expect(sent.steps.map((s) => s.checkpoint)).toEqual([null, { zone_id: 'zone-c', label: 'Aisle C · Shelf 12', photo_urls: [] }])
     expect(studio.putProcess).toHaveBeenCalled()
   })
 
-  it('prints a marker per area and checkpoint', async () => {
+  it('adds a photo of a place, so Owl knows it from another angle', async () => {
     const user = userEvent.setup()
-    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
     const api = mapApi()
-    const { container } = renderWith(<MapView />, fakeStudio({ api }))
-    await user.click(screen.getByRole('button', { name: 'Print the markers' }))
-    await waitFor(() => expect(container.querySelectorAll('.marker')).toHaveLength(1))
-    await waitFor(() => expect(print).toHaveBeenCalled())
-    print.mockRestore()
+    const withPlace = process({ steps: [step(1), step(2, { checkpoint: { zone_id: 'zone-c', label: 'Aisle C · Shelf 12', photo_urls: [] } })] })
+    const studio = fakeStudio({ api, processes: [withPlace] })
+    renderWith(<MapView />, studio)
+    await user.click(await screen.findByText('Pick and pack an order'))
+    expect(screen.getByRole('img', { name: "The expert's photo of step 2" })).toBeTruthy()
+    const file = new File(['x'], 'shelf.jpg', { type: 'image/jpeg' })
+    await user.upload(screen.getByLabelText('Add a photo of the place'), file)
+    await waitFor(() => expect(api.addPlacePhoto).toHaveBeenCalledWith('proc-1', 'step-2', file))
+    expect(studio.putProcess).toHaveBeenCalled()
   })
 
-  it('opens a step by hand when a marker is missing', async () => {
+  it('keeps the place photos when the places are saved', async () => {
+    const user = userEvent.setup()
+    const api = mapApi()
+    const withPlace = process({ steps: [step(1), step(2, { checkpoint: { zone_id: 'zone-c', label: 'Aisle C', photo_urls: ['http://test/media/places/p/1.jpg'] } })] })
+    renderWith(<MapView />, fakeStudio({ api, processes: [withPlace] }))
+    await user.click(await screen.findByText('Pick and pack an order'))
+    const label = screen.getByLabelText('What the glasses say for step 2')
+    await user.type(label, ' · Shelf 12')
+    await user.click(screen.getByRole('button', { name: 'Save the places' }))
+    await waitFor(() => expect(api.saveProcess).toHaveBeenCalled())
+    const sent = vi.mocked(api.saveProcess).mock.calls[0][0] as Process
+    expect(sent.steps[1].checkpoint).toEqual({ zone_id: 'zone-c', label: 'Aisle C · Shelf 12', photo_urls: ['http://test/media/places/p/1.jpg'] })
+  })
+
+  it('opens a step by hand when Owl does not recognise the place', async () => {
     const user = userEvent.setup()
     const api = mapApi()
     const withPlace = process({ steps: [step(1), step(2, { checkpoint: { zone_id: 'zone-c', label: 'Aisle C · Shelf 12' } })] })
