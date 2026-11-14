@@ -121,8 +121,16 @@
       }
     }
     show(0);
+    const go = () => {
+      document.getElementById("hint")?.remove();
+      if (!started) { started = true; show(0); } else show(at + 1);
+    };
+    // A click anywhere starts too (the page must have focus for keys), and ?auto=<seconds> starts by itself.
+    document.addEventListener("click", go);
+    const auto = Number(new URLSearchParams(location.search).get("auto"));
+    if (auto > 0) setTimeout(() => { if (!started) go(); }, auto * 1000);
     document.addEventListener("keydown", (e) => {
-      if (e.key === " " || e.key === "ArrowRight") { document.getElementById("hint").remove?.(); if (!started) { started = true; show(0); } else show(at + 1); }
+      if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") go();
       else if (e.key === "ArrowLeft") show(at - 1);
       else if (e.key === "r" || e.key === "R") { started = false; show(0); }
       else if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
