@@ -1,8 +1,8 @@
-import { Button, InputTextView, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
+import { Button, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useState } from 'react'
 import { DEFAULT_API_URL, cleanUrl, saveApiConfig } from '../lib/api.ts'
 import { useStudio } from '../lib/studio.ts'
-import { Dialog, PrimaryButton } from '../ui/meta.tsx'
+import { Dialog, FieldLabel, PrimaryButton, TextField } from '../ui/meta.tsx'
 
 /** Which Owl server Studio talks to. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
@@ -36,32 +36,21 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </>
       }
     >
+      <TextField
+        id="settings-url"
+        label="Owl server address"
+        value={url}
+        placeholder={DEFAULT_API_URL}
+        error={urlProblem ? 'Write the full address, starting with http:// or https://.' : null}
+        hint="The computer that runs Owl for your company, for example http://192.168.1.20:8000."
+        onChange={(text) => {
+          setUrl(text)
+          setUrlProblem(false)
+        }}
+      />
       <div className="field">
-        <label htmlFor="settings-url">
-          <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-            OWL SERVER ADDRESS
-          </TextView>
-        </label>
-        <InputTextView
-          text={url}
-          hint={DEFAULT_API_URL}
-          onTextChange={(text) => {
-            setUrl(text)
-            setUrlProblem(false)
-          }}
-          inputProps={{ id: 'settings-url', 'aria-invalid': urlProblem, 'aria-describedby': 'settings-url-hint', autoComplete: 'off', spellCheck: false }}
-        />
-        <TextView as="p" id="settings-url-hint" textStyle={TextStyle.META1} textColor={urlProblem ? TextColor.PRIMARY : TextColor.SECONDARY}>
-          {urlProblem ? 'Write the full address, starting with http:// or https://.' : 'The computer that runs Owl for your company, for example http://192.168.1.20:8000.'}
-        </TextView>
-      </div>
-      <div className="field">
-        <label htmlFor="settings-token">
-          <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-            ACCESS TOKEN
-          </TextView>
-        </label>
-        <input id="settings-token" className="secret-input uit-text-body2" type="password" value={token} autoComplete="off" aria-describedby="settings-token-hint" onChange={(event) => setToken(event.target.value)} />
+        <FieldLabel htmlFor="settings-token">Access token</FieldLabel>
+        <input id="settings-token" className="edit-field uit-text-body2" type="password" value={token} autoComplete="off" aria-describedby="settings-token-hint" onChange={(event) => setToken(event.target.value)} />
         <TextView as="p" id="settings-token-hint" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
           Only if the server was started with one. It is kept in this browser.
         </TextView>

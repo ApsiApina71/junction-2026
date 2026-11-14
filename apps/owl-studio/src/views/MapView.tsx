@@ -1,13 +1,13 @@
+import { Button, ButtonGroup, ButtonGroupAlignment, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { usePolling } from '../lib/hooks.ts'
 import { useStudio } from '../lib/studio.ts'
 import { rectFrom, zoneId } from '../lib/training.ts'
 import type { Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
-import { Icon } from '../ui/Icon.tsx'
-import { EmptyState, Problem } from '../ui/parts.tsx'
+import { ICONS } from '../ui/icons.ts'
+import { ChoiceRow, DangerButton, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
-import './training.css'
 
 // JUN-97. No markers: Owl recognises a step's place in the worker's camera picture, from the expert's photo of the step
 // and the place photos added here. It follows which area a worker is in only during their training period and only
@@ -95,87 +95,107 @@ export function MapView() {
   const chosen = zones?.find((zone) => zone.id === selected) ?? null
 
   return (
-    <div className="view">
-      <header className="view-head">
-        <div>
-          <h1>Map</h1>
-          <p className="lede">
-            Draw the areas of your workplace and say where each step happens. No markers to put up: during training a step opens on the glasses when Owl recognises its place in the camera picture, and you see which area each trainee is in now.
-          </p>
-        </div>
-      </header>
+    <Page headerText="Map" enableSystemBarInset={false} className="route">
+      <div className="split split-wide">
+        <section className="split-list" aria-label="The map">
+          <ScrollView insetForHeader ariaLabel="The map" className="detail-scroll">
+            <div className="column-content">
+              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
+                Draw the areas of your workplace and say where each step happens. No markers to put up: during training a step opens on the glasses when Owl recognises its place in the camera picture, and you see which area each trainee is in now.
+              </TextView>
 
-      {problem && <Problem>{problem}</Problem>}
+              {problem && <Problem>{problem}</Problem>}
 
-      <div className="two-col two-col-wide">
-        <div className="stack">
-          <section className="panel" aria-labelledby="map-heading">
-            <div className="data-head">
-              <h2 id="map-heading">Now</h2>
-              <button type="button" className={drawing ? 'button button-primary button-small' : 'button button-secondary button-small'} aria-pressed={drawing} onClick={() => setDrawing(!drawing)}>
-                <Icon name="plus" size={18} />
-                {drawing ? 'Drag on the map to draw' : 'Draw an area'}
-              </button>
+              <section aria-labelledby="map-heading">
+                <Panel width="100%">
+                  <div className="panel-body map-body">
+                    <div className="map-head">
+                      <TextView as="h2" id="map-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                        Now
+                      </TextView>
+                      {drawing ? (
+                        <PrimaryButton title="Drag on the map to draw" icon={ICONS.plus} aria-pressed onClick={() => setDrawing(false)} />
+                      ) : (
+                        <Button title="Draw an area" icon={ICONS.plus} alwaysShowText aria-pressed={false} onClick={() => setDrawing(true)} />
+                      )}
+                    </div>
+                    {zones && (
+                      <ZoneMap
+                        zones={zones}
+                        places={places}
+                        selected={selected}
+                        drawing={drawing}
+                        onSelect={setSelected}
+                        onDraw={(rect) => {
+                          setDrawing(false)
+                          void addZone(rect)
+                        }}
+                      />
+                    )}
+                    <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} aria-live="polite">
+                      {places.length === 0
+                        ? 'No one in training is being followed right now. It starts when a trainee agrees on the glasses.'
+                        : places.map((place) => `${place.name}: ${place.zone ? place.zone.name : 'not recognised yet'}`).join(' · ')}
+                    </TextView>
+                  </div>
+                </Panel>
+              </section>
+
+              <Checkpoints zones={zones ?? []} processes={processes ?? []} />
             </div>
-            {zones && (
-              <ZoneMap
-                zones={zones}
-                places={places}
-                selected={selected}
-                drawing={drawing}
-                onSelect={setSelected}
-                onDraw={(rect) => {
-                  setDrawing(false)
-                  void addZone(rect)
-                }}
-              />
-            )}
-            <p className="hint" aria-live="polite">
-              {places.length === 0
-                ? 'No one in training is being followed right now. It starts when a trainee agrees on the glasses.'
-                : places.map((place) => `${place.name}: ${place.zone ? place.zone.name : 'not recognised yet'}`).join(' · ')}
-            </p>
-          </section>
+          </ScrollView>
+        </section>
 
-          <Checkpoints zones={zones ?? []} processes={processes ?? []} />
-        </div>
-
-        <aside className="stack">
-          {chosen ? (
-            <ZoneForm key={chosen.id} zone={chosen} onSave={saveZone} onRemove={removeZone} onClose={() => setSelected(null)} />
-          ) : (
-            <section className="panel" aria-labelledby="areas-heading">
-              <h2 id="areas-heading">Areas</h2>
-              {zones && zones.length === 0 ? (
-                <EmptyState title="No areas yet">Draw the aisles, the packing station and the loading bay on the map.</EmptyState>
+        <section className="split-detail" aria-label="Areas">
+          <ScrollView ariaLabel="Areas" className="detail-scroll">
+            <div className="column-stack">
+              {chosen ? (
+                <ZoneForm key={chosen.id} zone={chosen} onSave={saveZone} onRemove={removeZone} onClose={() => setSelected(null)} />
               ) : (
-                <ul className="plain-list zone-list">
-                  {(zones ?? []).map((zone) => (
-                    <li key={zone.id}>
-                      <button type="button" className="button button-quiet button-small" onClick={() => setSelected(zone.id)}>
-                        {zone.name}
-                        <span className="muted"> · {KIND_NAME[zone.kind]}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <section aria-labelledby="areas-heading" className="route-section">
+                  <TextView as="h2" id="areas-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label list-label">
+                    Areas
+                  </TextView>
+                  {zones && zones.length === 0 ? (
+                    <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-note">
+                      No areas yet. Draw the aisles, the packing station and the loading bay on the map.
+                    </TextView>
+                  ) : (
+                    <VerticalList ariaLabel="Areas" className="inline-list">
+                      {(zones ?? []).map((zone) => (
+                        <ListItem key={zone.id} title={zone.name} subtitle={KIND_NAME[zone.kind]} icon={ICONS.map} visualStateOverride={selected === zone.id ? VisualState.FOCUSED : undefined} onClick={() => setSelected(zone.id)} />
+                      ))}
+                    </VerticalList>
+                  )}
+                </section>
               )}
-            </section>
-          )}
-          <Unlock places={places} processes={processes ?? []} />
-          <section className="panel" aria-labelledby="follow-heading">
-            <h2 id="follow-heading">What is followed</h2>
-            <ul className="plain-list">
-              <li>Only during a worker's training period, and only after they agreed on the glasses. The glasses show when it is on.</li>
-              <li>The area they are in now and today's areas, on the server's memory only. Never saved to disk.</li>
-              <li>Owl recognises the place on your own server. The camera pictures are compared and dropped, never saved and never sent to the model.</li>
-              <li>Deleted when training ends or the worker says no. Not part of their training result.</li>
-            </ul>
-          </section>
-        </aside>
+              <Unlock places={places} processes={processes ?? []} />
+              <Panel width="100%">
+                <div className="panel-body">
+                  <TextView as="h2" id="follow-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                    What is followed
+                  </TextView>
+                  <ul className="dot-list" aria-labelledby="follow-heading">
+                    {[
+                      'Only during a worker\'s training period, and only after they agreed on the glasses. The glasses show when it is on.',
+                      "The area they are in now and today's areas, on the server's memory only. Never saved to disk.",
+                      'Owl recognises the place on your own server. The camera pictures are compared and dropped, never saved and never sent to the model.',
+                      'Deleted when training ends or the worker says no. Not part of their training result.',
+                    ].map((line) => (
+                      <li key={line}>
+                        <TextView as="span" textStyle={TextStyle.BODY2}>
+                          {line}
+                        </TextView>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Panel>
+            </div>
+          </ScrollView>
+        </section>
       </div>
-
-    </div>
+    </Page>
   )
 }
 
@@ -256,43 +276,26 @@ function ZoneMap({
 function ZoneForm({ zone, onSave, onRemove, onClose }: { zone: Zone; onSave: (zone: Zone) => Promise<void>; onRemove: (zone: Zone) => Promise<void>; onClose: () => void }) {
   const [name, setName] = useState(zone.name)
   const [kind, setKind] = useState<ZoneKind>(zone.kind)
+  const kindChoices = (Object.keys(KIND_NAME) as ZoneKind[]).map((k) => ({ value: k, label: KIND_NAME[k] }))
   return (
-    <form
-      className="panel"
-      aria-labelledby="zone-heading"
-      onSubmit={(event) => {
-        event.preventDefault()
-        if (name.trim()) void onSave({ ...zone, name: name.trim(), kind })
-      }}
-    >
-      <h2 id="zone-heading">{zone.name}</h2>
-      <div className="field">
-        <label htmlFor="zone-name">Name</label>
-        <input id="zone-name" className="input" value={name} maxLength={60} onChange={(event) => setName(event.target.value)} />
-      </div>
-      <div className="field">
-        <label htmlFor="zone-kind">Kind</label>
-        <select id="zone-kind" className="input" value={kind} onChange={(event) => setKind(event.target.value as ZoneKind)}>
-          {(Object.keys(KIND_NAME) as ZoneKind[]).map((k) => (
-            <option key={k} value={k}>
-              {KIND_NAME[k]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="form-actions">
-        <button type="button" className="button button-quiet is-danger" onClick={() => void onRemove(zone)}>
-          <Icon name="trash" size={18} />
-          Remove
-        </button>
-        <button type="button" className="button button-quiet" onClick={onClose}>
-          Close
-        </button>
-        <button type="submit" className="button button-primary" disabled={!name.trim()}>
-          Save
-        </button>
-      </div>
-    </form>
+    <section aria-labelledby="zone-heading">
+      <Panel width="100%">
+        <div className="panel-body zone-body">
+          <TextView as="h2" id="zone-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+            {zone.name}
+          </TextView>
+          <TextField id="zone-name" label="Name" value={name} maxLength={60} onChange={setName} />
+          <VerticalList ariaLabel="Kind of area" className="inline-list">
+            <ChoiceRow label="Kind" choices={kindChoices} value={kind} onChange={setKind} />
+          </VerticalList>
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <PrimaryButton title="Save" icon={ICONS.check} disabled={!name.trim()} onClick={() => name.trim() && void onSave({ ...zone, name: name.trim(), kind })} />
+            <Button title="Close" alwaysShowText onClick={onClose} />
+            <DangerButton title="Remove" icon={ICONS.trash} onClick={() => void onRemove(zone)} />
+          </ButtonGroup>
+        </div>
+      </Panel>
+    </section>
   )
 }
 
@@ -303,6 +306,7 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
   const [edits, setEdits] = useState<Record<string, Step['checkpoint']>>({})
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [open, setOpen] = useState('')
   const key = (process: Process, step: Step) => `${process.id}/${step.id}`
   const current = (process: Process, step: Step) => (key(process, step) in edits ? edits[key(process, step)] : (step.checkpoint ?? null))
   const set = (process: Process, step: Step, value: Step['checkpoint']) => setEdits({ ...edits, [key(process, step)]: value })
@@ -326,70 +330,72 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
     }
   }
 
+  const zoneChoices = [{ value: '', label: 'Anywhere' }, ...zones.map((zone) => ({ value: zone.id, label: zone.name }))]
   return (
-    <section aria-labelledby="checkpoints-heading">
-      <h2 id="checkpoints-heading">Where each step happens</h2>
-      <p className="hint">A step with a place is locked on the glasses during training until Owl recognises the place in the camera picture. Owl learns the place from the expert's photo of the step; add photos from other angles so it knows the place better. Leave the place empty for a step that can happen anywhere.</p>
-      {zones.length === 0 && <p className="hint">Draw an area first.</p>}
-      {error && <p className="field-error">{error}</p>}
+    <section aria-labelledby="checkpoints-heading" className="route-section">
+      <TextView as="h2" id="checkpoints-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+        Where each step happens
+      </TextView>
+      <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+        A step with a place is locked on the glasses during training until Owl recognises the place in the camera picture. Owl learns the place from the expert's photo of the step; add photos from other angles so it knows the place better. Leave the place empty for a step that can happen anywhere.
+      </TextView>
+      {zones.length === 0 && (
+        <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+          Draw an area first.
+        </TextView>
+      )}
+      {error && <StatusText tone="negative">{error}</StatusText>}
       {zones.length > 0 &&
         processes.map((process) => {
           const dirty = process.steps.some((step) => key(process, step) in edits)
+          const isOpen = open === process.id
           return (
-            <details key={process.id} className="panel plan">
-              <summary>
-                <span className="row-title">{process.title}</span>
-                <span className="row-meta">{process.steps.filter((step) => step.checkpoint).length} steps with a place</span>
-              </summary>
-              <ul className="plain-list">
-                {process.steps.map((step) => {
-                  const cp = current(process, step)
-                  const id = `cp-${process.id}-${step.id}`
-                  return (
-                    <li key={step.id} className="checkpoint-row">
-                      <span className="checkpoint-step">
-                        {step.index}. {step.title}
-                      </span>
-                      <label className="visually-hidden" htmlFor={`${id}-zone`}>
-                        Area of step {step.index}
-                      </label>
-                      <select
-                        id={`${id}-zone`}
-                        className="input"
+            <div key={process.id} className="plan">
+              <VerticalList ariaLabel={`Places of ${process.title}`} className="inline-list">
+                <ListItem title={process.title} subtitle={`${process.steps.filter((step) => step.checkpoint).length} steps with a place`} icon={ICONS.map} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? '' : process.id)} />
+                {isOpen &&
+                  process.steps.map((step) => {
+                    const cp = current(process, step)
+                    return (
+                      <ChoiceRow
+                        key={step.id}
+                        label={`Area of step ${step.index}`}
+                        note={`${step.index}. ${step.title} · ${cp?.zone_id ? (zones.find((z) => z.id === cp.zone_id)?.name ?? cp.zone_id) : 'Anywhere'}`}
+                        choices={zoneChoices}
                         value={cp?.zone_id ?? ''}
-                        onChange={(event) => set(process, step, event.target.value ? { zone_id: event.target.value, label: cp?.label || zones.find((z) => z.id === event.target.value)?.name || '', photo_urls: cp?.photo_urls ?? [] } : null)}
-                      >
-                        <option value="">Anywhere</option>
-                        {zones.map((zone) => (
-                          <option key={zone.id} value={zone.id}>
-                            {zone.name}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="visually-hidden" htmlFor={`${id}-label`}>
-                        What the glasses say for step {step.index}
-                      </label>
-                      <input
-                        id={`${id}-label`}
-                        className="input"
-                        value={cp?.label ?? ''}
-                        maxLength={LABEL_LIMIT}
-                        placeholder="Aisle C · Shelf 12"
-                        disabled={!cp}
-                        onChange={(event) => cp && set(process, step, { ...cp, label: event.target.value })}
+                        onChange={(zoneId) => set(process, step, zoneId ? { zone_id: zoneId, label: cp?.label || zones.find((z) => z.id === zoneId)?.name || '', photo_urls: cp?.photo_urls ?? [] } : null)}
                       />
-                      {step.checkpoint && <PlacePhotos process={process} step={step} />}
-                    </li>
-                  )
-                })}
-              </ul>
-              <p className="hint">The glasses say "Go to:" and the text you write, with the step's photo. Save a place before you add photos of it.</p>
-              <div className="form-actions">
-                <button type="button" className="button button-primary" disabled={!dirty || busy === process.id} onClick={() => void save(process)}>
-                  Save the places
-                </button>
-              </div>
-            </details>
+                    )
+                  })}
+              </VerticalList>
+              {isOpen && (
+                <div className="plan-foot checkpoint-fields">
+                  {process.steps.map((step) => {
+                    const cp = current(process, step)
+                    const id = `cp-${process.id}-${step.id}`
+                    return (
+                      <div key={step.id} className="checkpoint-step">
+                        <TextField
+                          id={`${id}-label`}
+                          label={`What the glasses say for step ${step.index}`}
+                          value={cp?.label ?? ''}
+                          maxLength={LABEL_LIMIT}
+                          placeholder={cp ? 'Aisle C · Shelf 12' : 'Choose an area first'}
+                          onChange={(text) => cp && set(process, step, { ...cp, label: text })}
+                        />
+                        {step.checkpoint && <PlacePhotos process={process} step={step} />}
+                      </div>
+                    )
+                  })}
+                  <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                    {'The glasses say "Go to:" and the text you write, with the step\'s photo. Save a place before you add photos of it.'}
+                  </TextView>
+                  <ButtonGroup alignment={ButtonGroupAlignment.START}>
+                    <PrimaryButton title="Save the places" icon={ICONS.check} disabled={!dirty || busy === process.id} onClick={() => void save(process)} />
+                  </ButtonGroup>
+                </div>
+              )}
+            </div>
           )
         })}
     </section>
@@ -404,6 +410,7 @@ function PlacePhotos({ process, step }: { process: Process; step: Step }) {
   const [error, setError] = useState('')
   const extra = step.checkpoint?.photo_urls ?? []
   const inputId = `place-photo-${process.id}-${step.id}`
+  const picker = useRef<HTMLInputElement>(null)
 
   const add = async (file: File | undefined) => {
     if (!file) return
@@ -433,32 +440,37 @@ function PlacePhotos({ process, step }: { process: Process; step: Step }) {
 
   return (
     <div className="place-photos">
-      <span className="place-photos-title">Owl knows this place from</span>
+      <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+        Owl knows this place from
+      </TextView>
       <ul className="place-photo-list" aria-label={`Photos of the place of step ${step.index}`}>
         {step.reference_image_url && (
           <li>
             <img src={step.reference_image_url} alt={`The expert's photo of step ${step.index}`} />
-            <span className="muted">Expert's photo</span>
+            <TextView as="span" textStyle={TextStyle.META2} textColor={TextColor.SECONDARY}>
+              {"Expert's photo"}
+            </TextView>
           </li>
         )}
         {extra.map((url, n) => (
           <li key={url}>
             <img src={url} alt={`Photo ${n + 1} of the place`} />
-            <button type="button" className="button button-quiet button-small" disabled={busy} onClick={() => void remove(url)}>
-              Remove
-            </button>
+            <Button title={`Remove photo ${n + 1}`} icon={ICONS.x} disabled={busy} onClick={() => void remove(url)} />
           </li>
         ))}
       </ul>
       {extra.length < 8 && (
-        <label className="button button-secondary button-small" htmlFor={inputId}>
-          <Icon name="plus" size={18} />
-          Add a photo of the place
-          <input id={inputId} className="visually-hidden" type="file" accept="image/jpeg,image/png" disabled={busy} onChange={(event) => void add(event.target.files?.[0])} />
-        </label>
+        <>
+          <input ref={picker} id={inputId} className="visually-hidden" type="file" accept="image/jpeg,image/png" aria-label="Add a photo of the place" disabled={busy} onChange={(event) => void add(event.target.files?.[0])} />
+          <Button title="Add a photo of the place" icon={ICONS.plus} alwaysShowText disabled={busy} onClick={() => picker.current?.click()} />
+        </>
       )}
-      {!step.reference_image_url && extra.length === 0 && <p className="hint">No picture yet: Owl cannot recognise this place until you add one.</p>}
-      {error && <p className="field-error">{error}</p>}
+      {!step.reference_image_url && extra.length === 0 && (
+        <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+          No picture yet: Owl cannot recognise this place until you add one.
+        </TextView>
+      )}
+      {error && <StatusText tone="negative">{error}</StatusText>}
     </div>
   )
 }
@@ -473,8 +485,7 @@ function Unlock({ places, processes }: { places: TraineePlace[]; processes: Proc
   const options = processes.flatMap((process) => process.steps.filter((s) => s.checkpoint).map((s) => ({ value: `${process.id}/${s.id}`, text: `${process.title} · ${s.index}. ${s.title}` })))
   if (!places.length || !options.length) return null
 
-  const open = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const open = async () => {
     const [processId, stepId] = step.split('/')
     if (!who || !processId) {
       setError('Choose the trainee and the step.')
@@ -489,38 +500,28 @@ function Unlock({ places, processes }: { places: TraineePlace[]; processes: Proc
     }
   }
 
+  const whoChoices = [{ value: '', label: 'Choose' }, ...places.map((place) => ({ value: place.employee_id, label: place.name }))]
+  const stepChoices = [{ value: '', label: 'Choose' }, ...options.map((option) => ({ value: option.value, label: option.text }))]
   return (
-    <form className="panel" aria-labelledby="unlock-heading" onSubmit={(event) => void open(event)} noValidate>
-      <h2 id="unlock-heading">Open a step by hand</h2>
-      <p className="hint">When Owl does not recognise the place, for example after the shelves have moved.</p>
-      <div className="field">
-        <label htmlFor="unlock-who">Trainee</label>
-        <select id="unlock-who" className="input" value={who} onChange={(event) => setWho(event.target.value)}>
-          <option value="">Choose</option>
-          {places.map((place) => (
-            <option key={place.employee_id} value={place.employee_id}>
-              {place.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="unlock-step">Step</label>
-        <select id="unlock-step" className="input" value={step} onChange={(event) => setStep(event.target.value)}>
-          <option value="">Choose</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.text}
-            </option>
-          ))}
-        </select>
-      </div>
-      {error && <p className="field-error">{error}</p>}
-      <div className="form-actions">
-        <button type="submit" className="button button-secondary">
-          Open the step
-        </button>
-      </div>
-    </form>
+    <section aria-labelledby="unlock-heading">
+      <Panel width="100%">
+        <div className="panel-body unlock-body">
+          <TextView as="h2" id="unlock-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+            Open a step by hand
+          </TextView>
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            When Owl does not recognise the place, for example after the shelves have moved.
+          </TextView>
+          <VerticalList ariaLabel="Trainee and step" className="inline-list">
+            <ChoiceRow label="Trainee" choices={whoChoices} value={who} onChange={setWho} />
+            <ChoiceRow label="Step" choices={stepChoices} value={step} onChange={setStep} />
+          </VerticalList>
+          {error && <StatusText tone="negative">{error}</StatusText>}
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <Button title="Open the step" icon={ICONS.check} alwaysShowText onClick={() => void open()} />
+          </ButtonGroup>
+        </div>
+      </Panel>
+    </section>
   )
 }

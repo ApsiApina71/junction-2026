@@ -1,12 +1,13 @@
 // Studio's shared parts, composed from Meta's UI Toolkit for Meta Ray-Ban Display (JUN-101). Each part is one
 // toolkit component, or toolkit components arranged; none of them redraws what the toolkit already has.
 
-import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, InputTextView, InputTextViewSize, ListItem, MaterialLibrary, Modal, Panel, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
+import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, ListItem, MaterialLibrary, Modal, Panel, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import type { ButtonProps } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import alert from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
 import { counterText } from '../lib/steps.ts'
+import { CARET_KEYS } from './keys.ts'
 
 /** The one action a view is for (Publish, Save): the toolkit's themed primary material. */
 export function PrimaryButton(props: ButtonProps) {
@@ -162,7 +163,68 @@ export function FieldLabel({ htmlFor, children, extra }: { htmlFor: string; chil
   )
 }
 
-/** Free text: the toolkit's InputTextView under a label, with a hint or the problem under it. */
+/**
+ * Text that is edited, not sent. The toolkit's InputTextView is made for the glasses, where the host owns text entry:
+ * it shows no caret, puts the cursor at the start and gives the arrow keys to focus navigation. Editing words that are
+ * already there needs a caret, so Studio's edit fields are native fields drawn with the toolkit's input tokens and type.
+ * InputTextView stays where text is written and sent (the Help message, a question to Owl).
+ */
+export function EditInput({
+  id,
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+  lang,
+  autoFocus,
+  multiline,
+  invalid,
+  describedBy,
+  label,
+  disabled,
+  inputMode,
+}: {
+  id?: string
+  value: string
+  onChange: (text: string) => void
+  placeholder?: string
+  maxLength?: number
+  lang?: string
+  autoFocus?: boolean
+  multiline?: boolean
+  invalid?: boolean
+  describedBy?: string
+  /** Only when there is no visible label. */
+  label?: string
+  disabled?: boolean
+  inputMode?: 'numeric' | 'text'
+}) {
+  const shared = {
+    id,
+    value,
+    placeholder,
+    maxLength,
+    lang,
+    autoFocus,
+    disabled,
+    'aria-label': label,
+    'aria-invalid': invalid || undefined,
+    'aria-describedby': describedBy,
+    autoComplete: 'off',
+    spellCheck: true,
+    // The arrow keys move the caret here, not the toolkit's focus between controls.
+    onKeyDown: (event: KeyboardEvent) => {
+      if (CARET_KEYS.has(event.key)) event.stopPropagation()
+    },
+  }
+  return multiline ? (
+    <textarea {...shared} className="edit-field is-multiline uit-text-body2" rows={2} onChange={(event) => onChange(event.target.value)} />
+  ) : (
+    <input {...shared} className="edit-field uit-text-body2" inputMode={inputMode} onChange={(event) => onChange(event.target.value)} />
+  )
+}
+
+/** Free text under a label, with a hint or the problem under it. */
 export function TextField({
   id,
   label,
@@ -189,7 +251,7 @@ export function TextField({
   maxLength?: number
   lang?: string
   extra?: ReactNode
-  /** Without it, a line break typed or pasted becomes a space: names and titles are one line. */
+  /** A text area that grows with its text; without it the field is one line. */
   multiline?: boolean
   /** A hint that is a warning (cut text, too long) is tinted; the words still say it. */
   hintTone?: Tone
@@ -202,7 +264,7 @@ export function TextField({
       <FieldLabel htmlFor={id} extra={extra}>
         {label}
       </FieldLabel>
-      <InputTextView size={InputTextViewSize.FULL} text={value} hint={placeholder ?? ''} onTextChange={(text) => onChange(multiline ? text : text.replace(/\s*\n\s*/g, ' '))} inputProps={{ id, maxLength, lang, autoFocus, autoComplete: 'off', 'aria-invalid': error || invalid ? true : undefined, 'aria-describedby': note }} />
+      <EditInput id={id} value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength} lang={lang} autoFocus={autoFocus} multiline={multiline} invalid={Boolean(error || invalid)} describedBy={note} />
       {error ? (
         <TextView as="p" id={`${id}-error`} textStyle={TextStyle.META1}>
           <span className="status-text is-negative">{error}</span>
@@ -275,3 +337,4 @@ export function ChoiceDialog<T extends string>({ title, choices, value, onChoose
     </div>
   )
 }
+

@@ -8,7 +8,6 @@ import { ICONS } from '../ui/icons.ts'
 import { ChoiceRow, FieldLabel, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
-import './training.css'
 
 // JUN-96 and JUN-98. Owl gives evidence, a person decides. The rules this page keeps:
 // - During training Studio shows only that a person is in training and which day it is, not how they are doing.
@@ -303,7 +302,7 @@ function StartTraining({ employees, trainees, plans, onStarted }: { employees: E
           </VerticalList>
           <div className="field">
             <FieldLabel htmlFor="start-day">First day</FieldLabel>
-            <input id="start-day" className="secret-input uit-text-body2" type="date" value={starts} onChange={(event) => setStarts(event.target.value)} />
+            <input id="start-day" className="edit-field uit-text-body2" type="date" value={starts} onChange={(event) => setStarts(event.target.value)} />
           </div>
           {error && <StatusText tone="negative">{error}</StatusText>}
           <ButtonGroup alignment={ButtonGroupAlignment.START}>

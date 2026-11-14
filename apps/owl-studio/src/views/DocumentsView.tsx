@@ -8,6 +8,7 @@ import { timeAgo } from '../lib/time.ts'
 import type { Answer, Doc } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
 import { Confirm, DangerButton, PrimaryButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
+import { keepCaretKeys } from '../ui/keys.ts'
 import { useToast } from '../ui/toast.ts'
 
 /** The company's own instructions. Owl answers workers' questions from these and from nothing else. */
@@ -203,6 +204,7 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
             Ask the way a new worker would on the glasses. You see what Owl answers and which document it took it from.
           </TextView>
           <InputTextView
+            className="send-field"
             size={InputTextViewSize.FULL}
             text={question}
             hint="What do I do if an item is out of stock?"
@@ -212,7 +214,7 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
             loadingLabel="Asking"
             onTextChange={setQuestion}
             onSend={(words) => void ask(words)}
-            inputProps={{ 'aria-label': 'Your question', maxLength: 500 }}
+            inputProps={{ 'aria-label': 'Your question', maxLength: 500, onKeyDown: keepCaretKeys }}
           />
           <div className="answer" aria-live="polite">
             <Avatar src={`/owl/states/${owl}.png`} alt="" size={AvatarSize.LARGE} />

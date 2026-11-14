@@ -601,6 +601,182 @@ body {
   align-items: stretch;
 }
 
+/* Map: the areas drawn on a floor, who is where now, and the places of steps. */
+
+.panel-body.map-body,
+.panel-body.zone-body,
+.panel-body.unlock-body {
+  align-items: stretch;
+}
+
+.map-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--uit-spacing-medium);
+}
+
+.zone-map {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  border-radius: var(--uit-corner-radius-xsmall);
+  touch-action: none;
+  user-select: none;
+}
+
+.zone-map.is-drawing {
+  cursor: crosshair;
+}
+
+.zone-floor {
+  fill: var(--uit-color-background-input-field);
+}
+
+.zone rect {
+  fill: var(--uit-color-background-elevation1);
+  stroke: var(--uit-color-border-primary);
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.zone-packing rect {
+  fill: color-mix(in srgb, var(--uit-color-accent-teal) 30%, var(--uit-color-background-elevation1));
+}
+
+.zone-loading rect {
+  fill: color-mix(in srgb, var(--uit-color-accent-orange) 30%, var(--uit-color-background-elevation1));
+}
+
+.zone.is-occupied rect {
+  stroke: var(--uit-color-text-accent);
+  stroke-width: 4;
+}
+
+.zone.is-selected rect {
+  stroke: var(--uit-color-text-primary);
+  stroke-width: 4;
+  stroke-dasharray: 10 6;
+}
+
+.zone-name {
+  font-family: 'Noto Sans', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  fill: var(--uit-color-text-primary);
+  pointer-events: none;
+}
+
+.trainee-dot circle {
+  fill: var(--uit-color-accent-blue);
+}
+
+.trainee-initial {
+  font-family: 'Noto Sans', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--uit-color-text-primary);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.trainee-name {
+  font-family: 'Noto Sans', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  fill: var(--uit-color-text-accent);
+  pointer-events: none;
+}
+
+.zone-draft {
+  fill: var(--uit-color-accent-blue);
+  fill-opacity: 0.25;
+  stroke: var(--uit-color-accent-blue);
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+}
+
+.checkpoint-fields {
+  align-items: stretch;
+}
+
+.checkpoint-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+  padding-block-end: var(--uit-spacing-medium);
+  border-block-end: 1px solid var(--uit-color-border-primary);
+}
+
+.place-photos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--uit-spacing-small);
+}
+
+.place-photo-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--uit-spacing-medium);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place-photo-list li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--uit-spacing-xsmall);
+}
+
+.place-photo-list img {
+  inline-size: 150px;
+  block-size: 112px;
+  object-fit: cover;
+  border-radius: var(--uit-corner-radius-xxsmall);
+}
+
+/* Printing the sign at the desk: only the sheet is printed. */
+
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+
+  .print-sheet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    color: #000;
+  }
+
+  .print-sign {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10mm;
+    padding: 30mm;
+    text-align: center;
+    font-family: 'Noto Sans', system-ui, sans-serif;
+    font-size: 26pt;
+    line-height: 1.3;
+  }
+}
+
 /* Documents: a place to drop files, what Owl has read, and a question to try. */
 
 .dropzone {
@@ -989,29 +1165,54 @@ body {
   flex-direction: column;
 }
 
-/* A text field the toolkit has no component for (a masked secret), drawn with its input tokens. */
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--uit-spacing-small);
-  min-inline-size: 0;
+/* The toolkit's text field hides the caret (on the glasses the host owns text entry); on a desktop it is shown. */
+.composer .send-field textarea,
+.ask-body .send-field textarea {
+  caret-color: var(--uit-color-text-accent);
 }
 
-.secret-input {
+/* Edit fields: native, drawn with the toolkit's input-field tokens and type (see EditInput in ui/meta.tsx). */
+.edit-field {
   box-sizing: border-box;
   inline-size: 100%;
   min-block-size: 72px;
-  padding: 0 var(--uit-spacing-large);
-  border: 0;
-  border-radius: var(--uit-corner-radius-xsmall);
+  margin: 0;
+  padding: var(--uit-spacing-medium) var(--uit-spacing-large);
+  border: 2px solid transparent;
+  border-radius: var(--uit-corner-radius-small);
   background: var(--uit-color-background-input-field);
   color: var(--uit-color-text-primary);
+  caret-color: var(--uit-color-text-accent);
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
-.secret-input:focus-visible {
-  outline: 3px solid var(--uit-color-text-accent);
-  outline-offset: 2px;
+.edit-field.is-multiline {
+  resize: vertical;
+  field-sizing: content;
+  min-block-size: 112px;
+  max-block-size: 480px;
+}
+
+.edit-field::placeholder {
+  color: var(--uit-color-text-placeholder);
+}
+
+.edit-field:hover:not(:disabled) {
+  background: var(--uit-color-background-elevation1);
+}
+
+.edit-field:focus-visible {
+  outline: none;
+  border-color: var(--uit-color-text-accent);
+  background: var(--uit-color-background-elevation1);
+}
+
+.edit-field[aria-invalid='true'] {
+  border-color: var(--uit-color-persistent-warning);
+}
+
+.edit-field:disabled {
+  opacity: 0.5;
 }
 
 @media (max-width: 900px) {

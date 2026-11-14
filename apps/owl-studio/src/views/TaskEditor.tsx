@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, ButtonGroupAlignment, IconTintColor, InputTextView, InputTextViewSize, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { Button, ButtonGroup, ButtonGroupAlignment, IconTintColor, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { glassesName } from '../lib/docs.ts'
@@ -29,7 +29,7 @@ import type { Issue } from '../lib/steps.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { Check, CheckKind, Employee, OrderLine, Process, Step } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { CharacterCount, ChoiceRow, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import { CharacterCount, ChoiceRow, EditInput, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast, useUnsaved } from '../ui/toast.ts'
 import { GlassesPreview } from './GlassesPreview.tsx'
@@ -638,12 +638,12 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
           <ul className="criteria">
             {check.criteria.map((criterion, i) => (
               <li key={i}>
-                <InputTextView
-                  size={InputTextViewSize.FULL}
-                  text={criterion}
-                  hint={i === 0 ? 'For example: the box is taped shut' : 'Something to look for'}
-                  onTextChange={(text) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? text.replace(/\s*\n\s*/g, ' ') : c)) })}
-                  inputProps={{ 'aria-label': `Thing to look for ${i + 1}`, autoFocus: focusNew && i === check.criteria.length - 1 }}
+                <EditInput
+                  value={criterion}
+                  label={`Thing to look for ${i + 1}`}
+                  placeholder={i === 0 ? 'For example: the box is taped shut' : 'Something to look for'}
+                  autoFocus={focusNew && i === check.criteria.length - 1}
+                  onChange={(text) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? text : c)) })}
                 />
                 <Button title={`Remove thing to look for ${i + 1}`} icon={ICONS.x} onClick={() => set({ ...check, criteria: check.criteria.filter((_, at) => at !== i) })} />
               </li>
@@ -671,15 +671,15 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
           <div className="order-lines" role="group" aria-label="Products on the order">
             {lines.map((line, i) => (
               <div className="order-line" key={i}>
-                <InputTextView size={InputTextViewSize.FULL} text={line.name} hint="Product" onTextChange={(text) => setLine(i, { name: text.replace(/\s*\n\s*/g, ' ') })} inputProps={{ 'aria-label': `Product ${i + 1}`, autoFocus: focusNew && i === lines.length - 1 }} />
-                <InputTextView
-                  size={InputTextViewSize.FULL}
-                  text={Number.isFinite(line.qty) && line.qty > 0 ? String(line.qty) : ''}
-                  hint="How many"
-                  onTextChange={(text) => setLine(i, { qty: Number.parseInt(text.replace(/\D/g, ''), 10) || 0 })}
-                  inputProps={{ 'aria-label': `How many of product ${i + 1}`, inputMode: 'numeric' }}
+                <EditInput value={line.name} label={`Product ${i + 1}`} placeholder="Product" autoFocus={focusNew && i === lines.length - 1} onChange={(text) => setLine(i, { name: text })} />
+                <EditInput
+                  value={Number.isFinite(line.qty) && line.qty > 0 ? String(line.qty) : ''}
+                  label={`How many of product ${i + 1}`}
+                  placeholder="How many"
+                  inputMode="numeric"
+                  onChange={(text) => setLine(i, { qty: Number.parseInt(text.replace(/\D/g, ''), 10) || 0 })}
                 />
-                <InputTextView size={InputTextViewSize.FULL} text={line.sku ?? ''} hint="Code" onTextChange={(text) => setLine(i, { sku: text.trim() ? text.replace(/\s*\n\s*/g, ' ') : null })} inputProps={{ 'aria-label': `Code of product ${i + 1}` }} />
+                <EditInput value={line.sku ?? ''} label={`Code of product ${i + 1}`} placeholder="Code" onChange={(text) => setLine(i, { sku: text || null })} />
                 <Button title={`Remove product ${i + 1}`} icon={ICONS.x} onClick={() => set({ ...check, order_lines: lines.filter((_, at) => at !== i) })} />
               </div>
             ))}

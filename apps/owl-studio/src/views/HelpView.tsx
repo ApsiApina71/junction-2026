@@ -11,6 +11,7 @@ import { clockTime, duration, freshness, timeAgo } from '../lib/time.ts'
 import type { HelpSession, Mark } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
 import { DangerButton, Problem, StatusText, Waiting } from '../ui/meta.tsx'
+import { keepCaretKeys } from '../ui/keys.ts'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
@@ -390,6 +391,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
                 </div>
               )}
               <InputTextView
+                className="send-field"
                 text={text}
                 hint={`Tell ${name} what to do`}
                 actionLabel="Send"
@@ -398,7 +400,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
                 loadingLabel="Sending"
                 onTextChange={setText}
                 onSend={(words) => void send(words)}
-                inputProps={{ 'aria-label': `Message to ${name}`, maxLength: 500 }}
+                inputProps={{ 'aria-label': `Message to ${name}`, maxLength: 500, onKeyDown: keepCaretKeys }}
               />
               <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
                 {`Owl reads it aloud in ${name}'s ear${worker ? `, in ${languageName(worker.language)}. Write in that language` : ''}. Enter sends.`}
