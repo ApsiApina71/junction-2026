@@ -1411,19 +1411,27 @@ final class OwlViewModel {
   /// the worker has reached the place. Two looks in a row at the right place open the step.
   /// Without a camera Owl only asks owl-api, in case the trainer or Help opened the step.
   private func startLocked(_ number: Int) async {
-    let camera = await openCamera()
-    guard isCurrent(number) else { return }
-    if camera == nil { NSLog("[Owl] location: no camera, the step waits for the trainer or Help") }
+    // The camera opens beside the loop, not before it (JUN-53): while it opens, or if it
+    // never does, Owl still asks owl-api whether the trainer or Help opened the step.
+    Task { [weak self] in
+      guard let self else { return }
+      if await self.openCamera() == nil, self.isCurrent(number) {
+        NSLog("[Owl] location: no camera, the step waits for the trainer or Help")
+      }
+    }
     lockTask = Task { [weak self] in
       var delay: Duration = .seconds(1)
-      var camera = camera
+      var useCamera = true
+      var framelessLooks = 0
       while !Task.isCancelled {
         try? await Task.sleep(for: delay)
         guard let self, !Task.isCancelled, self.isCurrent(number), self.card == .locked else { return }
         guard let employee = self.employee, let process = self.process, let step = self.step else { return }
+        let camera = useCamera ? self.camera : nil
         delay = camera == nil ? .seconds(5) : .seconds(2)
         do {
           if let frame = self.glassesOn ? camera?.latestJPEG(maxSide: 768) : nil {
+            framelessLooks = 0
             let location = try await self.api.locationFrame(
               frame, employeeID: employee.id, processID: process.id, stepID: step.id)
             // owl-api paces the looks, never faster than every 2 s.
@@ -1435,13 +1443,17 @@ final class OwlViewModel {
             if location.canRecognize == false {
               // No picture of this place yet: no more pictures, only the trainer or Help.
               NSLog("[Owl] location: owl-api cannot recognise this place, waiting for the trainer or Help")
-              camera = nil
+              useCamera = false
               self.closeCamera()
             }
-          } else if camera == nil {
-            await self.refreshLocation()
           } else {
-            continue
+            // No picture to send: the camera is still opening, the glasses are off, or the
+            // stream stalled. owl-api may still have opened the step (trainer, Help).
+            if framelessLooks % 5 == 0 {
+              NSLog("[Owl] location: no picture (camera \(camera == nil ? "not open" : "open"), glasses on \(self.glassesOn)), asking owl-api")
+            }
+            framelessLooks += 1
+            await self.refreshLocation()
           }
         } catch OwlError.consentRequired {
           self.whereabouts = nil
