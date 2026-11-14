@@ -167,6 +167,24 @@ struct OwlAPI: Sendable {
     try await send(try request("employees/\(employeeID)/progress"))
   }
 
+  /// The worker's training period and how far they are from the target level (JUN-96).
+  /// nil when the worker has no training period.
+  func training(employeeID: String) async throws -> OwlTraining? {
+    do {
+      return try await send(try request("employees/\(employeeID)/training"))
+    } catch OwlError.notFound {
+      return nil
+    }
+  }
+
+  /// The worker saw the end-of-training result on the glasses. Studio shows it to the
+  /// trainer only after this, so the worker always sees it first (JUN-96).
+  func trainingSeen(employeeID: String) async throws {
+    var seen = try request("employees/\(employeeID)/training/seen")
+    seen.httpMethod = "POST"
+    try await sendNoContent(seen)
+  }
+
   /// Who wears this pair of glasses. `glassesNotAssigned` when no one does.
   func employee(forGlasses glassesID: String) async throws -> OwlEmployee {
     do {

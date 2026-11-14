@@ -278,6 +278,64 @@ enum OwlStrings {
   static var eraseProgress: String { t("Erase my progress", "Poista edistymiseni") }
   static var progressErased: String { t("Your progress is erased.", "Edistymisesi on poistettu.") }
   static var forgetMe: String { t("Forget me", "Unohda minut", easy: "Erase my progress", "Poista edistymiseni") }
+  // Training period and target level (JUN-96). Never a fail: "more practice" means training
+  // goes on with support. Task names stand alone, so Finnish needs no inflection.
+  static var training: String { t("Training", "Koulutus") }
+  /// "Training day 4 of 5 · 1 day left". `left`: days after today. `active`: today is inside
+  /// the period. `day`/`days` may be unknown.
+  static func trainingDays(day: Int?, of days: Int?, left: Int, active: Bool) -> String {
+    if !active { return t("Your training period has ended.", "Koulutusjaksosi on päättynyt.") }
+    if left < 1 { return t("Last day of training.", "Koulutuksen viimeinen päivä.") }
+    let rest = left == 1 ? t("1 day left", "1 päivä jäljellä") : t("\(left) days left", "\(left) päivää jäljellä")
+    guard let day, let days else { return t("Training: ", "Koulutus: ") + rest }
+    return t("Training day \(day) of \(days)", "Koulutuspäivä \(day)/\(days)") + " · " + rest
+  }
+  /// "Packing: 2 of 3 done without help".
+  static func trainingTarget(_ title: String, done: Int, of required: Int) -> String {
+    t(
+      "\(title): \(min(done, required)) of \(required) done without help",
+      "\(title): \(min(done, required)) / \(required) tehty ilman apua",
+      easy: "\(title): \(min(done, required)) of \(required) alone", "\(title): \(min(done, required)) / \(required) itse")
+  }
+  static var trainingAllReached: String {
+    t("You reached every target. Well done.", "Saavutit kaikki tavoitteet. Hienoa.",
+      easy: "You did all of it. Good job.", "Teit kaiken. Hyvä.")
+  }
+  static var trainingReadyTitle: String { t("Ready", "Valmis työhön") }
+  static var trainingReadyBody: String {
+    t(
+      "You reached the level of your training. You can do these tasks on your own.",
+      "Saavutit koulutuksen tavoitetason. Osaat tehdä nämä tehtävät itse.",
+      easy: "You learned the work. You can do it alone.", "Opit työn. Osaat tehdä sen itse.")
+  }
+  static var trainingMoreTitle: String { t("More practice", "Lisää harjoitusta") }
+  static func trainingMoreBody(_ titles: [String]) -> String {
+    let list = titles.joined(separator: ", ")
+    return list.isEmpty
+      ? t("Training goes on with Owl and support.", "Koulutus jatkuu Owlin ja tuen kanssa.",
+          easy: "You learn more with Owl.", "Opit lisää Owlin kanssa.")
+      : t(
+        "Practise these with Owl: \(list). Training goes on with support.",
+        "Harjoittele näitä Owlin kanssa: \(list). Koulutus jatkuu tuen kanssa.",
+        easy: "Practise these with Owl: \(list).", "Harjoittele näitä Owlin kanssa: \(list).")
+  }
+  static var trainingNotAFail: String {
+    t("This is not a fail. Everyone learns at their own pace.", "Tämä ei ole epäonnistuminen. Jokainen oppii omaan tahtiinsa.",
+      easy: "This is okay. You learn at your own speed.", "Tämä on ok. Opit omaan tahtiisi.")
+  }
+  static var trainingNotConfirmed: String {
+    t("Owl suggests this. Your trainer goes through it with you.", "Tämä on Owlin ehdotus. Kouluttajasi käy sen läpi kanssasi.",
+      easy: "Your trainer talks about this with you.", "Kouluttajasi puhuu tästä kanssasi.")
+  }
+  static func trainingConfirmed(by name: String) -> String {
+    name.isEmpty
+      ? t("Your trainer confirmed this.", "Kouluttajasi vahvisti tämän.")
+      : t("\(name) confirmed this.", "\(name) vahvisti tämän.")
+  }
+  static func trainingResultLine(_ ready: Bool) -> String {
+    ready ? t("Result: Ready.", "Tulos: Valmis työhön.") : t("Result: More practice.", "Tulos: Lisää harjoitusta.")
+  }
+  static var ok: String { t("OK", "OK") }
   static var pauseCamera: String { t("Pause camera", "Keskeytä kamera", easy: "Stop camera", "Sammuta kamera") }
   static var cameraOn: String { t("Camera on", "Kamera päälle", easy: "Start camera", "Käynnistä kamera") }
   static func sayFinished(_ summary: OwlRunSummary) -> String {

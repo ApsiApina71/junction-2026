@@ -272,6 +272,16 @@ final class OwlViewModel {
       return displayViewModel.isConnected
     }
     guard isCurrent(number) else { return displayViewModel.isConnected }
+    // The end of the training period: the worker sees the result before anything else, and
+    // before the trainer sees it in Studio (JUN-96).
+    if let employee, let training = try? await api.training(employeeID: employee.id),
+      training.result != nil, !trainingResultSeen(employee.id, training)
+    {
+      guard isCurrent(number) else { return displayViewModel.isConnected }
+      await showTrainingResult(training, then: { await $0.open() })
+      return displayViewModel.isConnected
+    }
+    guard isCurrent(number) else { return displayViewModel.isConnected }
     if !welcomed, let employee {
       welcomed = true
       statusText = "Welcome, \(employee.name)"
@@ -960,22 +970,89 @@ final class OwlViewModel {
     let number = newScene()
     process = nil
     await showScreen { OwlScreens.status(OwlStrings.myProgress, detail: OwlStrings.takesAMoment, mood: .thinking, onCancel: self.action { await $0.showTasks() }) }
+    async let fetchedTraining = try? await api.training(employeeID: employee.id)
     let progress = try? await api.progress(employeeID: employee.id)
+    let training = await fetchedTraining ?? nil
     guard isCurrent(number) else { return }
     let lines =
       (erased ? [OwlStrings.progressErased] : [])
       + OwlText.progressLines(progress, afterTask: afterTask, language: employee.language)
+    let trainingLines = training.map(trainingLines)
     let title = t(afterTask ? "Task done!" : "Your progress")
     statusText = title
-    speaker.say(lines.joined(separator: " "))
+    speaker.say(([trainingLines?.days].compactMap { $0 } + (trainingLines?.lines ?? []) + lines).joined(separator: " "))
     // Nothing to erase right after erasing, and nothing when Owl could not read the progress.
     let canForget = progress != nil && !erased
     if canForget { sayChoices(OwlStrings.sayPinchForHome) }
     await showScreen(stage: .init(kind: "progress", title: title, text: lines.joined(separator: " "))) {
       OwlScreens.progress(
-        title: title, lines: lines, onHome: self.action { await $0.showTasks() },
+        title: title, lines: lines, training: trainingLines, onHome: self.action { await $0.showTasks() },
         onForget: canForget ? self.action { await $0.confirmForget() } : nil)
     }
+  }
+
+  // MARK: - Training period (JUN-96)
+
+  /// The training part of "My progress": the days left, then what is still missing from the
+  /// target level, or the result once there is one.
+  private func trainingLines(_ training: OwlTraining) -> OwlTrainingLines {
+    var lines: [String] = []
+    if let result = training.result {
+      lines.append(OwlStrings.trainingResultLine(result == "ready"))
+    }
+    let missing = training.missing
+    if missing.isEmpty, !training.target.isEmpty {
+      if training.result == nil { lines.append(OwlStrings.trainingAllReached) }
+    } else {
+      lines += missing.map {
+        OwlStrings.trainingTarget(targetTitle($0), done: $0.doneWithoutHelp ?? 0, of: $0.required ?? 1)
+      }
+    }
+    let days = training.remainingDays().map { OwlStrings.trainingDays(day: training.day, of: training.days, left: $0, active: training.active ?? true) }
+    return OwlTrainingLines(days: days, lines: lines)
+  }
+
+  /// The target's own name from owl-api, else the step's or the task's title on the phone.
+  private func targetTitle(_ target: OwlTraining.Target) -> String {
+    if let title = target.title, !title.isEmpty { return title }
+    let process = processes.first { $0.id == target.processId }
+    return process?.steps.first { $0.id == target.stepId }?.title ?? process?.title ?? target.processId
+  }
+
+  /// "Ready" or "More practice", shown and spoken. Owl tells owl-api the worker saw it, so the
+  /// trainer sees it only after the worker did.
+  func showTrainingResult(_ training: OwlTraining, then next: @escaping @MainActor (OwlViewModel) async -> Void) async {
+    guard let employee else { return await next(self) }
+    newScene()
+    let ready = training.result == "ready"
+    let practise = training.missing.map(targetTitle)
+    let title = ready ? OwlStrings.trainingReadyTitle : OwlStrings.trainingMoreTitle
+    let body = ready ? OwlStrings.trainingReadyBody : OwlStrings.trainingMoreBody(practise)
+    let confirmedBy = training.confirmed.map { $0.by ?? "" }
+    let who = confirmedBy.map { OwlStrings.trainingConfirmed(by: $0) } ?? OwlStrings.trainingNotConfirmed
+    statusText = "Training result: \(training.result ?? "")"
+    speaker.say([title + ".", body, ready ? nil : OwlStrings.trainingNotAFail, who].compactMap { $0 }.joined(separator: " "))
+    sayChoices(OwlStrings.sayPinchForHome)
+    await showScreen(stage: .init(kind: "training", title: title, text: body)) {
+      OwlScreens.trainingResult(
+        ready: ready, practise: practise, confirmedBy: confirmedBy,
+        onOK: self.action { await next($0) })
+    }
+    markTrainingResultSeen(employee.id, training)
+    Task { [api] in try? await api.trainingSeen(employeeID: employee.id) }
+  }
+
+  /// Seen on this phone: the same result is shown once, and again when the trainer confirms it.
+  private func trainingResultKey(_ employeeID: String, _ training: OwlTraining) -> String {
+    "owl.trainingSeen.\(employeeID).\(training.result ?? "")\(training.confirmed == nil ? "" : ".confirmed")"
+  }
+
+  private func trainingResultSeen(_ employeeID: String, _ training: OwlTraining) -> Bool {
+    UserDefaults.standard.bool(forKey: trainingResultKey(employeeID, training))
+  }
+
+  private func markTrainingResultSeen(_ employeeID: String, _ training: OwlTraining) {
+    UserDefaults.standard.set(true, forKey: trainingResultKey(employeeID, training))
   }
 
   /// "Forget me" asks once more: erasing cannot be undone, and keeping is the first choice.
@@ -2074,6 +2151,10 @@ extension OwlViewModel {
     case "endstep": await endRecordedStep()
     case "finish": await finishRecording()
     case "progress": await showProgress()
+    case "training":
+      if let id = employee?.id, let training = try? await api.training(employeeID: id) {
+        await showTrainingResult(training, then: { await $0.showTasks() })
+      }
     case "recognize": if let current = self.step, recognizes(current) { await startRecognition(scene) }
     case "allow": await saveConsent(cameraChecks: true, recording: consent?.recording ?? false); await open()
     case "decline": await saveConsent(cameraChecks: false, recording: consent?.recording ?? false); await open()

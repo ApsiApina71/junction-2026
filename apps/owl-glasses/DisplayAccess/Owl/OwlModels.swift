@@ -247,3 +247,58 @@ struct OwlStepRecognition: Codable, Equatable, Sendable {
   /// V-JEPA 2's own action name ("Putting something into something"); for the stage only.
   let action: String?
 }
+
+/// The worker's training period and target level (`GET /employees/{id}/training`, JUN-96).
+/// Owl gives the evidence, a person decides: `suggestion` is Owl's, `confirmed` the trainer's.
+/// The worker sees all of it on the glasses first: Studio shows the suggestion after `seenAt`.
+struct OwlTraining: Codable, Equatable, Sendable {
+  struct Target: Codable, Equatable, Sendable {
+    let processId: String
+    let stepId: String?
+    /// The step's name in the worker's language, e.g. "Pack heavy items first".
+    let title: String?
+    /// The task's name in the worker's language.
+    let task: String?
+    let required: Int?
+    let doneWithoutHelp: Int?
+    let met: Bool?
+
+    var reached: Bool { met ?? ((doneWithoutHelp ?? 0) >= (required ?? 1)) }
+  }
+
+  struct Confirmed: Codable, Equatable, Sendable {
+    /// `ready` or `more_practice`.
+    let result: String
+    let by: String?
+    let at: String?
+    let note: String?
+  }
+
+  let employeeId: String?
+  /// Dates, `ends` is the last day of the period.
+  let starts: String?
+  let ends: String?
+  let day: Int?
+  let days: Int?
+  let daysLeft: Int?
+  let active: Bool?
+  let target: [Target]
+  /// The target rows not met yet.
+  let practise: [Target]?
+  /// `ready`, `more_practice`, or nil until the last day.
+  let suggestion: String?
+  let seenAt: String?
+  let confirmed: Confirmed?
+
+  /// The trainer's result once confirmed, else Owl's suggestion.
+  var result: String? { confirmed?.result ?? suggestion }
+  var missing: [Target] { practise ?? target.filter { !$0.reached } }
+
+  /// Days left after today; 0 on the last day. nil when unknown.
+  func remainingDays(from now: Date = Date()) -> Int? {
+    if let daysLeft { return max(daysLeft, 0) }
+    guard let ends, let end = try? Date(ends, strategy: Date.ISO8601FormatStyle().year().month().day()) else { return nil }
+    let calendar = Calendar.current
+    return max(calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: end)).day ?? 0, 0)
+  }
+}

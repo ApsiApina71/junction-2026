@@ -22,7 +22,7 @@ enum OwlScreenGallery {
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
     "help-connected", "help-marked", "record", "record-step", "status", "problem-camera", "problem-microphone",
     "problem-offline", "problem-server", "problem-not-allowed", "problem-not-assigned", "problem-video",
-    "consent", "progress", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
+    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
   ]
 
   /// The screen for a gallery name, or nil when the name is unknown.
@@ -159,6 +159,16 @@ enum OwlScreenGallery {
     case "progress":
       return OwlScreens.progress(
         title: data.finnish ? "Edistymisesi" : "Your progress", lines: data.progressLines, onHome: none, onForget: none)
+    case "progress-training":
+      return OwlScreens.progress(
+        title: data.finnish ? "Edistymisesi" : "Your progress", lines: data.progressLines, training: data.trainingLines,
+        onHome: none, onForget: none)
+    case "training-ready":
+      return OwlScreens.trainingResult(ready: true, practise: [], confirmedBy: nil, onOK: none)
+    case "training-more":
+      return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: nil, onOK: none)
+    case "training-confirmed":
+      return OwlScreens.trainingResult(ready: false, practise: data.practise, confirmedBy: "Laura", onOK: none)
     case "forget":
       return OwlScreens.confirmForget(onKeep: none, onErase: none)
     case "step-caption":
@@ -419,6 +429,19 @@ private struct Sample {
     finnish
       ? ["Olet tehnyt 3 tehtävää.", "Korjasit 2 ongelmaa, jotka Owl huomasi.", "Nopeammin kuin ensimmäisellä kerralla."]
       : ["You have finished 3 tasks.", "You fixed 2 problems Owl caught.", "Faster than your first time."]
+  }
+
+  /// JUN-96 demo: Sami on day 4 of 5, one step short of the target.
+  var practise: [String] {
+    long
+      ? [t("Pack heavy items first", "Pakkaa painavat tuotteet ensin"), t("Label the parcel", "Merkitse paketti")]
+      : [t("Pack heavy items first", "Pakkaa painavat tuotteet ensin")]
+  }
+
+  var trainingLines: OwlTrainingLines {
+    OwlTrainingLines(
+      days: OwlStrings.trainingDays(day: 4, of: 5, left: 1, active: true),
+      lines: practise.map { OwlStrings.trainingTarget($0, done: 2, of: 3) })
   }
 
   var narration: String {

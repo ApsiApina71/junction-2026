@@ -45,6 +45,14 @@ enum OwlLive: Equatable, Sendable {
   case blocked(OwlCheckBlock)
 }
 
+/// The training part of "My progress" (JUN-96), already in the worker's words.
+struct OwlTrainingLines: Equatable, Sendable {
+  /// "3 days of training left."
+  let days: String?
+  /// What is still missing, e.g. "Packing: 2 of 3 done without help", or the result.
+  let lines: [String]
+}
+
 @MainActor
 enum OwlScreens {
   // MARK: - Welcome and tasks
@@ -310,14 +318,21 @@ enum OwlScreens {
   /// the way to erase them.
   /// "Forget me" is a row that shows its words. As a button it collapsed to an X when it was
   /// not in focus, which reads as "close", and one pinch erased the progress.
+  /// `training` (JUN-96): the days left as the quiet line over the title, and what is still
+  /// missing from the target level first, before the encouraging lines.
   static func progress(
-    title: String, lines: [String], onHome: @escaping OwlAction, onForget: OwlAction? = nil
+    title: String, lines: [String], training: OwlTrainingLines? = nil, onHome: @escaping OwlAction,
+    onForget: OwlAction? = nil
   ) -> FlexBox {
-    FlexBox(direction: .column, spacing: 10) {
+    let trainingLines = training?.lines.prefix(3) ?? []
+    return FlexBox(direction: .column, spacing: 10) {
       card {
-        header(.done, meta: nil, title: title)
-        for line in lines.prefix(4) {
+        header(.done, meta: training?.days, title: title)
+        for line in trainingLines {
           Text(line, style: .body)
+        }
+        for line in lines.prefix(4 - trainingLines.count) {
+          Text(line, style: trainingLines.isEmpty ? .body : .meta, color: trainingLines.isEmpty ? .primary : .secondary)
         }
       }
       if let onForget {
@@ -333,6 +348,25 @@ enum OwlScreens {
         Button(label: OwlStrings.home, style: .primary, iconName: .house, onClick: onHome)
           .actionRole(.primary)
       }
+    }
+  }
+
+  /// The end of the training period (JUN-96), shown to the worker before the trainer sees it.
+  /// "More practice" is never a fail: it names the steps to practise and says training goes on.
+  /// `confirmedBy`: the trainer who confirmed Owl's suggestion, nil while it is a suggestion.
+  static func trainingResult(
+    ready: Bool, practise: [String], confirmedBy: String?, onOK: @escaping OwlAction
+  ) -> FlexBox {
+    screen {
+      header(ready ? .done : .listening, meta: OwlStrings.training, title: ready ? OwlStrings.trainingReadyTitle : OwlStrings.trainingMoreTitle)
+      Text(ready ? OwlStrings.trainingReadyBody : OwlStrings.trainingMoreBody(practise), style: .body)
+      if !ready {
+        Text(OwlStrings.trainingNotAFail, style: .body, color: .secondary)
+      }
+      Text(confirmedBy.map { OwlStrings.trainingConfirmed(by: $0) } ?? OwlStrings.trainingNotConfirmed, style: .meta, color: .secondary)
+    } buttons: {
+      Button(label: OwlStrings.ok, style: .primary, iconName: .checkmark, onClick: onOK)
+        .actionRole(.primary)
     }
   }
 
