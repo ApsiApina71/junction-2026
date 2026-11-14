@@ -17,6 +17,8 @@ What works in the simulator chain (iOS Simulator + MockDeviceKit + mock owl-api)
 - **Record:** pinch per step → H.264 clip of the stream, one reference frame and the narration → `POST /record/{id}/steps` → finish.
 - **Who wears the glasses:** the employer names the pair once in the app (Server → Glasses id, e.g. `glasses-1`); owl-api says which employee wears it (`GET /glasses/{id}/employee`), the worker sees only the published tasks assigned to them (`process_ids`), in their language when a translation exists.
 - **Problems handled:** glasses not assigned to anyone, camera or microphone not allowed (Owl never asks on the worker's glasses; the employer grants once with the phone's Permissions button), glasses taken off (pauses, comes back when put on), no network (cached tasks, steps work without the check), server errors (keeps going without the check).
+- **The worker's language:** the voice follows `Employee.language` (English when the phone has no voice for it), and the app's own sentences (spoken lines, the step status, errors) come from `Owl/OwlText.swift` (English and Finnish). Server texts already come in the worker's language.
+- **Limitation:** the glasses recognise speech in the glasses' own language setting (DAT Speech reports it as `locale`; the app cannot choose it). Set the worker's glasses to their language in Meta AI. Ask still sends the worker's language, so answers come in it.
 - DAT analytics and crash reporting opted out in `Info.plist`.
 
 ## Where things are

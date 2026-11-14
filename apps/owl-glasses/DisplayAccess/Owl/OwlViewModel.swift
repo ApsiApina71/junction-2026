@@ -80,7 +80,9 @@ final class OwlViewModel {
     invocations.onLaunch = { [weak self] device in
       await self?.open(deviceIdentifier: device) ?? false
     }
-    listener.onLocale = { [weak self] locale in self?.speaker.language = locale }
+    // The glasses recognise speech in their own language setting (DAT Speech `locale`); the
+    // app cannot choose it. The voice follows the worker's language instead.
+    listener.onLocale = { locale in NSLog("[Owl] glasses speech locale: \(locale)") }
     displayViewModel.onSessionStateChange = { [weak self] state in
       self?.sessionStateChanged(state)
     }
@@ -184,6 +186,7 @@ final class OwlViewModel {
       if let cached = OwlCache.load() {
         employee = cached.employee
         processes = cached.processes
+        speaker.language = cached.employee.language
       }
     }
   }
@@ -228,7 +231,8 @@ final class OwlViewModel {
   }
 
   /// Updates the status line on the step card; re-sends only when it changes.
-  private func setStepStatus(_ text: String?) {
+  private func setStepStatus(_ english: String?) {
+    let text = english.map { OwlText.localize($0, to: language) }
     guard text != stepStatus else { return }
     stepStatus = text
     Task { await sendStep() }
