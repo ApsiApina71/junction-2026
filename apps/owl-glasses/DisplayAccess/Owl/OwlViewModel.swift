@@ -343,7 +343,12 @@ final class OwlViewModel {
     if !welcomed, let employee {
       welcomed = true
       statusText = "Welcome, \(employee.name)"
-      speaker.say(employee.welcome ?? OwlStrings.welcomeBody)
+      // The welcome can be in another language than the rest (JUN-108): its own voice.
+      if let welcome = employee.welcome {
+        speaker.say(welcome, language: employee.welcomeLanguage)
+      } else {
+        speaker.say(OwlStrings.welcomeBody)
+      }
       sayChoices(OwlStrings.sayPinchToStart)
       await showScreen(stage: .init(kind: "welcome", title: OwlStrings.welcome(employee.name), text: employee.welcome)) {
         OwlScreens.welcome(employee: employee, onStart: self.action { await $0.showTasks(refresh: false) })
@@ -896,6 +901,8 @@ final class OwlViewModel {
       guard let result, log.verify(step, result: result, ticket: ticket, current: self.ticket) else { return }
       NSLog("[Owl] check \(step.id) final: verified")
       phoneState = nil
+      // ✓ on the step's bar, and the small hoot (JUN-108).
+      speaker.hoot()
       await nextStep(after: result.say)
     case .problem:
       guard let result else { return }

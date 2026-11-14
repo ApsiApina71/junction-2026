@@ -18,7 +18,7 @@ enum OwlScreenGallery {
   static let names = [
     "welcome", "tasks", "tasks-offline", "tasks-nothing-saved", "tasks-none", "step", "step-starting", "step-looks-right", "step-cant-see", "step-blocked", "step-visual",
     "step-no-check", "correction", "correction-missing", "correction-too-many", "correction-names",
-    "correction-visual", "checking", "cannot-check", "cannot-check-offline", "done", "done-unverified",
+    "correction-visual", "correction-deposit", "checking", "cannot-check", "cannot-check-offline", "done", "done-unverified",
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
     "help-connected", "help-marked", "record", "record-step", "status", "problem-camera", "problem-microphone",
     "problem-offline", "problem-server", "problem-not-allowed", "problem-not-assigned", "problem-video",
@@ -94,6 +94,8 @@ enum OwlScreenGallery {
       return OwlScreens.correction(process: process, step: pick, result: data.tooMany, onCheckAgain: none, onBack: none)
     case "correction-names":
       return OwlScreens.correction(process: process, step: pick, result: data.otherProduct, onCheckAgain: none, onBack: none)
+    case "correction-deposit":
+      return OwlScreens.correction(process: process, step: pack, result: data.deposit, image: photo, onCheckAgain: none, onBack: none)
     case "correction-visual":
       return OwlScreens.correction(process: process, step: pack, result: data.notMatching, image: photo, onCheckAgain: none, onBack: none)
     case "checking":
@@ -407,6 +409,11 @@ private struct Sample {
     check(
       "warning", "wrong_item", t("Wrong item: Green tea 100 g. The order says Coffee 500 g.", "Väärä tuote: Vihreä tee 100 g. Tilauksessa: Kahvi 500 g."),
       lines: [line(0, "ok"), line(1, "wrong_item", seen: 0, note: t("1 × Green tea 100 g", "1 × Vihreä tee 100 g")), line(2, "ok")])
+  }
+
+  /// JUN-106/108: the step's own line, from the server as it is.
+  var deposit: OwlCheckResult {
+    check("warning", "not_matching", "That's a deposit bottle. It goes to the return crate.", lines: nil)
   }
 
   var notMatching: OwlCheckResult {

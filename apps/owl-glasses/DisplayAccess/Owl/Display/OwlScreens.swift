@@ -63,7 +63,7 @@ enum OwlScreens {
       if let owl = OwlArt.figure(.welcome, height: 176) {
         Image(image: owl, sizePreset: .fill)
       }
-      Text(employee.map { OwlStrings.welcome($0.name) } ?? OwlStrings.hello, style: .heading)
+      Text(employee.map { OwlStrings.welcome($0.name, in: $0.welcomeLanguage) } ?? OwlStrings.hello, style: .heading)
       Text(employee?.welcome ?? OwlStrings.welcomeBody, style: .body)
     } buttons: {
       Button(label: OwlStrings.start, style: .primary, iconName: .triangleRight, onClick: onStart)
@@ -213,15 +213,17 @@ enum OwlScreens {
   ) -> FlexBox {
     let picture = evidence(result) ?? notSeen(step: step, result: result, image: image, expert: process.expert)
     let source = OwlCheckRules.unrealSource(decidedBy: result.decidedBy)
+    let title = OwlStrings.correctionTitle(result)
     return screen {
       header(
         .alert,
         meta: marked("\(OwlStrings.stepOf(step.index, process.steps.count)) · \(OwlStrings.checkThis)", source),
-        title: OwlStrings.correctionTitle(result))
+        title: title)
       if let picture {
         Image(image: picture, sizePreset: .fill)
       }
-      if picture == nil, let text = result.text ?? result.hint {
+      // The server's line is said once: as the title when it is the title (JUN-106).
+      if picture == nil, let text = result.text ?? result.hint, text != title {
         Text(text, style: .body)
       }
       // Said only when this very result proves it.

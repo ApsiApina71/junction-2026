@@ -23,6 +23,9 @@ struct OwlEmployee: Codable, Equatable, Sendable {
   let access: OwlAccess?
   /// A shift manager: the glasses show the manager screens and ring for help (JUN-100).
   var shiftManager: Bool? = nil
+  /// The language of `welcome`, when it is not `language` (JUN-108: a Finnish welcome for a
+  /// worker whose glasses otherwise speak English). Nil means `language`.
+  var welcomeLanguage: String? = nil
 }
 
 /// The manager on shift in the worker's company (`GET /shift/manager`, JUN-100).

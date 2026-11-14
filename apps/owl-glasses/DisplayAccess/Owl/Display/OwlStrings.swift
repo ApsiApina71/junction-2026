@@ -53,6 +53,11 @@ enum OwlStrings {
 
   // Welcome and tasks
   static func welcome(_ name: String) -> String { t("Welcome, \(name)", "Tervetuloa, \(name)") }
+  /// The welcome's heading in the welcome's own language (JUN-108).
+  static func welcome(_ name: String, in welcomeLanguage: String?) -> String {
+    guard let welcomeLanguage else { return welcome(name) }
+    return welcomeLanguage.lowercased().hasPrefix("fi") ? "Tervetuloa, \(name)" : "Welcome, \(name)"
+  }
   static var hello: String { t("Hi, I'm Owl", "Hei, olen Owl") }
   static var welcomeBody: String {
     t(
@@ -173,7 +178,15 @@ enum OwlStrings {
       easy: "Change the wrong item", "Vaihda väärä tuote")
     case "missing": return t("One item is missing", "Yksi tuote puuttuu")
     case "too_many": return t("Take the extra item out", "Ota ylimääräinen tuote pois")
-    default: return t(
+    default:
+      // A visual check with the step's own line (JUN-106: "That's a deposit bottle. It goes to
+      // the return crate."): the server's words, as they are, when they fit the title.
+      if let text = result.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty, text.count <= 90,
+        (result.lines ?? []).isEmpty
+      {
+        return text
+      }
+      return t(
       "Not quite like the photo", "Ei aivan kuten kuvassa",
       easy: "This is not like the photo", "Tämä ei ole kuin kuvassa")
     }
