@@ -1,13 +1,13 @@
 import { Button, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
-import { usePolling } from '../lib/hooks.ts'
+import { usePolling, useShowAfter } from '../lib/hooks.ts'
 import { useStudio } from '../lib/studio.ts'
 import { rectFrom, zoneId } from '../lib/training.ts'
 import type { Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
 import { STACKED_SPLIT, prefersReducedMotion, useMedia } from '../ui/media.ts'
-import { Actions, ChoiceRow, DangerButton, InlineList, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
+import { Actions, ChoiceRow, DangerButton, InlineList, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
 // JUN-97. No markers: Owl recognises a step's place in the worker's camera picture, from the expert's photo of the step
@@ -21,10 +21,22 @@ const LABEL_LIMIT = 40
 const MAP_W = 1000
 const MAP_H = 600
 
+/** How long the map waits for the trainees' places before it is drawn without them. */
+const PLACES_WAIT_MS = 1500
+
 export function MapView() {
   const { api, processes } = useStudio()
   const [zones, setZones] = useState<Zone[] | null>(null)
   const [places, setPlaces] = useState<TraineePlace[]>([])
+  // Whether the trainees' places have come in once. The map and the areas are drawn once, with the places, after both
+  // loads: drawn before them, the map's panel grew under the toolkit's shape, which follows a frame late, and the map
+  // flashed as a thin strip as the view opened.
+  const [placesIn, setPlacesIn] = useState(false)
+  // The places are waited for only so long: a slow server does not hold the map back; they follow on the next poll.
+  useEffect(() => {
+    const timer = setTimeout(() => setPlacesIn(true), PLACES_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [])
   const [selected, setSelected] = useState<string | null>(null)
   // Stacked (a phone, a tablet), the chosen area's form is below the map: choosing one on the map brings it into view.
   const stacked = useMedia(STACKED_SPLIT)
@@ -37,6 +49,8 @@ export function MapView() {
   const [drawing, setDrawing] = useState(false)
   const [problem, setProblem] = useState('')
   const toast = useToast()
+  const ready = (zones !== null || !!problem) && placesIn
+  const slow = useShowAfter(!ready)
 
   useEffect(() => {
     if (reveal === 0) return
@@ -66,6 +80,7 @@ export function MapView() {
       } catch {
         // The zones' own problem line says when the server is away.
       }
+      setPlacesIn(true)
     },
     4000,
     api,
@@ -120,42 +135,48 @@ export function MapView() {
 
               {problem && <Problem>{problem}</Problem>}
 
-              <section aria-labelledby="map-heading">
-                <Panel width="100%">
-                  <div className="panel-body map-body">
-                    <div className="map-head">
-                      <TextView as="h2" id="map-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
-                        Now
-                      </TextView>
-                      {drawing ? (
-                        <PrimaryButton title="Drag on the map to draw" icon={ICONS.plus} aria-pressed onClick={() => setDrawing(false)} />
-                      ) : (
-                        <Button title="Draw an area" icon={ICONS.plus} alwaysShowText aria-pressed={false} onClick={() => setDrawing(true)} />
-                      )}
-                    </div>
-                    {zones && (
-                      <ZoneMap
-                        zones={zones}
-                        places={places}
-                        selected={selected}
-                        drawing={drawing}
-                        onSelect={chooseOnMap}
-                        onDraw={(rect) => {
-                          setDrawing(false)
-                          void addZone(rect)
-                        }}
-                      />
-                    )}
-                    <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} aria-live="polite">
-                      {places.length === 0
-                        ? 'No one in training is being followed right now. It starts when a trainee agrees on the glasses.'
-                        : places.map((place) => `${place.name}: ${place.zone ? place.zone.name : 'not recognised yet'}`).join(' · ')}
-                    </TextView>
-                  </div>
-                </Panel>
-              </section>
+              {!ready ? (
+                slow && <Waiting what="Getting the map" />
+              ) : (
+                <>
+                  <section aria-labelledby="map-heading">
+                    <Panel width="100%">
+                      <div className="panel-body map-body">
+                        <div className="map-head">
+                          <TextView as="h2" id="map-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                            Now
+                          </TextView>
+                          {drawing ? (
+                            <PrimaryButton title="Drag on the map to draw" icon={ICONS.plus} aria-pressed onClick={() => setDrawing(false)} />
+                          ) : (
+                            <Button title="Draw an area" icon={ICONS.plus} alwaysShowText aria-pressed={false} onClick={() => setDrawing(true)} />
+                          )}
+                        </div>
+                        {zones && (
+                          <ZoneMap
+                            zones={zones}
+                            places={places}
+                            selected={selected}
+                            drawing={drawing}
+                            onSelect={chooseOnMap}
+                            onDraw={(rect) => {
+                              setDrawing(false)
+                              void addZone(rect)
+                            }}
+                          />
+                        )}
+                        <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} aria-live="polite">
+                          {places.length === 0
+                            ? 'No one in training is being followed right now. It starts when a trainee agrees on the glasses.'
+                            : places.map((place) => `${place.name}: ${place.zone ? place.zone.name : 'not recognised yet'}`).join(' · ')}
+                        </TextView>
+                      </div>
+                    </Panel>
+                  </section>
 
-              <Checkpoints zones={zones ?? []} processes={processes ?? []} />
+                  <Checkpoints zones={zones ?? []} processes={processes ?? []} />
+                </>
+              )}
             </div>
           </ScrollView>
         </section>
@@ -163,48 +184,52 @@ export function MapView() {
         <section className="split-detail" aria-label="Areas">
           <ScrollView ariaLabel="Areas" className="detail-scroll">
             <div className="column-stack">
-              {chosen ? (
-                <ZoneForm key={chosen.id} zone={chosen} onSave={saveZone} onRemove={removeZone} onClose={() => setSelected(null)} />
-              ) : (
-                <section aria-labelledby="areas-heading" className="route-section">
-                  <TextView as="h2" id="areas-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label list-label">
-                    Areas
-                  </TextView>
-                  {zones && zones.length === 0 ? (
-                    <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-note">
-                      No areas yet. Draw the aisles, the packing station and the loading bay on the map.
-                    </TextView>
+              {ready && (
+                <>
+                  {chosen ? (
+                    <ZoneForm key={chosen.id} zone={chosen} onSave={saveZone} onRemove={removeZone} onClose={() => setSelected(null)} />
                   ) : (
-                    <InlineList label="Areas">
-                      {(zones ?? []).map((zone) => (
-                        <ListItem key={zone.id} title={zone.name} subtitle={KIND_NAME[zone.kind]} icon={ICONS.map} visualStateOverride={selected === zone.id ? VisualState.FOCUSED : undefined} onClick={() => setSelected(zone.id)} />
-                      ))}
-                    </InlineList>
-                  )}
-                </section>
-              )}
-              <Unlock places={places} processes={processes ?? []} />
-              <Panel width="100%">
-                <div className="panel-body">
-                  <TextView as="h2" id="follow-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
-                    What is followed
-                  </TextView>
-                  <ul className="dot-list" aria-labelledby="follow-heading">
-                    {[
-                      'Only during a worker\'s training period, and only after they agreed on the glasses. The glasses show when it is on.',
-                      "The area they are in now and today's areas, on the server's memory only. Never saved to disk.",
-                      'Owl recognises the place on your own server. The camera pictures are compared and dropped, never saved and never sent to the model.',
-                      'Deleted when training ends or the worker says no. Not part of their training result.',
-                    ].map((line) => (
-                      <li key={line}>
-                        <TextView as="span" textStyle={TextStyle.BODY2}>
-                          {line}
+                    <section aria-labelledby="areas-heading" className="route-section">
+                      <TextView as="h2" id="areas-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label list-label">
+                        Areas
+                      </TextView>
+                      {zones && zones.length === 0 ? (
+                        <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-note">
+                          No areas yet. Draw the aisles, the packing station and the loading bay on the map.
                         </TextView>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </Panel>
+                      ) : (
+                        <InlineList label="Areas">
+                          {(zones ?? []).map((zone) => (
+                            <ListItem key={zone.id} title={zone.name} subtitle={KIND_NAME[zone.kind]} icon={ICONS.map} visualStateOverride={selected === zone.id ? VisualState.FOCUSED : undefined} onClick={() => setSelected(zone.id)} />
+                          ))}
+                        </InlineList>
+                      )}
+                    </section>
+                  )}
+                  <Unlock places={places} processes={processes ?? []} />
+                  <Panel width="100%">
+                    <div className="panel-body">
+                      <TextView as="h2" id="follow-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                        What is followed
+                      </TextView>
+                      <ul className="dot-list" aria-labelledby="follow-heading">
+                        {[
+                          'Only during a worker\'s training period, and only after they agreed on the glasses. The glasses show when it is on.',
+                          "The area they are in now and today's areas, on the server's memory only. Never saved to disk.",
+                          'Owl recognises the place on your own server. The camera pictures are compared and dropped, never saved and never sent to the model.',
+                          'Deleted when training ends or the worker says no. Not part of their training result.',
+                        ].map((line) => (
+                          <li key={line}>
+                            <TextView as="span" textStyle={TextStyle.BODY2}>
+                              {line}
+                            </TextView>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </Panel>
+                </>
+              )}
             </div>
           </ScrollView>
         </section>

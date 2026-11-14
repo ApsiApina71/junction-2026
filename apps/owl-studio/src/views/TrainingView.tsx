@@ -1,6 +1,7 @@
 import { Button, ContainerHeader, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useCallback, useEffect, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
+import { useShowAfter } from '../lib/hooks.ts'
 import { useStudio } from '../lib/studio.ts'
 import { newId, resultText, todayIso } from '../lib/training.ts'
 import { count } from '../lib/words.ts'
@@ -18,10 +19,15 @@ import { useToast } from '../ui/toast.ts'
 const SIGN_LIMIT = 300
 
 /** The company's training: who is in it, the levels per role, and the sign for customer service mode. */
+/** How long a view waits for data it can do without before it is drawn (the sign at the desk). */
+const OPTIONAL_WAIT_MS = 1500
+
 export function TrainingView() {
   const { api, employees, processes } = useStudio()
   const [trainees, setTrainees] = useState<Trainee[] | null>(null)
   const [plans, setPlans] = useState<TrainingPlan[] | null>(null)
+  // The sign at the desk; null when the server has none to give.
+  const [sign, setSign] = useState<string | null>(null)
   const [problem, setProblem] = useState('')
 
   const load = useCallback(
@@ -36,19 +42,30 @@ export function TrainingView() {
     [api],
   )
 
+  // Everything the view shows comes in one load and is drawn once: drawn part by part, each part grew the page under the
+  // toolkit's panels, whose shape follows a frame late, and the view flashed as it opened.
+  // The sign is optional: it is waited for only so long, then the view is drawn without it and it follows.
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.trainees(), api.trainingPlans()])
-      .then(([rows, saved]) => {
+    const signLoad = api.assistSign().catch(() => null)
+    const late = Symbol('late')
+    const signOrLate = Promise.race([signLoad, new Promise<typeof late>((resolve) => setTimeout(() => resolve(late), OPTIONAL_WAIT_MS))])
+    Promise.all([api.trainees(), api.trainingPlans(), signOrLate])
+      .then(([rows, saved, text]) => {
         if (cancelled) return
         setTrainees(rows)
         setPlans(saved)
+        if (text === late) void signLoad.then((arrived) => !cancelled && setSign(arrived))
+        else setSign(text)
       })
       .catch((error) => !cancelled && setProblem(messageOf(error)))
     return () => {
       cancelled = true
     }
   }, [api])
+
+  const ready = (trainees !== null && plans !== null) || !!problem
+  const slow = useShowAfter(!ready)
 
   return (
     <Page headerText="Training" enableSystemBarInset={false} className="route">
@@ -62,45 +79,50 @@ export function TrainingView() {
 
               {problem && <Problem>{problem}</Problem>}
 
-              <section aria-labelledby="trainees-heading" className="route-section">
-                <TextView as="h2" id="trainees-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
-                  In training
-                </TextView>
-                {trainees === null && !problem && <Waiting what="Getting who is in training" />}
-                {trainees !== null && trainees.length === 0 && (
-                  <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
-                    No one is in training. Start a training period for a new worker below.
-                  </TextView>
-                )}
-                {trainees !== null && trainees.length > 0 && (
-                  <ul className="tile-grid training-rows" aria-label="In training">
-                    {trainees.map((trainee) => (
-                      <li key={trainee.employee_id}>
-                        <TraineeCard trainee={trainee} onChange={load} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+              {!ready ? (
+                slow && <Waiting what="Getting who is in training" />
+              ) : (
+                <>
+                  <section aria-labelledby="trainees-heading" className="route-section">
+                    <TextView as="h2" id="trainees-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                      In training
+                    </TextView>
+                    {trainees !== null && trainees.length === 0 && (
+                      <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                        No one is in training. Start a training period for a new worker below.
+                      </TextView>
+                    )}
+                    {trainees !== null && trainees.length > 0 && (
+                      <ul className="tile-grid training-rows" aria-label="In training">
+                        {trainees.map((trainee) => (
+                          <li key={trainee.employee_id}>
+                            <TraineeCard trainee={trainee} onChange={load} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
 
-              {plans && employees && <StartTraining employees={employees} trainees={trainees ?? []} plans={plans} onStarted={load} />}
+                  {plans && employees && <StartTraining employees={employees} trainees={trainees ?? []} plans={plans} onStarted={load} />}
 
-              <section aria-labelledby="plans-heading" className="route-section">
-                <TextView as="h2" id="plans-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
-                  Target level per role
-                </TextView>
-                <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                  Which steps a new worker does without help, and how many times. Only steps Owl verified count. A mistake the worker fixed is learning, not a minus point.
-                </TextView>
-                {plans !== null && (
-                  <div className="plans">
-                    {plans.map((plan) => (
-                      <PlanEditor key={plan.id} plan={plan} processes={processes ?? []} onSaved={load} />
-                    ))}
-                    <NewPlan plans={plans} onSaved={load} />
-                  </div>
-                )}
-              </section>
+                  <section aria-labelledby="plans-heading" className="route-section">
+                    <TextView as="h2" id="plans-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                      Target level per role
+                    </TextView>
+                    <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                      Which steps a new worker does without help, and how many times. Only steps Owl verified count. A mistake the worker fixed is learning, not a minus point.
+                    </TextView>
+                    {plans !== null && (
+                      <div className="plans">
+                        {plans.map((plan) => (
+                          <PlanEditor key={plan.id} plan={plan} processes={processes ?? []} onSaved={load} />
+                        ))}
+                        <NewPlan plans={plans} onSaved={load} />
+                      </div>
+                    )}
+                  </section>
+                </>
+              )}
             </div>
           </ScrollView>
         </section>
@@ -124,7 +146,7 @@ export function TrainingView() {
                   </ul>
                 </div>
               </Panel>
-              <SignEditor />
+              {ready && sign !== null && <SignEditor initial={sign} />}
             </div>
           </ScrollView>
         </section>
@@ -438,29 +460,12 @@ function NewPlan({ plans, onSaved }: { plans: TrainingPlan[]; onSaved: () => Pro
 }
 
 /** JUN-98: the sign at the counter that tells customers Owl is listening. */
-function SignEditor() {
+function SignEditor({ initial }: { initial: string }) {
   const { api } = useStudio()
   const toast = useToast()
-  const [saved, setSaved] = useState<string | null>(null)
-  const [text, setText] = useState('')
+  const [saved, setSaved] = useState(initial)
+  const [text, setText] = useState(initial)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-    api
-      .assistSign()
-      .then((sign) => {
-        if (cancelled) return
-        setSaved(sign)
-        setText(sign)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [api])
-
-  if (saved === null) return null
 
   const save = async () => {
     try {

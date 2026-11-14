@@ -1119,25 +1119,68 @@ body,
 
 .answer {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: var(--uit-spacing-large);
+  margin-block-start: var(--uit-spacing-small);
+}
+
+.answer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
 }
 
 .answer-body {
   min-inline-size: 0;
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--uit-spacing-small);
+  gap: var(--uit-spacing-large);
+  padding-inline-end: var(--uit-spacing-small);
 }
 
+/* The source: one line that opens the passage it came from. */
 .source {
-  margin: var(--uit-spacing-small) 0 0;
+  margin: 0;
   padding-inline-start: var(--uit-spacing-medium);
   border-inline-start: 4px solid var(--uit-color-border-primary);
+}
+
+.source summary {
   display: flex;
-  flex-direction: column;
-  gap: var(--uit-spacing-xsmall);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--uit-spacing-xsmall) var(--uit-spacing-medium);
+  cursor: pointer;
+  list-style: none;
+}
+
+.source summary::-webkit-details-marker {
+  display: none;
+}
+
+.source-open {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.source[open] .source-open {
+  text-decoration: none;
+}
+
+.source summary:focus-visible {
+  outline: 4px solid var(--uit-color-text-accent);
+  outline-offset: 4px;
+  border-radius: var(--uit-corner-radius-xsmall);
+}
+
+.source > p {
+  margin-block-start: var(--uit-spacing-small);
+}
+
+/* Documents: the question panel gets more of the width than the other split views give their second column. */
+.split.split-wide.split-docs {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
 }
 
 /* The task editor: the task's state and details, then the steps, the open step and what the worker sees. */

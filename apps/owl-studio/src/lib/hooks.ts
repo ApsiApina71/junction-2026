@@ -40,3 +40,20 @@ export function useNow(everyMs = 1000): number {
   }, [everyMs])
   return now
 }
+
+/**
+ * True once `active` has stayed true for `ms`. For a "Getting ..." line that a quick load never shows: a view renders
+ * its content once, when its first data is in, instead of a loading line for a frame and then the content.
+ */
+export function useShowAfter(active: boolean, ms = 400): boolean {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (!active) return
+    const timer = setTimeout(() => setShown(true), ms)
+    return () => {
+      clearTimeout(timer)
+      setShown(false)
+    }
+  }, [active, ms])
+  return active && shown
+}

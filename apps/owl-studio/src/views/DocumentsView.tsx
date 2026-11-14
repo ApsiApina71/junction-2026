@@ -74,7 +74,7 @@ export function DocumentsView() {
 
   return (
     <Page headerText="Documents" enableSystemBarInset={false} className="route">
-      <div className="split split-wide">
+      <div className="split split-wide split-docs">
         <section className="split-list" aria-labelledby="docs-heading">
           <VerticalList insetForHeader ariaLabel="Documents">
             <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-lede">
@@ -170,7 +170,6 @@ export function DocumentsView() {
 function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
   const { api } = useStudio()
   const [question, setQuestion] = useState('')
-  const [asked, setAsked] = useState('')
   const [asking, setAsking] = useState(false)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -181,7 +180,6 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
     setAsking(true)
     setAnswer(null)
     setProblem(null)
-    setAsked(text)
     try {
       setAnswer(await api.ask(text))
     } catch (error) {
@@ -216,58 +214,58 @@ function TryQuestion({ hasDocs }: { hasDocs: boolean }) {
             onSend={(words) => void ask(words)}
             inputProps={{ 'aria-label': 'Your question', maxLength: 500, onKeyDown: keepCaretKeys }}
           />
+          {/* The question stays in the field above, so the answer does not repeat it. The owl and the state head the
+              answer, which then has the panel's whole width; the source is one line that opens the passage. */}
           <div className="answer" aria-live="polite">
-            <Avatar src={`/owl/states/${owl}.png`} alt="" size={AvatarSize.LARGE} />
-            <div className="answer-body">
-              {asking && (
+            <div className="answer-head">
+              <Avatar src={`/owl/states/${owl}.png`} alt="" size={AvatarSize.MEDIUM} />
+              {asking ? (
                 <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
                   Owl is reading your documents
                 </TextView>
-              )}
-              {!asking && !answer && !problem && (
+              ) : answer ? (
+                answer.found ? (
+                  <TextView as="p" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                    Owl answers
+                  </TextView>
+                ) : (
+                  <StatusText tone="warning">Not in your documents</StatusText>
+                )
+              ) : problem ? null : (
                 <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
                   {hasDocs ? 'The answer shows here, with its source.' : 'Add a document first, then ask about something in it.'}
                 </TextView>
               )}
-              {problem && <Problem>{problem}</Problem>}
-              {answer && (
-                <>
-                  <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                    {`"${asked}"`}
-                  </TextView>
-                  {answer.found ? (
-                    <>
-                      <TextView as="p" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
-                        Owl answers
-                      </TextView>
-                      <TextView as="p" textStyle={TextStyle.BODY2}>
-                        {answer.text}
-                      </TextView>
-                      {answer.sources.map((source, i) => (
-                        <figure className="source" key={i}>
-                          <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY}>
-                            {`From ${source.doc}${source.section ? `, ${source.section}` : ''}`}
-                          </TextView>
-                          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
-                            {source.quote}
-                          </TextView>
-                        </figure>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      <StatusText tone="warning">Not in your documents</StatusText>
-                      <TextView as="p" textStyle={TextStyle.BODY2}>
-                        {answer.text}
-                      </TextView>
-                      <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                        Owl does not guess. Add the document that covers this and it can answer.
-                      </TextView>
-                    </>
-                  )}
-                </>
-              )}
             </div>
+            {problem && <Problem>{problem}</Problem>}
+            {answer && (
+              <div className="answer-body">
+                <TextView as="p" textStyle={TextStyle.BODY2}>
+                  {answer.text}
+                </TextView>
+                {answer.found ? (
+                  answer.sources.map((source, i) => (
+                    <details className="source" key={i}>
+                      <summary>
+                        <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY}>
+                          {`From ${source.doc}${source.section ? `, ${source.section}` : ''}`}
+                        </TextView>
+                        <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="source-open">
+                          The passage
+                        </TextView>
+                      </summary>
+                      <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                        {source.quote}
+                      </TextView>
+                    </details>
+                  ))
+                ) : (
+                  <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                    Owl does not guess. Add the document that covers this and it can answer.
+                  </TextView>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Panel>

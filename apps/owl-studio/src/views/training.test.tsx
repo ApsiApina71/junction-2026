@@ -151,6 +151,46 @@ function mapApi(patch = {}) {
   })
 }
 
+describe('opening without a flash', () => {
+  it('draws Training once, when its data is in, with no loading line for a quick load', async () => {
+    renderWith(<TrainingView />, fakeStudio({ api: trainingApi([trainee()]) }))
+    expect(screen.queryByText('Getting who is in training')).toBeNull()
+    expect(screen.queryByText('In training')).toBeNull()
+    expect(await screen.findByText(/Sami, Warehouse picker/)).toBeTruthy()
+    expect(screen.getByText('Customer service: the sign at the desk')).toBeTruthy()
+    expect(screen.queryByText('Getting who is in training')).toBeNull()
+  })
+
+  it('says it is getting the data only when that takes a while', async () => {
+    renderWith(<TrainingView />, fakeStudio({ api: trainingApi([], { trainees: vi.fn(() => new Promise<Trainee[]>(() => {})) }) }))
+    expect(screen.queryByText('Getting who is in training')).toBeNull()
+    expect(await screen.findByText('Getting who is in training', {}, { timeout: 1500 })).toBeTruthy()
+  })
+
+  it('draws Training without the sign when the sign does not come, and adds it when it does', async () => {
+    let giveSign: (text: string) => void = () => {}
+    const sign = new Promise<string>((resolve) => (giveSign = resolve))
+    renderWith(<TrainingView />, fakeStudio({ api: trainingApi([trainee()], { assistSign: vi.fn(() => sign) }) }))
+    expect(await screen.findByText(/Sami, Warehouse picker/, {}, { timeout: 2500 })).toBeTruthy()
+    expect(screen.queryByText('Customer service: the sign at the desk')).toBeNull()
+    giveSign('Owl listens here.')
+    expect(await screen.findByText('Customer service: the sign at the desk')).toBeTruthy()
+  })
+
+  it('draws the map when the places are slow, without them', async () => {
+    renderWith(<MapView />, fakeStudio({ api: mapApi({ places: vi.fn(() => new Promise(() => {})) }) }))
+    expect(await screen.findByRole('img', { name: /^Map of 2 areas/ }, { timeout: 2500 })).toBeTruthy()
+  })
+
+  it('never says the map is empty before its areas have come in', async () => {
+    renderWith(<MapView />, fakeStudio({ api: mapApi({ zones: vi.fn(() => new Promise<Zone[]>(() => {})) }) }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByText('Draw an area first.')).toBeNull()
+    expect(screen.queryByText(/No areas yet/)).toBeNull()
+    expect(screen.queryByText(/No one in training is being followed/)).toBeNull()
+  })
+})
+
 describe('map', () => {
   it('shows where each trainee is now', async () => {
     renderWith(<MapView />, fakeStudio({ api: mapApi() }))
