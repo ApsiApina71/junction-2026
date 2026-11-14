@@ -29,6 +29,7 @@ import type { Issue } from '../lib/steps.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { Check, CheckKind, Employee, OrderLine, Process, Step } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
+import { ONE_COLUMN_EDITOR, prefersReducedMotion, useMedia } from '../ui/media.ts'
 import { Actions, CharacterCount, ChoiceRow, EditInput, InlineList, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast, useUnsaved } from '../ui/toast.ts'
@@ -44,6 +45,10 @@ export function TaskEditor({ processId }: { processId: string }) {
   const [saved, setSaved] = useState<Process | null>(null)
   const [draft, setDraft] = useState<Process | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // One column (a phone, a tablet, a narrow window): the chosen step's form is below the list, not beside it.
+  const oneColumn = useMedia(ONE_COLUMN_EDITOR)
+  // Counts taps on a step in one column, so even the step already chosen is brought into view again.
+  const [reveal, setReveal] = useState(0)
   const [busy, setBusy] = useState<Busy>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -84,6 +89,12 @@ export function TaskEditor({ processId }: { processId: string }) {
     setUnsaved(dirty)
     return () => setUnsaved(false)
   }, [dirty, setUnsaved])
+
+  // After a step is chosen by hand in one column: its form starts under the page title (index.css, scroll-margin).
+  useEffect(() => {
+    if (reveal === 0) return
+    document.getElementById('step-form')?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }, [reveal])
 
   // Wrong stops saving. Cut text and steps no person has reviewed stop publishing.
   const wrong = useMemo(() => (draft ? validateProcess(draft) : []), [draft])
@@ -130,6 +141,12 @@ export function TaskEditor({ processId }: { processId: string }) {
       current && { ...current, steps: current.steps.map((s) => (s.id === stored.id ? { ...s, clip_url: stored.clip_url, reference_image_url: stored.reference_image_url } : s)) }
     setSaved(withMedia)
     setDraft(withMedia)
+  }
+
+  // Choosing a step by hand in one column brings its form into view; side by side it already is, so nothing moves.
+  const choose = (stepId: string) => {
+    setSelectedId(stepId)
+    if (oneColumn) setReveal((n) => n + 1)
   }
 
   const move = (from: number, to: number) => {
@@ -230,9 +247,9 @@ export function TaskEditor({ processId }: { processId: string }) {
                       <TextField id="task-summary" label="In one sentence" value={draft.summary} multiline onChange={(summary) => setDraft({ ...draft, summary })} />
                     </div>
                   </Panel>
-                  <InlineList label="Language of this task">
+                  <InlineList label="Language">
                     <ChoiceRow
-                      label="Language of this task"
+                      label="Language"
                       choices={languageChoices}
                       value={draft.language}
                       onChange={(language) => setDraft({ ...draft, language })}
@@ -313,7 +330,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                             setDrag(null)
                           }}
                           onDragEnd={() => setDrag(null)}
-                          onClick={() => setSelectedId(step.id)}
+                          onClick={() => choose(step.id)}
                         />
                       )
                     })}
@@ -332,10 +349,12 @@ export function TaskEditor({ processId }: { processId: string }) {
                 <p className="visually-hidden" aria-live="polite">
                   {moved}
                 </p>
-                {!isDraft && <Learners process={saved} headingRef={learnersRef} />}
+                {!isDraft && !oneColumn && <Learners process={saved} headingRef={learnersRef} />}
               </section>
 
               {selected && <StepForm key={selected.id} step={selected} total={draft.steps.length} process={draft} onChange={changeStep} onStored={storedMedia} />}
+              {/* In one column, who learns the task comes after the step being edited, so a chosen step is reached first. */}
+              {!isDraft && oneColumn && <Learners process={saved} headingRef={learnersRef} />}
             </div>
           </div>
         </ScrollView>
@@ -506,7 +525,7 @@ function StepForm({ step, total, process, onChange, onStored }: { step: Step; to
 
   return (
     <>
-      <section className="step-form" aria-labelledby="step-heading">
+      <section id="step-form" className="step-form" aria-labelledby="step-heading">
         <Panel width="100%">
           <div className="panel-body step-form-body">
             <div className="step-form-head">
@@ -693,12 +712,14 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
           <ul className="criteria">
             {check.criteria.map((criterion, i) => (
               <li key={i}>
+                {/* Wraps instead of scrolling sideways on a narrow screen; one thing is one line of text, so a line break is a space. */}
                 <EditInput
                   value={criterion}
+                  multiline
                   label={`Thing to look for ${i + 1}`}
                   placeholder={i === 0 ? 'The box is taped shut' : 'Something to look for'}
                   autoFocus={focusNew && i === check.criteria.length - 1}
-                  onChange={(text) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? text : c)) })}
+                  onChange={(text) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? text.replace(/\s*\n\s*/g, ' ') : c)) })}
                 />
                 <Button title={`Remove thing to look for ${i + 1}`} icon={ICONS.x} onClick={() => set({ ...check, criteria: check.criteria.filter((_, at) => at !== i) })} />
               </li>

@@ -24,7 +24,8 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
 
   return (
     <Page headerText="People" enableSystemBarInset={false} className="route">
-      <div className="split">
+      {/* On a phone the list and an open record take the screen in turn (index.css). */}
+      <div className={adding || selected ? 'split is-master-detail has-record' : 'split is-master-detail'}>
         <section className="split-list" aria-label="Everyone">
           <VerticalList insetForHeader ariaLabel="People">
             <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-lede">
@@ -85,7 +86,12 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
 
         <section className="split-detail" aria-label={adding ? 'New person' : (selected?.name ?? 'A welcome in their own language')}>
           {adding || selected ? (
-            <PersonForm key={selected?.id ?? 'new'} employee={selected} />
+            <>
+              <div className="phone-back">
+                <Button title="Everyone" icon={ICONS.back} alwaysShowText onClick={() => (window.location.hash = href('people'))} />
+              </div>
+              <PersonForm key={selected?.id ?? 'new'} employee={selected} />
+            </>
           ) : (
             <ScrollView ariaLabel="About the welcome" className="detail-scroll" tabIndex={0}>
               <Panel width="100%">

@@ -102,7 +102,10 @@ export function activity(connection: Connection, sessions: HelpSession[] | null,
   const asking = waiting(sessions)
   if (asking.length === 1) return { tone: 'needs-you', text: `${workerName(asking[0], employees)} is asking for help`, owl: 'alert', helpId: asking[0].id }
   if (asking.length > 1) return { tone: 'needs-you', text: `${asking.length} people are asking for help`, owl: 'alert', helpId: asking[0].id }
-  const helped = sessions.find((session) => session.status === 'connected')
+  // JUN-107: a call ringing a manager who answers on the phone rings here: that person is needed now.
+  const ringing = sessions.find((session) => session.status === 'ringing' && onManagerPhone(session))
+  if (ringing) return { tone: 'needs-you', text: `${workerName(ringing, employees)} is calling ${ringing.assignee_name ?? 'the shift manager'}`, owl: 'alert', helpId: ringing.id }
+  const helped = sessions.find((session) => session.status === 'connected' || (session.status === 'accepted' && onManagerPhone(session)))
   if (helped) {
     const step = stepOf(helped, processes)
     const name = workerName(helped, employees)

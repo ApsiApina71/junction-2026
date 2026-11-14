@@ -139,6 +139,13 @@ describe('the line under the owl', () => {
     expect(now).toEqual({ tone: 'calm', text: 'Sami is on step 2, with your help', owl: 'watching', helpId: 'help-1' })
   })
 
+  it('lights the lamp while a call rings a manager who answers on the phone, and not one on the glasses (JUN-107)', () => {
+    const phone = helpSession({ status: 'ringing', routed: 'manager', assignee: 'emp-mika', assignee_name: 'Mika', answers_on: 'phone' })
+    expect(activity(online, [phone], [sami], [process()])).toEqual({ tone: 'needs-you', text: 'Sami is calling Mika', owl: 'alert', helpId: 'help-1' })
+    expect(activity(online, [{ ...phone, status: 'accepted' }], [sami], [process()])).toMatchObject({ tone: 'calm', text: 'Sami is on step 2, with your help', owl: 'watching' })
+    expect(activity(online, [{ ...phone, answers_on: 'glasses' }], [sami], [process()]).owl).toBe('resting')
+  })
+
   it('rests when no one asks, and only claims what the server knows', () => {
     expect(activity(online, [helpSession({ status: 'ended' })], [sami], [process()])).toEqual({ tone: 'calm', text: 'No one needs help right now', owl: 'resting', helpId: null })
   })

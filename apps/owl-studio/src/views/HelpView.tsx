@@ -384,10 +384,11 @@ function HelpConsole({ helpId }: { helpId: string }) {
               {mark && <span className="ring" style={markPosition(mark)} />}
             </button>
           ) : (
-            <Panel width="100%" className="frame-empty">
+            // Waiting: the box keeps the picture's place. Ended: a short note, not an empty picture-sized box.
+            <Panel width="100%" className={ended ? 'frame-empty is-ended' : 'frame-empty'}>
               <div className="panel-body">
                 <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
-                  {ended ? `The picture was deleted when help ended.` : `Waiting for the first picture from ${name}'s glasses.`}
+                  {ended ? `Help ended at ${clockTime(session.updated_at)}. The picture was deleted when it ended.` : `Waiting for the first picture from ${name}'s glasses.`}
                 </TextView>
               </div>
             </Panel>
@@ -408,15 +409,13 @@ function HelpConsole({ helpId }: { helpId: string }) {
               </TextView>
             )}
           </div>
-          <div className="action-dock">
-            {ended ? (
-              <StatusText tone="quiet">{`Ended ${clockTime(session.updated_at)}`}</StatusText>
-            ) : (
+          {!ended && (
+            <div className="action-dock">
               <Actions align="start">
                 <DangerButton title={ending ? 'Ending' : 'End help'} icon={ICONS.x} showLoader={ending} onClick={() => void end()} />
               </Actions>
-            )}
-          </div>
+            </div>
+          )}
         </section>
 
         <section className="console-talk" aria-labelledby="talk-heading">
@@ -483,14 +482,13 @@ function HelpConsole({ helpId }: { helpId: string }) {
         </section>
 
         <section className="console-context" aria-labelledby="context-heading">
+          {/* Labelled above its box like the picture and the conversation, so the three columns line up. */}
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            {step ? `STEP ${step.index} OF ${task?.steps.length ?? step.index}` : 'THE STEP'}
+          </TextView>
           <ScrollView ariaLabel="The step" className="context-scroll" tabIndex={0}>
             <Panel width="100%">
               <div className="panel-body">
-                {step && (
-                  <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                    {`STEP ${step.index} OF ${task?.steps.length ?? step.index}`}
-                  </TextView>
-                )}
                 <TextView as="h2" id="context-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
                   {step ? step.title : (task?.title ?? 'Not in a task')}
                 </TextView>

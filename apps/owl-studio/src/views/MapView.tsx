@@ -6,6 +6,7 @@ import { useStudio } from '../lib/studio.ts'
 import { rectFrom, zoneId } from '../lib/training.ts'
 import type { Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
+import { STACKED_SPLIT, prefersReducedMotion, useMedia } from '../ui/media.ts'
 import { Actions, ChoiceRow, DangerButton, InlineList, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
@@ -25,9 +26,22 @@ export function MapView() {
   const [zones, setZones] = useState<Zone[] | null>(null)
   const [places, setPlaces] = useState<TraineePlace[]>([])
   const [selected, setSelected] = useState<string | null>(null)
+  // Stacked (a phone, a tablet), the chosen area's form is below the map: choosing one on the map brings it into view.
+  const stacked = useMedia(STACKED_SPLIT)
+  // Counts choices on the map when stacked, so even the area already chosen is brought into view again.
+  const [reveal, setReveal] = useState(0)
+  const chooseOnMap = (zoneId: string) => {
+    setSelected(zoneId)
+    if (stacked) setReveal((n) => n + 1)
+  }
   const [drawing, setDrawing] = useState(false)
   const [problem, setProblem] = useState('')
   const toast = useToast()
+
+  useEffect(() => {
+    if (reveal === 0) return
+    document.getElementById('zone-form')?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }, [reveal])
 
   useEffect(() => {
     let cancelled = false
@@ -64,7 +78,7 @@ export function MapView() {
     try {
       await api.saveZone(zone)
       setZones([...all, zone])
-      setSelected(zone.id)
+      chooseOnMap(zone.id)
       toast({ message: `${name} is on the map. Give it a name.` })
     } catch (error) {
       setProblem(messageOf(error))
@@ -125,7 +139,7 @@ export function MapView() {
                         places={places}
                         selected={selected}
                         drawing={drawing}
-                        onSelect={setSelected}
+                        onSelect={chooseOnMap}
                         onDraw={(rect) => {
                           setDrawing(false)
                           void addZone(rect)
@@ -278,7 +292,7 @@ function ZoneForm({ zone, onSave, onRemove, onClose }: { zone: Zone; onSave: (zo
   const [kind, setKind] = useState<ZoneKind>(zone.kind)
   const kindChoices = (Object.keys(KIND_NAME) as ZoneKind[]).map((k) => ({ value: k, label: KIND_NAME[k] }))
   return (
-    <section aria-labelledby="zone-heading">
+    <section id="zone-form" aria-labelledby="zone-heading">
       <Panel width="100%">
         <div className="panel-body zone-body">
           <TextView as="h2" id="zone-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>

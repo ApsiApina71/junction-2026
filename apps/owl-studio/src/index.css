@@ -135,7 +135,8 @@ body,
   }
 }
 
-@media (min-width: 701px) and (max-height: 700px) {
+/* The compact rows wherever the full ones would not fit all seven sections (0.72 zoom needs 719 px with full rows). */
+@media (min-width: 701px) and (max-height: 700px), (min-width: 1680px) and (max-height: 760px) {
   .sidebar-nav {
     --uit-listitem-min-height: 76px;
     --uit-spacing-large: 16px;
@@ -377,6 +378,10 @@ body,
   aspect-ratio: 4 / 3;
 }
 
+.frame-empty.is-ended {
+  aspect-ratio: auto;
+}
+
 /* The ring the server draws on the picture: same yellow, same dark edge, 9% of the short side in radius. */
 .ring {
   position: absolute;
@@ -550,6 +555,18 @@ body,
   .console-context > * + * {
     margin-block-start: var(--uit-spacing-medium);
   }
+
+  /* The conversation is as tall as what was said, up to about half the screen, then it scrolls: the quick replies
+     and the field stay right under it instead of under an empty box. */
+  .talk-box {
+    block-size: auto;
+  }
+
+  .talk-box .talk-scroll[data-scroll-view='true'],
+  .talk-box [data-scroll-view='true'] {
+    height: auto !important;
+    max-block-size: calc(50vh / var(--studio-zoom));
+  }
 }
 
 /* A list and the record it opens, side by side: each column has one scroller and its actions docked under it. */
@@ -642,6 +659,73 @@ body,
 
   .split-detail {
     padding-block-start: var(--uit-spacing-large);
+  }
+}
+
+/* The toolkit's own scrollers with the page title floating over their top (insetForHeader, which sets an inline
+   padding-top of 64 px plus the page offset) draw no top fade, so content scrolled up ran under the title chip. They
+   fade it out under the title. At rest their content starts at 88 px, where the mask is already opaque. */
+[data-scroll-view='true'][style*='padding-top'] {
+  mask-image: linear-gradient(to bottom, transparent calc(var(--uit-spacing-5xl) + var(--uit-spacing-small)), #000 calc(var(--uit-spacing-5xl) + var(--uit-spacing-large)));
+}
+
+/* Studio's own page scrollers (a wrapped console, a stacked list and record) lie under the toolkit Page's floating
+   title. What scrolls up fades out under the title, as in the toolkit's own ScrollView, instead of running into it.
+   At rest the content starts at 5xl + xlarge, below the fade. */
+@media (max-width: 1400px) {
+  .console {
+    mask-image: linear-gradient(to bottom, transparent calc(var(--uit-spacing-5xl) + var(--uit-spacing-small)), #000 calc(var(--uit-spacing-5xl) + var(--uit-spacing-xlarge)));
+  }
+}
+
+@media (max-width: 900px) {
+  .split {
+    mask-image: linear-gradient(to bottom, transparent calc(var(--uit-spacing-5xl) + var(--uit-spacing-small)), #000 calc(var(--uit-spacing-5xl) + var(--uit-spacing-xlarge)));
+  }
+}
+
+/* On a phone a row's title gets a second line instead of being cut ("Kide Logistics: warehouse handbook"). The toolkit
+   has no prop for it (only subtitleMaxLines), so this overrides its title class in the pinned 130.33 toolkit; the row
+   grows with it. Scoped under the app so it outranks the toolkit's own rule, which loads later. */
+@media (max-width: 700px) {
+  .studio-app [class*='ListItem-module__titleText'] {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* A list and its records (People) wherever the two would stack (a phone, a tablet, a short or narrow window): the
+   list, or the open record with a way back, never the whole list above the record. */
+.phone-back {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .split.is-master-detail.has-record > .split-list,
+  .split.is-master-detail:not(.has-record) > .split-detail {
+    display: none;
+  }
+
+  /* The record starts under the page's floating title, as the list does. */
+  .split.has-record > .split-detail {
+    padding-block-start: calc(var(--uit-spacing-5xl) + var(--uit-spacing-xlarge));
+  }
+
+  .phone-back {
+    display: flex;
+    padding: 0 var(--uit-spacing-large) var(--uit-spacing-medium);
+  }
+
+  /* Save stays in reach: docked to the bottom of the screen while the record scrolls under it. */
+  .split .action-dock {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 2;
+    padding-inline: var(--uit-spacing-large);
+    background: var(--uit-color-background-window);
+    border-block-start: 1px solid var(--uit-color-border-primary);
   }
 }
 
@@ -834,6 +918,10 @@ body,
   inline-size: 100%;
   block-size: auto;
   border-radius: var(--uit-corner-radius-xsmall);
+}
+
+/* Only while drawing does a drag on the map draw; otherwise a swipe over it scrolls the page as anywhere else. */
+.zone-map.is-drawing {
   touch-action: none;
   user-select: none;
 }
@@ -1094,6 +1182,13 @@ body,
   align-items: start;
 }
 
+/* On a phone the name and sentence, then the language, one under the other: side by side both were squeezed. */
+@media (max-width: 700px) {
+  .task-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .panel-body.task-details-body {
   align-items: stretch;
 }
@@ -1140,6 +1235,12 @@ body,
 .step-list .is-drop-target {
   outline: 3px dashed var(--uit-color-text-accent);
   outline-offset: -3px;
+}
+
+/* Brought into view when a step is chosen in one column: it lands under the page's floating title, not behind it. */
+#step-form,
+#zone-form {
+  scroll-margin-block-start: calc(var(--uit-spacing-5xl) + var(--uit-spacing-large));
 }
 
 .step-form {
@@ -1454,6 +1555,12 @@ body,
   max-block-size: 480px;
 }
 
+/* A thing to look for: one line when short, more when its words need them. */
+.criteria .edit-field.is-multiline {
+  resize: none;
+  min-block-size: 0;
+}
+
 .edit-field::placeholder {
   color: var(--uit-color-text-placeholder);
 }
@@ -1476,16 +1583,113 @@ body,
   opacity: 0.5;
 }
 
-/* On a phone the sidebar goes on top; its list of sections scrolls sideways under the owl. */
-@media (max-width: 700px) {
-  .shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+/* On a phone (App.tsx renders .phone-bar instead of the sidebar): a slim bar on top, the open view under it with
+   the whole height that is left. */
+.shell.is-phone {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  /* The toolkit draws materials' glow on canvases a little wider than their element: never a sideways scroll. */
+  overflow-x: clip;
+}
+
+.phone-bar {
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--uit-spacing-small);
+  padding-block: var(--uit-spacing-medium) var(--uit-spacing-small);
+  border-block-end: 1px solid var(--uit-color-border-primary);
+}
+
+.phone-bar-top {
+  display: flex;
+  align-items: center;
+  gap: var(--uit-spacing-medium);
+  padding-inline: var(--uit-spacing-large) var(--uit-spacing-medium);
+  min-inline-size: 0;
+}
+
+.phone-bar-top .sidebar-head-text {
+  flex: 1;
+}
+
+.phone-bar .brand-mark {
+  inline-size: 56px;
+  block-size: 56px;
+}
+
+.phone-bar-now {
+  display: flex;
+  padding-inline: var(--uit-spacing-large);
+  min-inline-size: 0;
+}
+
+.phone-bar-now:empty {
+  display: none;
+}
+
+/* Meta's tab strip, centred; it scrolls sideways if a narrow phone cannot show every section. It is drawn for the
+   display seen close to the eye, so on a phone it is shown at its own size (undoing the app's zoom): each tab is
+   then a finger's width. */
+.phone-nav {
+  display: flex;
+  justify-content: safe center;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding-inline: var(--uit-spacing-medium);
+}
+
+.phone-nav > * {
+  flex: none;
+  zoom: calc(1 / var(--studio-zoom));
+}
+
+/* A phone on its side, or any window wide enough but too short for the sidebar (src/ui/media.ts, PHONE): the whole bar
+   is one row (owl and name, the sections, Settings), so the open view keeps most of the height there is. What needs a
+   person goes on a row of its own under it. */
+@media (min-width: 701px), (max-height: 500px) {
+  .phone-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--uit-spacing-medium);
+    row-gap: var(--uit-spacing-xsmall);
+    padding: var(--uit-spacing-xsmall) var(--uit-spacing-medium) var(--uit-spacing-xsmall) var(--uit-spacing-large);
   }
 
-  .sidebar {
-    grid-template-rows: auto auto minmax(0, 360px) auto;
-    border-inline-end: 0;
-    border-block-end: 1px solid var(--uit-color-border-primary);
+  .phone-bar-top {
+    display: contents;
+  }
+
+  .phone-bar .brand-mark {
+    inline-size: 44px;
+    block-size: 44px;
+    margin-inline-end: 0;
+  }
+
+  .phone-bar-top .sidebar-head-text {
+    flex: none;
+  }
+
+  .phone-bar-top .sidebar-head-text > :not(:first-child) {
+    display: none;
+  }
+
+  .phone-nav {
+    order: 1;
+    flex: 1 1 0;
+    padding-inline: 0;
+  }
+
+  .phone-settings {
+    order: 2;
+  }
+
+  .phone-bar-now {
+    order: 3;
+    flex-basis: 100%;
+    padding-inline: 0;
   }
 }

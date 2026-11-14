@@ -1,4 +1,4 @@
-import { App as Toolkit, Button, Chip, ChipStyle, IconImage, ListItem, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { App as Toolkit, Button, Chip, ChipStyle, IconImage, ListItem, SubNavigation, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import bell from '@wearables-ui-toolkit/icons/svg/bellring__filled.svg'
 import alertIcon from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
 import cloudAlert from '@wearables-ui-toolkit/icons/svg/cloudbadgealert__filled.svg'
@@ -11,6 +11,7 @@ import { VIEW_TITLE, VIEWS, href, parseRoute } from './lib/route.ts'
 import type { Route, View } from './lib/route.ts'
 import { activity, drafts, useStudio, waiting, workerName } from './lib/studio.ts'
 import { ICONS } from './ui/icons.ts'
+import { NARROW_SIDEBAR, PHONE, useMedia } from './ui/media.ts'
 import type { IconName } from './ui/icons.ts'
 import { Confirm, PrimaryButton, Problem } from './ui/meta.tsx'
 import { ToastProvider } from './ui/Toasts.tsx'
@@ -27,6 +28,7 @@ import { TrainingView } from './views/TrainingView.tsx'
 
 const NAV_ICON: Record<View, IconName> = { tasks: 'tasks', documents: 'documents', people: 'people', training: 'training', map: 'map', help: 'help', data: 'data' }
 
+
 export default function App({ api }: { api?: Api }) {
   return (
     <Toolkit className="studio-app">
@@ -41,6 +43,7 @@ export default function App({ api }: { api?: Api }) {
 
 function Shell() {
   const studio = useStudio()
+  const phone = useMedia(PHONE)
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [leavingTo, setLeavingTo] = useState<string | null>(null)
@@ -102,8 +105,9 @@ function Shell() {
   }, [asking, route.view, studio.employees])
 
   const badge: Partial<Record<View, { count: number; label: string }>> = {
-    tasks: { count: draftCount, label: draftCount === 1 ? '1 draft to review' : `${draftCount} drafts to review` },
-    help: { count: asking.length, label: asking.length === 1 ? `${workerName(asking[0], studio.employees)} is waiting` : `${asking.length} people are waiting` },
+    // Short enough for the narrowest sidebar; who is waiting and on what is in the line above and in Help.
+    tasks: { count: draftCount, label: `${draftCount} to review` },
+    help: { count: asking.length, label: `${asking.length} waiting` },
   }
 
   const offline = studio.connection.state !== 'online' && studio.connection.state !== 'connecting'
@@ -116,7 +120,40 @@ function Shell() {
       <a className="skip-link" href="#main">
         Skip to the content
       </a>
-      <div className="shell">
+      <div className={phone ? 'shell is-phone' : 'shell'}>
+        {phone ? (
+          // On a phone: one slim bar, what needs a person when something does, and Meta's own tab strip for the sections.
+          <header className="phone-bar">
+            <div className="phone-bar-top">
+              <span className="brand-mark" aria-hidden="true">
+                <IconImage source="/owl/logo.svg" style={{ inlineSize: '100%', blockSize: '100%' }} />
+              </span>
+              <div className="sidebar-head-text">
+                <TextView as="span" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                  Owl Studio
+                </TextView>
+                {company && (
+                  <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                    {company}
+                  </TextView>
+                )}
+              </div>
+              <span className="phone-settings">
+                <Button title="Settings" icon={ICONS.settings} initialFocusEligible={false} onClick={() => setSettingsOpen(true)} />
+              </span>
+            </div>
+            <div className="phone-bar-now" aria-live="polite">
+              {now.owl !== 'resting' && <Chip text={now.text} icon={now.tone === 'needs-you' ? bell : now.tone === 'problem' ? alertIcon : resting} chipStyle={now.tone === 'needs-you' ? ChipStyle.EMPHASIZED : ChipStyle.DEEMPHASIZED} maxLines={2} />}
+            </div>
+            <nav aria-label="Main" className="phone-nav">
+              <SubNavigation
+                items={VIEWS.map((view) => ({ label: VIEW_TITLE[view], icon: ICONS[NAV_ICON[view]] }))}
+                active={VIEWS.indexOf(route.view)}
+                onActiveChange={(index) => VIEWS[index] && VIEWS[index] !== route.view && go(VIEWS[index])}
+              />
+            </nav>
+          </header>
+        ) : (
         <header className="sidebar">
           <div className="sidebar-head">
             {/* The logo: the owl silhouette (shared/brand), tinted with the text colour by the toolkit's icon renderer. */}
@@ -163,6 +200,7 @@ function Shell() {
             <Button title="Settings" icon={ICONS.settings} alwaysShowText initialFocusEligible={false} onClick={() => setSettingsOpen(true)} />
           </div>
         </header>
+        )}
 
         <div id="main" className="main" tabIndex={-1}>
           {offline && (
@@ -212,9 +250,12 @@ function Shell() {
 /** Which server Studio talks to, said in a Chip at the foot of the sidebar. */
 function ConnectionChip() {
   const { connection, api } = useStudio()
+  const narrow = useMedia(NARROW_SIDEBAR)
   const full = api.config.baseUrl.replace(/^https?:\/\//, '')
-  // A tunnel address is long: the chip shows its start and keeps the whole address as a tooltip, so it stays in the sidebar.
-  const where = full.length > 22 ? `${full.slice(0, 21)}…` : full
+  // The chip must stay inside the sidebar at every width. A short address (127.0.0.1:8000) fits beside the state in
+  // the wider sidebar; a tunnel address never does, even cut. Then the chip says only the state, and the whole
+  // address is its tooltip and in Settings.
+  const where = !narrow && full.length <= 16 ? full : undefined
   const chip =
     connection.state === 'online' ? (
       <Chip text="Connected" metadata={where} icon={cloudCheck} chipStyle={ChipStyle.DEEMPHASIZED} />

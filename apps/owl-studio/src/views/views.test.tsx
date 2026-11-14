@@ -257,9 +257,9 @@ describe('reviewing a task', () => {
 
     // The page header names the task.
     expect(screen.getByRole('main', { name: 'Pick and pack an order' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /^Language of this task/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Language\b/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Edit name and language' }))
-    await user.click(screen.getByRole('button', { name: /^Language of this task/ }))
+    await user.click(screen.getByRole('button', { name: /^Language\b/ }))
     await user.click(screen.getByRole('radio', { name: /^Suomi/ }))
     await user.click(screen.getByRole('button', { name: 'Save draft' }))
     await waitFor(() => expect(studio.api.saveProcess).toHaveBeenCalled())

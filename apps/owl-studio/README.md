@@ -48,8 +48,9 @@ Studio is built from Meta's [UI Toolkit for Meta Ray-Ban Display](https://github
 | `src/views/` | One file per view, plus the glasses preview and Settings |
 | `src/ui/meta.tsx` | Shared parts composed from the toolkit: primary and destructive buttons, status words, problems, waits, dialogs, edit fields, choice rows |
 | `src/ui/icons.ts` | Meta's filled icons by Studio's names, each imported by its own file |
+| `src/ui/media.ts` | The breakpoints the code needs as well as the CSS: the phone bar (a phone either way, or a window too short for the sidebar at its zoom), the one-column editor, the stacked list and record |
 | `src/ui/Toasts.tsx`, `src/ui/keys.ts` | The toolkit's Toast behind Studio's `useToast`; arrow keys kept for the caret in text fields |
-| `src/index.css` | Layout only, on the toolkit's `--uit-` tokens: the desktop zoom, the shell, each view's regions |
+| `src/index.css` | Layout only, on the toolkit's `--uit-` tokens: the desktop zoom, the shell and the phone bar, each view's regions. On a phone or a short window the sidebar becomes one bar with Meta's `SubNavigation` tab strip; where a list and a record would stack, one of them is shown at a time |
 | `src/test/` | Sample data and a stubbed server for the tests |
 
 ## Not built yet
