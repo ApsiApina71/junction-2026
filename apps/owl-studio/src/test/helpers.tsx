@@ -1,6 +1,7 @@
 // Shared by the tests: sample data shaped like the mock API's, and a Studio with a stubbed server.
 
 import { render } from '@testing-library/react'
+import { App as Toolkit } from '@wearables-ui-toolkit/mrbd'
 import type { ReactElement } from 'react'
 import { vi } from 'vitest'
 import type { Api } from '../lib/api.ts'
@@ -112,8 +113,10 @@ export function fakeStudio(patch: Partial<Studio> = {}): Studio {
 
 export function renderWith(ui: ReactElement, studio: Studio = fakeStudio()) {
   return render(
-    <StudioContext.Provider value={studio}>
-      <ToastProvider>{ui}</ToastProvider>
-    </StudioContext.Provider>,
+    <Toolkit>
+      <StudioContext.Provider value={studio}>
+        <ToastProvider>{ui}</ToastProvider>
+      </StudioContext.Provider>
+    </Toolkit>,
   )
 }

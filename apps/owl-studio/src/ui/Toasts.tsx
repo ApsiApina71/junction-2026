@@ -1,55 +1,18 @@
-import { useCallback, useRef, useState } from 'react'
+import { Toast } from '@wearables-ui-toolkit/mrbd'
+import { useCallback } from 'react'
 import type { ReactNode } from 'react'
-import { Icon } from './Icon.tsx'
+import alert from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
+import check from '@wearables-ui-toolkit/icons/svg/circlecheck__filled.svg'
 import { ToastContext } from './toast.ts'
 import type { ToastInput } from './toast.ts'
 
-interface Shown extends ToastInput {
-  id: number
-}
-
-/** Short messages after an action, at the bottom of the screen. One with Undo stays a little longer. */
+/**
+ * Short messages after an action, shown by the toolkit's Toast (JUN-101): one at a time, in order. A toast carries no
+ * buttons; an action that can be taken back (removing a step) offers Undo where the work is.
+ */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Shown[]>([])
-  const nextId = useRef(1)
-
-  const dismiss = useCallback((id: number) => setToasts((all) => all.filter((toast) => toast.id !== id)), [])
-
-  const show = useCallback(
-    (toast: ToastInput) => {
-      const id = nextId.current++
-      // Keep the newest two, so messages never pile up over the work.
-      setToasts((all) => [...all.slice(-1), { ...toast, id }])
-      setTimeout(() => dismiss(id), toast.action ? 9000 : 5000)
-    },
-    [dismiss],
-  )
-
-  return (
-    <ToastContext.Provider value={show}>
-      {children}
-      <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={toast.tone === 'problem' ? 'toast is-problem' : 'toast'}>
-            <span className="toast-message">{toast.message}</span>
-            {toast.action && (
-              <button
-                type="button"
-                className="toast-action"
-                onClick={() => {
-                  toast.action?.run()
-                  dismiss(toast.id)
-                }}
-              >
-                {toast.action.label}
-              </button>
-            )}
-            <button type="button" className="toast-close" onClick={() => dismiss(toast.id)} aria-label="Dismiss this message">
-              <Icon name="x" size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  )
+  const show = useCallback((toast: ToastInput) => {
+    Toast.show(toast.message, undefined, toast.tone === 'problem' ? alert : check)
+  }, [])
+  return <ToastContext.Provider value={show}>{children}</ToastContext.Provider>
 }

@@ -2,8 +2,7 @@ import { createContext, useContext } from 'react'
 
 export interface ToastInput {
   message: string
-  /** One thing the person can do about it, such as Undo. */
-  action?: { label: string; run: () => void }
+  /** A problem gets the alert icon; everything else is a plain confirmation. */
   tone?: 'plain' | 'problem'
 }
 

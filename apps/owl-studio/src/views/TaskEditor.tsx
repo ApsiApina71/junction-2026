@@ -48,6 +48,8 @@ export function TaskEditor({ processId }: { processId: string }) {
   const [problemsOpen, setProblemsOpen] = useState(false)
   const [drag, setDrag] = useState<{ from: number; over: number | null } | null>(null)
   const [moved, setMoved] = useState('')
+  // The last removed step, offered back as Undo in the bar for a while (a toast carries no buttons).
+  const [removed, setRemoved] = useState<{ step: Step; at: number } | null>(null)
   const learnersRef = useRef<HTMLElement>(null)
 
   // Load once. Later answers from the server never overwrite what is being edited.
@@ -124,16 +126,15 @@ export function TaskEditor({ processId }: { processId: string }) {
     const rest = removeStep(draft.steps, step.id)
     setDraft({ ...draft, steps: rest })
     if (selected?.id === step.id) setSelectedId(rest[Math.min(at, rest.length - 1)]?.id ?? null)
-    toast({
-      message: `Step ${at + 1} removed.`,
-      action: {
-        label: 'Undo',
-        run: () => {
-          setDraft((current) => (current ? { ...current, steps: insertStep(current.steps, step, at) } : current))
-          setSelectedId(step.id)
-        },
-      },
-    })
+    toast({ message: `Step ${at + 1} removed.` })
+    setRemoved({ step, at })
+  }
+
+  const undoRemove = () => {
+    if (!removed) return
+    setDraft((current) => (current ? { ...current, steps: insertStep(current.steps, removed.step, removed.at) } : current))
+    setSelectedId(removed.step.id)
+    setRemoved(null)
   }
 
   /** Opens the step and puts the cursor in the field the problem is about. */
@@ -158,6 +159,7 @@ export function TaskEditor({ processId }: { processId: string }) {
     try {
       const answer = await studio.api.saveProcess({ ...normalizeForSave(draft), status })
       setSaved(answer)
+      setRemoved(null)
       setDraft(answer)
       studio.putProcess(answer)
       setProblemsOpen(false)
@@ -369,6 +371,11 @@ export function TaskEditor({ processId }: { processId: string }) {
           )}
         </div>
         <div className="editor-bar-actions">
+          {removed && (
+            <button type="button" className="button button-quiet" onClick={undoRemove}>
+              Undo
+            </button>
+          )}
           {isDraft ? (
             <>
               <button type="button" className="button button-secondary" onClick={() => void send('save')} disabled={busy !== null || !dirty}>

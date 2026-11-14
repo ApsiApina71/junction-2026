@@ -1,12 +1,18 @@
+import { App as Toolkit, Avatar, AvatarSize, Button, Chip, ChipStyle, ListItem, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import bell from '@wearables-ui-toolkit/icons/svg/bellring__filled.svg'
+import alertIcon from '@wearables-ui-toolkit/icons/svg/circlealert__filled.svg'
+import cloudAlert from '@wearables-ui-toolkit/icons/svg/cloudbadgealert__filled.svg'
+import cloudCheck from '@wearables-ui-toolkit/icons/svg/cloudcheck__filled.svg'
+import resting from '@wearables-ui-toolkit/icons/svg/circlecheck__filled.svg'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { StudioProvider } from './StudioProvider.tsx'
 import type { Api } from './lib/api.ts'
 import { VIEW_TITLE, VIEWS, href, parseRoute } from './lib/route.ts'
 import type { Route, View } from './lib/route.ts'
 import { activity, drafts, useStudio, waiting, workerName } from './lib/studio.ts'
-import { Icon } from './ui/Icon.tsx'
-import type { IconName } from './ui/Icon.tsx'
-import { Dialog, Problem } from './ui/parts.tsx'
+import { ICONS } from './ui/icons.ts'
+import type { IconName } from './ui/icons.ts'
+import { Confirm, PrimaryButton, Problem } from './ui/meta.tsx'
 import { ToastProvider } from './ui/Toasts.tsx'
 import { UnsavedContext } from './ui/toast.ts'
 import { DataView } from './views/DataView.tsx'
@@ -23,11 +29,13 @@ const NAV_ICON: Record<View, IconName> = { tasks: 'tasks', documents: 'documents
 
 export default function App({ api }: { api?: Api }) {
   return (
-    <StudioProvider api={api}>
-      <ToastProvider>
-        <Shell />
-      </ToastProvider>
-    </StudioProvider>
+    <Toolkit className="studio-app">
+      <StudioProvider api={api}>
+        <ToastProvider>
+          <Shell />
+        </ToastProvider>
+      </StudioProvider>
+    </Toolkit>
   )
 }
 
@@ -95,24 +103,13 @@ function Shell() {
 
   const badge: Partial<Record<View, { count: number; label: string }>> = {
     tasks: { count: draftCount, label: draftCount === 1 ? '1 draft to review' : `${draftCount} drafts to review` },
-    help: { count: asking.length, label: asking.length === 1 ? '1 person is waiting' : `${asking.length} people are waiting` },
+    help: { count: asking.length, label: asking.length === 1 ? `${workerName(asking[0], studio.employees)} is waiting` : `${asking.length} people are waiting` },
   }
 
-  const lamp = (
-    <span className={`activity activity-${now.tone}`}>
-      <span className={now.tone === 'needs-you' ? 'lamp is-on' : now.tone === 'problem' ? 'shape shape-square' : 'lamp'} aria-hidden="true" />
-      <span className="activity-text">{now.text}</span>
-    </span>
-  )
-  const activityLine = now.helpId ? (
-    <a className="activity-link" href={href('help', now.helpId)}>
-      {lamp}
-    </a>
-  ) : (
-    lamp
-  )
-
   const offline = studio.connection.state !== 'online' && studio.connection.state !== 'connecting'
+  const go = (view: View) => {
+    window.location.hash = view === 'help' && now.helpId ? href('help', now.helpId) : href(view)
+  }
 
   return (
     <UnsavedContext.Provider value={setUnsaved}>
@@ -121,130 +118,98 @@ function Shell() {
       </a>
       <div className="shell">
         <header className="sidebar">
-          <div className="brand">
-            <span className="avatar avatar-brand">
-              <img src={`/owl/states/${now.owl}.png`} alt="" width="64" height="64" />
-            </span>
-            <div className="brand-text">
-              <span className="brand-name">Owl Studio</span>
-              {company && <span className="brand-company">{company}</span>}
+          <div className="sidebar-head">
+            <Avatar src={`/owl/states/${now.owl}.png`} alt="" size={AvatarSize.LARGE} />
+            <div className="sidebar-head-text">
+              <TextView as="span" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                Owl Studio
+              </TextView>
+              {company && (
+                <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  {company}
+                </TextView>
+              )}
             </div>
-            <button type="button" className="icon-button brand-settings" onClick={() => setSettingsOpen(true)} aria-label="Settings" title="Settings">
-              <Icon name="settings" />
-            </button>
           </div>
-          <div className="activity-row" aria-live="polite">
-            {activityLine}
+          <div className="sidebar-now" aria-live="polite">
+            <Chip text={now.text} icon={now.tone === 'needs-you' ? bell : now.tone === 'problem' ? alertIcon : resting} chipStyle={now.tone === 'needs-you' ? ChipStyle.EMPHASIZED : ChipStyle.DEEMPHASIZED} maxLines={2} />
           </div>
-          <nav className="nav" aria-label="Main">
-            <ul>
+          <nav aria-label="Main" className="sidebar-nav">
+            <VerticalList ariaLabel="Sections">
               {VIEWS.map((view) => {
                 const mark = badge[view]
+                const current = route.view === view
                 return (
-                  <li key={view}>
-                    <a className="nav-link" href={href(view)} aria-current={route.view === view ? 'page' : undefined}>
-                      <Icon name={NAV_ICON[view]} />
-                      <span className="nav-label">{VIEW_TITLE[view]}</span>
-                      {mark && mark.count > 0 && (
-                        <span className="nav-count">
-                          <span aria-hidden="true">{mark.count}</span>
-                          <span className="visually-hidden">, {mark.label}</span>
-                        </span>
-                      )}
-                    </a>
-                  </li>
+                  <ListItem
+                    key={view}
+                    title={VIEW_TITLE[view]}
+                    icon={ICONS[NAV_ICON[view]]}
+                    subtitle={mark && mark.count > 0 ? mark.label : undefined}
+                    subtitleTextColor={SubtitleTextColor.WARNING}
+                    visualStateOverride={current ? VisualState.FOCUSED : undefined}
+                    aria-current={current ? 'page' : undefined}
+                    onClick={() => go(view)}
+                  />
                 )
               })}
-            </ul>
+            </VerticalList>
           </nav>
           <div className="sidebar-foot">
-            <ConnectionLine />
-            <button type="button" className="button button-quiet button-small" onClick={() => setSettingsOpen(true)}>
-              <Icon name="settings" size={18} />
-              Settings
-            </button>
+            <ConnectionChip />
+            <Button title="Settings" icon={ICONS.settings} alwaysShowText onClick={() => setSettingsOpen(true)} />
           </div>
         </header>
 
         <main id="main" className="main" tabIndex={-1}>
           {offline && (
-            <Problem
-              action={
-                <div className="note-actions">
-                  <button type="button" className="button button-secondary button-small" onClick={() => void studio.reload()}>
-                    Try again
-                  </button>
-                  <button type="button" className="button button-quiet button-small" onClick={() => setSettingsOpen(true)}>
-                    Open settings
-                  </button>
-                </div>
-              }
-            >
-              {studio.connection.message}
-            </Problem>
+            <div className="main-problem">
+              <Problem
+                actions={
+                  <>
+                    <Button title="Try again" alwaysShowText onClick={() => void studio.reload()} />
+                    <Button title="Open settings" alwaysShowText onClick={() => setSettingsOpen(true)} />
+                  </>
+                }
+              >
+                {studio.connection.message}
+              </Problem>
+            </div>
           )}
-          {route.view === 'tasks' && (route.id ? <TaskEditor key={route.id} processId={route.id} /> : <TasksView />)}
-          {route.view === 'documents' && <DocumentsView />}
-          {route.view === 'people' && <PeopleView selectedId={route.id} />}
-          {route.view === 'training' && <TrainingView />}
-          {route.view === 'map' && <MapView />}
-          {route.view === 'help' && <HelpView selectedId={route.id} />}
-          {route.view === 'data' && <DataView />}
+          <div className="legacy">
+            {route.view === 'tasks' && (route.id ? <TaskEditor key={route.id} processId={route.id} /> : <TasksView />)}
+            {route.view === 'documents' && <DocumentsView />}
+            {route.view === 'people' && <PeopleView selectedId={route.id} />}
+            {route.view === 'training' && <TrainingView />}
+            {route.view === 'map' && <MapView />}
+            {route.view === 'help' && <HelpView selectedId={route.id} />}
+            {route.view === 'data' && <DataView />}
+          </div>
         </main>
       </div>
 
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       {leavingTo !== null && (
-        <Dialog
+        <Confirm
           title="Leave without saving?"
+          text="Your changes to this task are not saved yet. If you leave now they are lost."
           onClose={() => setLeavingTo(null)}
-          footer={
+          buttons={
             <>
-              <button type="button" className="button button-quiet is-danger" onClick={leave}>
-                Leave without saving
-              </button>
-              <button type="button" className="button button-primary" data-autofocus onClick={() => setLeavingTo(null)}>
-                Keep editing
-              </button>
+              <PrimaryButton title="Keep editing" onClick={() => setLeavingTo(null)} />
+              <Button title="Leave without saving" alwaysShowText onClick={leave} />
             </>
           }
-        >
-          <p>Your changes to this task are not saved yet. If you leave now they are lost.</p>
-        </Dialog>
+        />
       )}
     </UnsavedContext.Provider>
   )
 }
 
-function ConnectionLine() {
+/** Which server Studio talks to, said in a Chip at the foot of the sidebar. */
+function ConnectionChip() {
   const { connection, api } = useStudio()
   const where = api.config.baseUrl.replace(/^https?:\/\//, '')
-  if (connection.state === 'online') {
-    return (
-      <p className="connection">
-        <span className="shape shape-disc tone-success" aria-hidden="true" />
-        <span>
-          Connected to <span className="connection-url">{where}</span>
-        </span>
-      </p>
-    )
-  }
-  if (connection.state === 'connecting') {
-    return (
-      <p className="connection">
-        <span className="spinner" aria-hidden="true" />
-        <span>
-          Connecting to <span className="connection-url">{where}</span>
-        </span>
-      </p>
-    )
-  }
-  return (
-    <p className="connection is-problem">
-      <span className="shape shape-square" aria-hidden="true" />
-      <span>
-        Not connected to <span className="connection-url">{where}</span>
-      </span>
-    </p>
-  )
+  if (connection.state === 'online') return <Chip text="Connected" metadata={where} icon={cloudCheck} chipStyle={ChipStyle.DEEMPHASIZED} />
+  if (connection.state === 'connecting') return <Chip text="Connecting" metadata={where} isLoading chipStyle={ChipStyle.DEEMPHASIZED} />
+  return <Chip text="Not connected" metadata={where} icon={cloudAlert} chipStyle={ChipStyle.DEEMPHASIZED} />
 }
