@@ -86,7 +86,11 @@ body,
 
 .sidebar {
   min-block-size: 0;
+  min-inline-size: 0;
   display: grid;
+  /* One column as wide as the sidebar: the toolkit's lists would otherwise size it to their content and spill
+     over the open view. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: var(--uit-spacing-medium);
   padding-block: var(--uit-spacing-large) var(--uit-spacing-medium);
@@ -136,6 +140,22 @@ body,
     --uit-listitem-min-height: 76px;
     --uit-spacing-large: 16px;
   }
+}
+
+.sidebar > *,
+.sidebar-nav {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.sidebar-nav {
+  overflow: hidden;
+}
+
+.connection-chip {
+  display: inline-flex;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .sidebar-foot {

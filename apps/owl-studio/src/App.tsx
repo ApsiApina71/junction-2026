@@ -212,8 +212,20 @@ function Shell() {
 /** Which server Studio talks to, said in a Chip at the foot of the sidebar. */
 function ConnectionChip() {
   const { connection, api } = useStudio()
-  const where = api.config.baseUrl.replace(/^https?:\/\//, '')
-  if (connection.state === 'online') return <Chip text="Connected" metadata={where} icon={cloudCheck} chipStyle={ChipStyle.DEEMPHASIZED} />
-  if (connection.state === 'connecting') return <Chip text="Connecting" metadata={where} isLoading chipStyle={ChipStyle.DEEMPHASIZED} />
-  return <Chip text="Not connected" metadata={where} icon={cloudAlert} chipStyle={ChipStyle.DEEMPHASIZED} />
+  const full = api.config.baseUrl.replace(/^https?:\/\//, '')
+  // A tunnel address is long: the chip shows its start and keeps the whole address as a tooltip, so it stays in the sidebar.
+  const where = full.length > 22 ? `${full.slice(0, 21)}…` : full
+  const chip =
+    connection.state === 'online' ? (
+      <Chip text="Connected" metadata={where} icon={cloudCheck} chipStyle={ChipStyle.DEEMPHASIZED} />
+    ) : connection.state === 'connecting' ? (
+      <Chip text="Connecting" metadata={where} isLoading chipStyle={ChipStyle.DEEMPHASIZED} />
+    ) : (
+      <Chip text="Not connected" metadata={where} icon={cloudAlert} chipStyle={ChipStyle.DEEMPHASIZED} />
+    )
+  return (
+    <span className="connection-chip" title={full}>
+      {chip}
+    </span>
+  )
 }
