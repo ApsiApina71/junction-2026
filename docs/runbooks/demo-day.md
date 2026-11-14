@@ -1,13 +1,14 @@
 ---
 status: active
 tags: [runbook, demo, submission]
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 ---
 
 # Demo day
 
 Final submission closes **Sun 15.11 at 10:00** and does not accept late entries. Work backwards from that.
 Tickets live in the Linear [Submission](https://linear.app/junction-2026-bossit/project/submission-bafb47e71313) project.
+Starting the Owl stack and rehearsing on the glasses: [owl-demo.md](owl-demo.md).
 
 ## Fri 13.11 by 23:59: pre-submission
 
