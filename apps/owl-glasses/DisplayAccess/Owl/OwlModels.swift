@@ -177,7 +177,7 @@ struct OwlRun: Codable, Equatable, Sendable {
 
 /// What the worker agreed to (`/employees/{id}/consent`, JUN-80). `at` is nil until asked.
 struct OwlConsent: Codable, Equatable, Sendable {
-  let employeeId: String
+  let employeeId: String?
   let cameraChecks: Bool
   let recording: Bool
   let at: String?
