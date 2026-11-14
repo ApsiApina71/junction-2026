@@ -273,11 +273,14 @@ Multipart form:
 | Field | Type | Notes |
 |---|---|---|
 | `image` | file, `image/jpeg` or `image/png`, ≤ 6 MB | A camera **stream** frame, not a photo capture: Meta's known issue says capture holds back display updates on Display glasses. |
+| `clip` | file, `video/mp4` or `.mov`, ≤ 18 MB | **Instead of `image`**, when the phone cannot decode the stream itself: about 1 s of the hvc1 (or H.264) stream, starting at a key frame. The server uses its last frame. Send exactly one of `image` and `clip` (both or neither: `422`; an unreadable clip: `400`). |
 | `process_id` | text | |
 | `step_id` | text | |
 | `run_id` | text | A UUID the glasses app makes when the worker starts a process. The "two frames in a row" rule is kept per run and step. |
 | `final` | text `true` / `false`, default `false` | `true` on the "Done" pinch. |
 | `language` | text, optional | Defaults to the employee's language. |
+
+Why `clip`: with the phone locked in a pocket the app runs in the background, and the DAT `raw` video codec stops delivering frames there; `hvc1` keeps delivering compressed frames ([VideoCodec](https://wearables.developer.meta.com/docs/reference/ios_swift/dat/1.0/mwdatcamera_videocodec)). The phone decodes them when it can and falls back to `clip` when iOS refuses background decoding.
 
 Send one frame at a time and wait for the answer, about one frame every 1–2 s during an order step. While the server is busy with the same run, it answers `{"status": "checking", ...}` at once.
 
@@ -291,11 +294,17 @@ Only `question` is required. The question is the final transcription from the gl
 
 ### `POST /record/{id}/steps`
 
-Multipart form: `narration` (text, the expert's words for this step), `photo` (JPEG, one reference frame), `clip` (optional, the step's video as `.mp4` or `.mov`; the server converts it to a display-sized MP4).
+Multipart form: `narration` (text, the expert's words for this step), `photo` (JPEG, one reference frame), `clip` (optional, the step's video as `.mp4` or `.mov`, HEVC or H.264, ≤ 80 MB).
+
+Before anything is stored, the server blurs faces in the photo and the clip, and converts the clip for the DAT `VideoPlayer`: H.264 MP4 with faststart, at most 400 px per side and 70 000 pixels (a 720×540 clip becomes 304×228), 15 fps, no audio, the first 10 s. A clip that cannot be read answers `400`.
+
+`POST /record/{id}/finish` answers at once with `status: "processing"`. Poll `GET /record/{id}` every 2 s until `status` is `done` (`process_id` names the new **draft** process; a person reviews and publishes it in Owl Studio) or `failed`. Each recorded step becomes one step: Claude rewrites the narration into a title, an instruction, a spoken sentence and check criteria, and the step keeps the recorded photo and clip. If the model fails, the narration is used as it is, so a recording is never lost.
+
+The glasses show only processes with `status: "published"`.
 
 ### `POST /help/frames`
 
-Multipart form: `image` (JPEG), `employee_id`, `process_id`, `step_id`, `help_id` (empty on the first frame; the answer's `id` is used after that). The first frame opens a session. Send about one frame every 2 s while help is on.
+Multipart form: `image` (JPEG) or `clip` (as in `POST /check`), `employee_id`, `process_id`, `step_id`, `help_id` (empty on the first frame; the answer's `id` is used after that). The first frame opens a session. Send about one frame every 2 s while help is on.
 
 ### `POST /help/{id}/say`
 

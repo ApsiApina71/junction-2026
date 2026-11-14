@@ -1,9 +1,10 @@
 """HTTP API of Onboarding Owl. The contract is docs/specs/owl-contract.md.
 
-Owl Check (vision + verifier) and Ask run the real engine. Record still finishes with the sample process.
+Owl Check (vision + verifier), Ask and Record run the real engine; OWL_MOCK_* switch each one to fixtures.
 """
 
 import io
+import logging
 import os
 import secrets
 from collections.abc import Callable
@@ -11,7 +12,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 import anthropic
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -19,7 +20,9 @@ from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 
 from . import ask as ask_engine
+from . import media as media_engine
 from . import people, verifier, vision
+from . import record as record_engine
 from .models import (
     Answer,
     AskRequest,
@@ -38,9 +41,12 @@ from .models import (
 )
 from .store import Store, lang_key, load_fixture, now_iso
 
+log = logging.getLogger("owl.api")
 MODEL_ID = vision.MODEL_ID
 MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
 MOCK_ASK = os.getenv("OWL_MOCK_ASK", "") == "1"
+# 1 = Record writes the draft straight from the narration, without the model.
+MOCK_RECORD = os.getenv("OWL_MOCK_RECORD", "") == "1"
 API_TOKEN = os.getenv("API_TOKEN", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
@@ -118,6 +124,22 @@ async def read_image(upload: UploadFile, max_side: int = MAX_SIDE) -> bytes:
     if upload.content_type not in {"image/jpeg", "image/png", "image/webp", "image/heic"}:
         raise HTTPException(status_code=415, detail="Image must be JPEG, PNG, WebP or HEIC.")
     return to_jpeg(await upload.read(MAX_FRAME_BYTES + 1), max_side)
+
+
+async def read_frame(image: UploadFile | None, clip: UploadFile | None, max_side: int = MAX_SIDE) -> bytes:
+    """One camera frame from either a JPEG/PNG `image` or, when the phone could not decode the hvc1 stream, a short
+    `clip` (MP4/MOV) whose last frame is used."""
+    if (image is None) == (clip is None):
+        raise HTTPException(status_code=422, detail="Send either image or clip.")
+    if image is not None:
+        return await read_image(image, max_side)
+    data = await clip.read(MAX_FRAME_BYTES * 3 + 1)
+    if not data or len(data) > MAX_FRAME_BYTES * 3:
+        raise HTTPException(status_code=413, detail="The clip is empty or larger than 18 MB.")
+    try:
+        return to_jpeg(await run_in_threadpool(media_engine.last_frame, data), max_side)
+    except media_engine.MediaError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 def get_process(process_id: str) -> Process:
@@ -238,17 +260,19 @@ async def call_model[T](fn: Callable[[], T]) -> T:
 @app.post("/check", response_model=CheckResult, dependencies=[Auth])
 async def check(
     request: Request,
-    image: Annotated[UploadFile, File()],
     process_id: Annotated[str, Form()],
     step_id: Annotated[str, Form()],
     run_id: Annotated[str, Form(min_length=1, max_length=64)],
+    image: Annotated[UploadFile | None, File()] = None,
+    # Instead of image: a ~1 s hvc1/H.264 MP4 from the stream; its last frame is used. See the contract.
+    clip: Annotated[UploadFile | None, File()] = None,
     final: Annotated[bool, Form()] = False,
     language: Annotated[str, Form(max_length=10)] = "",
     # ok | warning | unsure | checking: a fixture answer instead of the model, for UI work. Also OWL_MOCK_CHECK=1.
     mock: Annotated[str, Form()] = "",
 ):
     step = get_step(get_process(process_id), step_id)
-    frame = await read_image(image)
+    frame = await read_frame(image, clip)
     if mock or MOCK_CHECK:
         return out(request, mock_check(step, final, mock))
     language = language or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
@@ -349,26 +373,52 @@ async def record_step(
     rec = get_recording(record_id)
     if rec.status != "recording":
         raise HTTPException(status_code=409, detail="This recording is already finished.")
-    index = len(rec.steps) + 1
-    photo_url = store.save_media(f"{rec.id}/{index}.jpg", await read_image(photo, REFERENCE_SIDE))
-    clip_url = None
+    photo_jpeg = await read_image(photo, REFERENCE_SIDE)
+    clip_data = None
     if clip is not None and clip.filename:
-        data = await clip.read(MAX_CLIP_BYTES + 1)
-        if not data or len(data) > MAX_CLIP_BYTES:
+        clip_data = await clip.read(MAX_CLIP_BYTES + 1)
+        if not clip_data or len(clip_data) > MAX_CLIP_BYTES:
             raise HTTPException(status_code=413, detail="The clip is empty or larger than 80 MB.")
-        # Mock: stored as sent. JUN-32 converts it to a display-sized H.264 MP4.
-        clip_url = store.save_media(f"{rec.id}/{index}-source.mp4", data)
-    rec.steps.append(RecordedStep(index=index, narration=narration.strip(), photo_url=photo_url, clip_url=clip_url))
+    # Faces are blurred before anything is stored; the clip becomes a display-sized H.264 MP4 (DAT VideoPlayer limits).
+    try:
+        photo_jpeg = await run_in_threadpool(media_engine.blur_faces, photo_jpeg)
+        clip_mp4 = await run_in_threadpool(media_engine.transcode_clip, clip_data) if clip_data else None
+    except media_engine.MediaError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    with store.lock:
+        index = len(rec.steps) + 1
+        photo_url = store.save_media(f"{rec.id}/{index}.jpg", photo_jpeg)
+        clip_url = store.save_media(f"{rec.id}/{index}.mp4", clip_mp4) if clip_mp4 else None
+        rec.steps.append(RecordedStep(index=index, narration=narration.strip(), photo_url=photo_url, clip_url=clip_url))
     return out(request, rec)
 
 
+def finish_recording(rec: Recording, process_id: str) -> None:
+    """Writes the draft process for a recording. Runs after /finish has answered."""
+    try:
+        photos = []
+        for step in rec.steps:
+            path = store.media_path(step.photo_url.removeprefix("/media/")) if step.photo_url else None
+            photos.append(path.read_bytes() if path else None)
+        company = next((e.company for e in store.employees.values() if e.company), "")
+        store.processes[process_id] = record_engine.write_process(process_id, rec, photos, company, use_model=not MOCK_RECORD)
+        rec.process_id, rec.status = process_id, "done"
+    except Exception:
+        log.exception("Record: could not write the process for %s", rec.id)
+        rec.status = "failed"
+
+
 @app.post("/record/{record_id}/finish", response_model=Recording, dependencies=[Auth])
-def record_finish(record_id: str, request: Request):
+def record_finish(record_id: str, request: Request, background: BackgroundTasks):
     rec = get_recording(record_id)
-    if not rec.steps:
-        raise HTTPException(status_code=409, detail="Record at least one step first.")
-    # Mock: points at the sample process. JUN-32 writes a new draft process from the steps.
-    rec.status, rec.process_id = "done", "proc-pick-pack"
+    with store.lock:
+        if rec.status != "recording":
+            raise HTTPException(status_code=409, detail="This recording is already finished.")
+        if not rec.steps:
+            raise HTTPException(status_code=409, detail="Record at least one step first.")
+        rec.status = "processing"
+    # Poll GET /record/{id} until the status is done (process_id is set) or failed.
+    background.add_task(finish_recording, rec, f"proc-{rec.id}")
     return out(request, rec)
 
 
@@ -390,13 +440,15 @@ def get_help(help_id: str) -> HelpSession:
 @app.post("/help/frames", response_model=HelpSession, dependencies=[Auth])
 async def help_frame(
     request: Request,
-    image: Annotated[UploadFile, File()],
+    image: Annotated[UploadFile | None, File()] = None,
+    # Instead of image: a ~1 s hvc1/H.264 MP4 from the stream; its last frame is used. See the contract.
+    clip: Annotated[UploadFile | None, File()] = None,
     employee_id: Annotated[str, Form()] = "",
     process_id: Annotated[str, Form()] = "",
     step_id: Annotated[str, Form()] = "",
     help_id: Annotated[str, Form()] = "",
 ):
-    frame = await read_image(image, REFERENCE_SIDE)
+    frame = await read_frame(image, clip, REFERENCE_SIDE)
     if help_id:
         session = get_help(help_id)
         if session.status == "ended":

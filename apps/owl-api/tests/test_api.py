@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app import main
-from app.store import Store
+from app.store import FIXTURES, Store
 
 
 @pytest.fixture
@@ -138,24 +138,36 @@ def test_docs_list_and_upload(client):
     assert client.post("/docs", files={"file": ("x.exe", b"MZ", "application/octet-stream")}).status_code == 415
 
 
-def test_record_flow(client):
+def test_record_flow(client, monkeypatch):
+    monkeypatch.setattr(main, "MOCK_RECORD", True)  # the model draft is tested in test_record.py
     rec = client.post("/record", json={"title": "Pick and pack", "expert": "Laura"}).json()
     assert rec["status"] == "recording"
     assert client.post(f"/record/{rec['id']}/finish").status_code == 409
+    clip = (FIXTURES / "media/proc-pick-pack/step-2.mp4").read_bytes()
     r = client.post(
         f"/record/{rec['id']}/steps",
-        data={"narration": "Take a medium box."},
-        files={"photo": ("p.jpg", jpeg((1200, 900)), "image/jpeg"), "clip": ("c.mp4", b"\x00\x00\x00\x18ftypmp42", "video/mp4")},
+        data={"narration": "Take a medium box. It fits five items."},
+        files={"photo": ("p.jpg", jpeg((1200, 900)), "image/jpeg"), "clip": ("c.mp4", clip, "video/mp4")},
     )
     assert r.status_code == 200
     step = r.json()["steps"][0]
     assert step["photo_url"].endswith(f"/media/{rec['id']}/1.jpg")
+    assert step["clip_url"].endswith(f"/media/{rec['id']}/1.mp4")
     with Image.open(io.BytesIO(client.get(step["photo_url"]).content)) as img:
         assert max(img.size) <= 600
-    done = client.post(f"/record/{rec['id']}/finish").json()
+    bad = client.post(
+        f"/record/{rec['id']}/steps", data={"narration": "x"}, files={"photo": ("p.jpg", jpeg(), "image/jpeg"), "clip": ("c.mp4", b"junk", "video/mp4")}
+    )
+    assert bad.status_code == 400
+    # TestClient runs the background task before it returns, so the draft is already written.
+    assert client.post(f"/record/{rec['id']}/finish").json()["status"] == "processing"
+    done = client.get(f"/record/{rec['id']}").json()
     assert done["status"] == "done"
-    assert done["process_id"] == "proc-pick-pack"
-    assert client.get(f"/record/{rec['id']}").json()["status"] == "done"
+    process = client.get(f"/processes/{done['process_id']}").json()
+    assert process["status"] == "draft"
+    assert process["steps"][0]["title"] == "Take a medium box."
+    assert process["steps"][0]["clip_url"] == step["clip_url"]
+    assert client.post(f"/record/{rec['id']}/finish").status_code == 409
 
 
 def test_help_flow(client):

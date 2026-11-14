@@ -18,7 +18,7 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 | `POST /check` | **real**: Claude vision → rules → Jev gate → two-frames rule. `mock` form field or `OWL_MOCK_CHECK=1` for fixtures | [JUN-30](https://linear.app/junction-2026-bossit/issue/JUN-30), [JUN-37](https://linear.app/junction-2026-bossit/issue/JUN-37) |
 | `POST /ask` | **real**: every document in the cached system prompt, sources checked word for word. `OWL_MOCK_ASK=1` for the fixture | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |
 | `GET/POST /docs`, `DELETE /docs/{id}` | real: stores `.md`, `.txt`, `.pdf` text, and deletes it again | |
-| `/record` | real upload, mock finish | [JUN-32](https://linear.app/junction-2026-bossit/issue/JUN-32) |
+| `/record` | **real**: clips converted for the display, faces blurred, Claude writes a draft process. `OWL_MOCK_RECORD=1` writes it from the narration without the model | [JUN-32](https://linear.app/junction-2026-bossit/issue/JUN-32) |
 | `/help` | real, in memory. Frames in a folder with a random name, deleted when the session ends; the expert's `mark` becomes a ring on the frame | [JUN-33](https://linear.app/junction-2026-bossit/issue/JUN-33), [JUN-60](https://linear.app/junction-2026-bossit/issue/JUN-60) |
 | `/media` | fixtures and uploads | |
 
@@ -34,6 +34,14 @@ Speech is in English or Finnish (`TEXTS` in `app/verifier.py`); other languages 
 ## Ask
 
 `app/ask.py` puts every company document whole into the system prompt (cached; the handbooks are small, so no retrieval index) and asks Claude for a structured answer in the worker's language. Every source quote is checked word for word against the documents: an answer whose sources cannot be found is replaced with "That's not in our instructions. Ask your shift lead." Company documents never leave this server except in the model call.
+
+## Record and media
+
+`app/media.py` converts every recorded clip (HEVC or H.264, MP4 or MOV) to what the DAT `VideoPlayer` plays: H.264 MP4, faststart, within 400 px per side and 70 000 pixels, 15 fps, at most 10 s. Faces in recorded photos and clips are blurred with OpenCV's YuNet detector (`app/assets/face_detection_yunet_2023mar.onnx`, from [OpenCV Zoo](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet), MIT). It also takes the last frame of a short clip, for `/check` and `/help/frames` when the phone sends `clip` instead of `image`.
+
+`app/record.py` turns a finished recording into a draft process: Claude (medium effort) rewrites each step's narration into a title, instruction, spoken sentence and check criteria, keeping the photo and clip. On a model error it falls back to the narration as it is.
+
+On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-C runtime prints a warning about duplicate `AVF*Receiver` classes at start-up. Those classes are for camera capture, which owl-api does not use.
 
 ## Data
 
