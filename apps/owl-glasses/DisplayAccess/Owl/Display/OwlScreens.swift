@@ -140,26 +140,35 @@ enum OwlScreens {
     process: OwlProcess, step: OwlStep, image: UIImage?, live: OwlLive, log: OwlRunLog?,
     onDone: @escaping OwlAction, onWatch: OwlAction?, onAsk: @escaping OwlAction,
     onHelp: @escaping OwlAction, caption: String? = nil, cameraOn: Bool? = nil, onCamera: OwlAction? = nil,
-    unreal: OwlUnrealSource? = nil, tracking: String? = nil
+    unreal: OwlUnrealSource? = nil, tracking: String? = nil, clean: Bool = false
   ) -> FlexBox {
     // Display-first workers read what Owl just said, on its own line under what Owl knows.
     let spoken = caption.map { "\u{201C}\($0)\u{201D}" }
     let lines = liveLine(live) + (spoken.map { "\n\($0)" } ?? "")
-    let check = checkLines(step)
-    let banner = OwlArt.stepBanner(
-      photo: image, photoTag: process.expert.map(OwlStrings.photoBy), checkLabel: check.label,
-      checkLines: check.lines,
-      progress: OwlArt.Progress(index: step.index, count: process.steps.count, outcomes: process.steps.map { log?.outcome(of: $0) }),
-      photoHeight: photoHeight(title: step.title, instruction: step.instruction, live: lines))
+    // `clean` (JUN-102): the worker has just watched the expert's clip, so no photo and no
+    // "Owl checks" list: the title, the instruction, what Owl sees now, and the buttons.
+    let banner: UIImage? = clean ? nil : {
+      let check = checkLines(step)
+      return OwlArt.stepBanner(
+        photo: image, photoTag: process.expert.map(OwlStrings.photoBy), checkLabel: check.label,
+        checkLines: check.lines,
+        progress: OwlArt.Progress(index: step.index, count: process.steps.count, outcomes: process.steps.map { log?.outcome(of: $0) }),
+        photoHeight: photoHeight(title: step.title, instruction: step.instruction, live: lines))
+    }()
     return screen {
       // `tracking`: location is on (JUN-97), said on every step card while it is.
       header(
         mood(live),
         meta: marked([OwlStrings.stepOf(step.index, process.steps.count), tracking].compactMap { $0 }.joined(separator: " · "), unreal),
         title: step.title)
-      Image(image: banner, sizePreset: .fill)
+      if let banner {
+        Image(image: banner, sizePreset: .fill)
+      }
       Text(step.instruction, style: .body)
-      Text(liveLine(live), style: .meta, color: .secondary)
+      // On the clean card Owl's line is the one thing that changes, so it stands out.
+      // A step Owl finishes by itself (`done_when`) never asks for a Done pinch.
+      let liveText = live == .looksRight && step.check.doneWhen != nil ? OwlStrings.liveLooksRightAuto : liveLine(live)
+      Text(liveText, style: clean ? .body : .meta, color: clean ? .primary : .secondary)
       if let spoken {
         Text(spoken, style: .meta, color: .primary)
       }

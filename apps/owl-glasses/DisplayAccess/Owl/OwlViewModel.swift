@@ -675,7 +675,7 @@ final class OwlViewModel {
           onAsk: self.cardAction { await $0.ask() },
           onHelp: self.cardAction { await $0.startHelp() },
           caption: caption, cameraOn: cameraOn, onCamera: self.cardAction { await $0.toggleCamera() },
-          unreal: unreal, tracking: tracking)
+          unreal: unreal, tracking: tracking, clean: process.autoplayClip == true && step.clipUrl != nil)
       }
       onStepCard = true
     }

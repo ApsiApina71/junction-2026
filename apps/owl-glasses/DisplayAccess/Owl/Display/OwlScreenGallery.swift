@@ -22,7 +22,7 @@ enum OwlScreenGallery {
     "done-no-checks", "after-clip", "listening", "listening-heard", "answer", "answer-not-found", "help",
     "help-connected", "help-marked", "record", "record-step", "status", "problem-camera", "problem-microphone",
     "problem-offline", "problem-server", "problem-not-allowed", "problem-not-assigned", "problem-video",
-    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "help-choice", "help-calling", "help-manager", "help-manager-answer", "manager-home", "manager-incoming", "manager-live", "manager-live-talk", "manager-live-said", "customer-service", "assist", "assist-heard", "assist-busy", "assist-hint", "assist-unsure", "forget", "step-caption", "step-camera-paused", "step-suggests", "done-checks-off",
+    "consent", "progress", "progress-training", "training-ready", "training-more", "training-confirmed", "goto", "step-tracking", "location-consent", "help-choice", "help-calling", "help-manager", "help-manager-answer", "manager-home", "manager-incoming", "manager-live", "manager-live-talk", "manager-live-said", "customer-service", "assist", "assist-heard", "assist-busy", "assist-hint", "assist-unsure", "forget", "step-caption", "step-camera-paused", "step-clean", "step-clean-looks-right", "step-clean-fix", "step-clean-cant-see", "step-suggests", "done-checks-off",
   ]
 
   /// The screen for a gallery name, or nil when the name is unknown.
@@ -84,6 +84,15 @@ enum OwlScreenGallery {
       later.continueUnverified(pick, why: .offline)
       later.continueUnverified(process.steps[2], why: .cantSee)
       return stepCard(pack, .watching, log: later)
+    case "step-clean", "step-clean-looks-right", "step-clean-fix", "step-clean-cant-see":
+      // JUN-102: the card after the clip that played by itself.
+      let live: OwlLive =
+        name == "step-clean-looks-right" ? .looksRight
+        : name == "step-clean-fix" ? .needsFix(OwlStrings.correctionTitle(data.wrongSize))
+        : name == "step-clean-cant-see" ? .cantSee(data.moveCloser) : .watching
+      return OwlScreens.step(
+        process: process, step: pick, image: photo, live: live, log: log, onDone: none, onWatch: none, onAsk: none,
+        onHelp: none, cameraOn: true, onCamera: none, clean: true)
     case "step-no-check":
       return stepCard(data.noCheckStep, .noCheck, image: nil)
     case "correction":
