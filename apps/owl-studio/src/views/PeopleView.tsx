@@ -189,7 +189,8 @@ function PersonForm({ employee }: { employee: Employee | null }) {
 
   const hear = () => {
     const utterance = new SpeechSynthesisUtterance(welcome)
-    utterance.lang = speechLocale(language)
+    // The welcome can be in another language than Owl's lines (JUN-108): its own voice reads it.
+    utterance.lang = speechLocale(employee?.welcome_language || language)
     window.speechSynthesis.cancel()
     window.speechSynthesis.speak(utterance)
   }
@@ -222,7 +223,10 @@ function PersonForm({ employee }: { employee: Employee | null }) {
                 : 'No glasses yet. A pair has one wearer at a time.'
           }
         />
-        <ListItem title="Shift manager" subtitle="When on shift, answers a new worker's Help call on their own glasses and sees the worker's view." subtitleMaxLines={4} showSwitch checked={shiftManager} onCheckedChange={setShiftManager} />
+        <ListItem
+          title="Shift manager"
+          subtitle={`When on shift, answers a new worker's Help call ${employee?.answers_on === 'phone' ? 'in Help on their phone' : 'on their own glasses'} and sees the worker's view.`}
+          subtitleMaxLines={4} showSwitch checked={shiftManager} onCheckedChange={setShiftManager} />
         {studio.processes?.length ? (
           studio.processes.map((process) => (
             <ListItem

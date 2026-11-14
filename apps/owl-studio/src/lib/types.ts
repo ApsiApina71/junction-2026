@@ -11,6 +11,10 @@ export interface Employee {
   glasses_id: string | null
   /** JUN-100: can be the manager on shift, who answers Help on their own glasses. */
   shift_manager?: boolean
+  /** JUN-107: where a shift manager answers Help: their own glasses, or Help in Studio on their phone. */
+  answers_on?: 'glasses' | 'phone'
+  /** JUN-108: the language of the welcome and the voice that speaks it; null: the same as `language`. */
+  welcome_language?: string | null
 }
 
 /** What Studio sends to add or change an employee. A field that is left out stays as it is. */

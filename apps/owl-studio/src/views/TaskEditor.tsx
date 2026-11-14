@@ -123,6 +123,15 @@ export function TaskEditor({ processId }: { processId: string }) {
 
   const changeStep = (step: Step) => setDraft({ ...draft, steps: replaceStep(draft.steps, step) })
 
+  // The server has already stored a step's new video (and its photo when it had none): that is saved, so it changes
+  // what was saved as well as the draft, and leaves the person's own unsaved edits as they are.
+  const storedMedia = (stored: Step) => {
+    const withMedia = (current: Process | null) =>
+      current && { ...current, steps: current.steps.map((s) => (s.id === stored.id ? { ...s, clip_url: stored.clip_url, reference_image_url: stored.reference_image_url } : s)) }
+    setSaved(withMedia)
+    setDraft(withMedia)
+  }
+
   const move = (from: number, to: number) => {
     if (to < 0 || to >= draft.steps.length || from === to) return
     setDraft({ ...draft, steps: moveStep(draft.steps, from, to) })
@@ -326,7 +335,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                 {!isDraft && <Learners process={saved} headingRef={learnersRef} />}
               </section>
 
-              {selected && <StepForm key={selected.id} step={selected} total={draft.steps.length} process={draft} onChange={changeStep} />}
+              {selected && <StepForm key={selected.id} step={selected} total={draft.steps.length} process={draft} onChange={changeStep} onStored={storedMedia} />}
             </div>
           </div>
         </ScrollView>
@@ -430,7 +439,7 @@ function Learners({ process, headingRef }: { process: Process; headingRef: React
 }
 
 /** The company's own video of a step, filmed with a phone: no glasses needed. */
-function StepVideo({ process, step, onChange }: { process: Process; step: Step; onChange: (step: Step) => void }) {
+function StepVideo({ process, step, onStored }: { process: Process; step: Step; onStored: (step: Step) => void }) {
   const { api } = useStudio()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -443,7 +452,7 @@ function StepVideo({ process, step, onChange }: { process: Process; step: Step; 
     setError('')
     try {
       const saved = (await api.addStepClip(process.id, step.id, file)).steps.find((s) => s.id === step.id)
-      if (saved) onChange({ ...step, clip_url: saved.clip_url, reference_image_url: saved.reference_image_url })
+      if (saved) onStored(saved)
       toast({ message: `Step ${step.index} has the new video. Owl learns it for step recognition.` })
     } catch (err) {
       setError(messageOf(err))
@@ -473,7 +482,7 @@ function StepVideo({ process, step, onChange }: { process: Process; step: Step; 
   )
 }
 
-function StepForm({ step, total, process, onChange }: { step: Step; total: number; process: Process; onChange: (step: Step) => void }) {
+function StepForm({ step, total, process, onChange, onStored }: { step: Step; total: number; process: Process; onChange: (step: Step) => void; onStored: (step: Step) => void }) {
   const [refused, setRefused] = useState<string | null>(null)
   const titleLength = step.title.trim().length
   const instructionLength = step.instruction.trim().length
@@ -603,7 +612,7 @@ function StepForm({ step, total, process, onChange }: { step: Step; total: numbe
                   </TextView>
                 </figure>
               )}
-              <StepVideo process={process} step={step} onChange={onChange} />
+              <StepVideo process={process} step={step} onStored={onStored} />
             </div>
           </Panel>
         </div>

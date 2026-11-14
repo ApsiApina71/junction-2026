@@ -465,5 +465,24 @@ describe('a step video from a phone', () => {
     await waitFor(() => expect(studio.api.addStepClip).toHaveBeenCalledWith('proc-1', 'step-1', file))
     expect(await screen.findByLabelText("The expert's clip of step 1")).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Replace the video' })).toBeTruthy()
+    // The server has stored it: nothing is left to save, and leaving the task does not warn about lost changes.
+    expect(screen.queryByText('Not saved yet')).toBeNull()
+    expect(screen.getByText('Saved')).toBeTruthy()
+  })
+
+  it('keeps unsaved edits unsaved when a video is added', async () => {
+    const user = userEvent.setup()
+    const studio = fakeStudio()
+    const withClip = process()
+    withClip.steps[0] = { ...withClip.steps[0], clip_url: 'http://test/media/steps/proc-1-x/step-1.mp4' }
+    studio.api.addStepClip = vi.fn(async () => withClip)
+    renderWith(<TaskEditor processId="proc-1" />, studio)
+    const title = await screen.findByLabelText('Title')
+    await user.clear(title)
+    await user.type(title, 'Sort the cans')
+    await user.upload(screen.getByLabelText('Add a video of step 1'), new File(['x'], 'sorting.mov', { type: 'video/quicktime' }))
+    expect(await screen.findByLabelText("The expert's clip of step 1")).toBeTruthy()
+    expect(screen.getByText('Not saved yet')).toBeTruthy()
+    expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe('Sort the cans')
   })
 })

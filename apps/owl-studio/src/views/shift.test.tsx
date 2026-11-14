@@ -18,6 +18,40 @@ describe('the manager on shift (JUN-100)', () => {
     expect(await screen.findByText('Mika is on shift. Help calls ring their glasses first.')).toBeTruthy()
   })
 
+  it('says a manager who answers on the phone is called there (JUN-107)', async () => {
+    const user = userEvent.setup()
+    const onPhone = { ...mika, answers_on: 'phone' as const }
+    const api = fakeApi({ onShift: vi.fn(async () => []), setOnShift: vi.fn(async (company, id) => [{ company, employee_id: id, name: 'Mika' }]) })
+    renderWith(<PeopleView selectedId="emp-mika" />, fakeStudio({ api, employees: [sami, onPhone] }))
+    expect(await screen.findByText("When on shift, answers a new worker's Help call in Help on their phone and sees the worker's view.")).toBeTruthy()
+    await user.click(await screen.findByRole('button', { name: /^Manager on shift/ }))
+    expect(screen.getByRole('radio', { name: /^Mika/ }).textContent).toContain('Answers in Help on their phone')
+    await user.click(screen.getByRole('radio', { name: /^Mika/ }))
+    await waitFor(() => expect(api.setOnShift).toHaveBeenCalledWith('Kide Logistics', 'emp-mika'))
+  })
+
+  it('reads a welcome in its own language (JUN-108)', async () => {
+    const spoken: { lang: string }[] = []
+    class Utterance {
+      lang = ''
+      text: string
+      constructor(text: string) {
+        this.text = text
+      }
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
+    vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), speak: vi.fn((u: { lang: string }) => spoken.push(u)) })
+    try {
+      const user = userEvent.setup()
+      const jose = { ...sami, id: 'emp-jose', name: 'Jose', language: 'en', welcome_language: 'es', welcome: '¡Bienvenido, Jose!' }
+      renderWith(<PeopleView selectedId="emp-jose" />, fakeStudio({ employees: [jose] }))
+      await user.click(await screen.findByRole('button', { name: 'Hear it' }))
+      expect(spoken.map((u) => u.lang)).toEqual(['es'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('marks a person as a shift manager', async () => {
     const user = userEvent.setup()
     const api = fakeApi({ onShift: vi.fn(async () => []) })

@@ -36,7 +36,7 @@ export function ShiftRows() {
     try {
       setOnShift(await api.setOnShift(company, employeeId || null))
       const who = managers.find((manager) => manager.id === employeeId)
-      toast({ message: who ? `${who.name} is on shift. Help calls ring their glasses first.` : `No one is on shift at ${company}. Help goes to Studio.` })
+      toast({ message: who ? `${who.name} is on shift. Help calls ring ${who.answers_on === 'phone' ? 'them in Help on their phone' : 'their glasses'} first.` : `No one is on shift at ${company}. Help goes to Studio.` })
     } catch (err) {
       setError(messageOf(err))
     }
@@ -45,11 +45,11 @@ export function ShiftRows() {
   return (
     <>
       <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="list-note">
-        When a new worker calls for help, the manager on shift answers on their own glasses and sees the worker's view. If they do not answer in 30 seconds, the call comes to Help here.
+        When a new worker calls for help, the manager on shift answers, on their own glasses or in Help on their phone, and sees the worker's view. If they do not answer in 30 seconds, the call comes to Help here.
       </TextView>
       {companies.map((company) => {
         const current = onShift.find((row) => row.company === company)?.employee_id ?? ''
-        const choices = [{ value: '', label: 'No one', detail: 'Help goes to Studio' }, ...managers.filter((manager) => manager.company === company).map((manager) => ({ value: manager.id, label: manager.name, detail: 'Answers on their own glasses' }))]
+        const choices = [{ value: '', label: 'No one', detail: 'Help goes to Studio' }, ...managers.filter((manager) => manager.company === company).map((manager) => ({ value: manager.id, label: manager.name, detail: manager.answers_on === 'phone' ? 'Answers in Help on their phone' : 'Answers on their own glasses' }))]
         return <ChoiceRow key={company} label={companies.length > 1 ? `Manager on shift at ${company}` : 'Manager on shift'} choices={choices} value={current} onChange={(id) => void choose(company, id)} />
       })}
       {error && (
