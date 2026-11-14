@@ -294,3 +294,29 @@ def test_owl_waits_for_v_jepa_before_its_own_check_mark():
 
     assert looks(True) == [False, True, True]
     assert looks(False) == [False, False, False]
+
+
+def test_one_video_split_into_steps(tmp_path, monkeypatch):
+    """Two actions in one continuous video: V-JEPA (the baseline here) puts the boundary where the action changes."""
+    import io
+
+    frames = []
+    for step_id in ("step-1", "step-4"):
+        f, _ = jepa.decode_timed(scene_clip(step_id, seconds=6.0, seed=1))
+        frames += f
+    cuts = jepa.step_boundaries(frames, 15, jepa.BaselineEmbedder())
+    assert len(cuts) >= 1 and any(abs(c - 6.0) <= 1.5 for c in cuts)
+
+    monkeypatch.setattr(main, "API_TOKEN", "")
+    buf = io.BytesIO()
+    with av.open(buf, "w", format="mp4") as out:
+        stream = out.add_stream("libx264", rate=15)
+        stream.width, stream.height, stream.pix_fmt = 160, 120, "yuv420p"
+        for i, fr in enumerate(frames):
+            vf = av.VideoFrame.from_ndarray(fr, format="rgb24")
+            vf.pts = i
+            out.mux(stream.encode(vf))
+        out.mux(stream.encode())
+    monkeypatch.setattr(jepa, "_embedder", jepa.BaselineEmbedder())
+    r = TestClient(main.app).post("/videos/steps", files={"video": ("day.mp4", buf.getvalue(), "video/mp4")}).json()
+    assert r["segments"][0]["start"] == 0.0 and any(abs(c - 6.0) <= 1.5 for c in r["boundaries"])

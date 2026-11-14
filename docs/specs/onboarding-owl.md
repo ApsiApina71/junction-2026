@@ -20,7 +20,7 @@ White-collar onboarding has a hundred SaaS tools. For physical work there are co
 
 **Why glasses, not a phone:** the hands stay on the work, and learning and checking happen from the worker's own view.
 
-**Why not Meta AI:** it does not know the company's tacit knowledge; the company keeps that knowledge on its own Owl server and decides which AI model reads it (today Anthropic's API; see [Where the data goes](#where-the-data-goes)); and Owl teaches and checks a task, it does not only answer questions.
+**Why not Meta AI:** it does not know the company's tacit knowledge; the company keeps that knowledge on its own Owl server and decides which AI model reads it (in the demo NVIDIA's open-weight Nemotron on Verda in Finland; see [Where the data goes](#where-the-data-goes)); and Owl teaches and checks a task, it does not only answer questions.
 
 ## Three levels of company knowledge
 
@@ -51,9 +51,14 @@ The new worker never takes out the phone or opens the Meta AI app.
 
 ## AI engine
 
-- **Vision LLM (Claude):** describes what the camera sees as structured data: products, quantities, whether a step matches its reference.
-- **Jev (TypeSafe):** decides whether the step or order is correct (`ok | wrong_item | missing | too_many | unsure`) with a probability; Owl warns only above a threshold. A deterministic compare of the order lines is the fallback.
-- **V-JEPA 2 (Meta), spike:** recognise which step the worker is on from video. Kept only if the 3-hour spike works.
+What runs (JUN-68, JUN-34, JUN-103): only open models, no Anthropic key.
+
+- **Vision and language: NVIDIA Nemotron 3.5 Super VL on Verda** (`LLM_BACKEND=nemotron`). It describes what the camera sees as structured data (Owl Check, about 0.5–1 s), writes the steps, criteria, warning line and done moment from an expert's recording (Record), answers from the company's documents (Ask and the customer-service Hint, each answer tied to a word-for-word quote), translates tasks and writes tasks from documents. Claude still works with `LLM_BACKEND=claude`.
+- **Video understanding: Meta's V-JEPA 2.1 + an attentive probe** (`JEPA_BACKEND=vjepa21`). The frozen encoder and Meta's probe recipe, trained per task in about 20 s on the expert's clips and on clips of not doing any step. It knows which step the worker is doing from 2 s of video, shows it on the stage view, and can be the second opinion for Owl's own ✓ (`JEPA_CONFIRM_DONE`). On the venue footage: 28/28 held-out windows right, median confidence 0.86–0.94.
+- **Place: Meta's DINOv2** recognises the spot from the step's photos.
+- **Decisions: rules.** A warning or Owl's own ✓ needs two looks in a row; a step is never done while something is wrong. Jev (TypeSafe) can join with its key.
+
+**Roadmap for V-JEPA:** (1) *JEPA as a gate before the LLM*: V-JEPA runs locally all the time and the cloud model is asked only when the action changes (fewer calls, lower cost, less data out). (2) *Nemotron teaches JEPA*: every check Owl Check decides becomes a labelled V-JEPA example (`JEPA_LEARN_FROM_USE`), so the local model learns the company's tasks from use. (3) *A whole working day into steps*: V-JEPA proposes where one action ends and the next starts in an expert's continuous video. (4) A bigger 2.1 encoder and Meta's full 4-block probe on a Verda GPU once there are more clips.
 
 ## Users and inclusion
 
@@ -106,7 +111,7 @@ What the code does today. Owl Studio shows the same list to the company ("Where 
 | What a worker agreed to | Saved, with the time | Never |
 | The stage view (off by default) | The current screen, Owl's last sentence and the newest camera picture, held in memory and replaced, never saved | Never |
 
-- **The model provider's terms apply to what is sent.** Today owl-api calls Anthropic's API with the model named in `MODEL_ID`. With `VISION_BACKEND=nemotron`, check pictures go instead to NVIDIA's open-weight Nemotron 3.5 Super VL on a Verda GPU server (Verda is a Finnish GPU cloud), and the rest still goes to `MODEL_ID`. What a provider does with the data afterwards follows its terms and is not Owl's to promise. Because the weights are open, a company could also run the check model on its own GPU; that is not built.
+- **The model provider's terms apply to what is sent.** With `LLM_BACKEND=nemotron` (the demo), everything listed as "sent to the AI model" goes to NVIDIA's open-weight Nemotron 3.5 Super VL on a Verda GPU server (Verda is a Finnish GPU cloud). With `LLM_BACKEND=claude` it goes to Anthropic's API with the model named in `MODEL_ID`. Step recognition (V-JEPA) and place recognition (DINOv2) run on Owl's own server. What a provider does with the data afterwards follows its terms and is not Owl's to promise. Because the weights are open, a company could also run the check model on its own GPU; that is not built.
 - **If Jev is switched on,** a written description of what the camera saw and the order goes to TypeSafe's decision model through OpenRouter. No picture.
 - **On the worker's phone:** the worker's tasks and the photo of each step, so a task works without a connection. No picture or clip from the glasses camera stays on the phone.
 - **Meta:** Owl does not send task data, pictures or documents to a Meta model, and the DAT toolkit's analytics and crash reporting are opted out. "Hey Meta, start Owl" and the worker's speech are turned into text by Meta's software, and the glasses connect through Meta's app: those follow Meta's terms.

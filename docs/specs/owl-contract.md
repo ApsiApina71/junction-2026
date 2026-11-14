@@ -239,6 +239,7 @@ Answer to one camera frame during a step.
 | `GET /employees/{id}/progress` | none | `Progress` (below) | glasses only |
 | `DELETE /employees/{id}/consent` | none | `204`: back to "not asked yet" (`at: null`), so the glasses ask again | Studio, rehearsals |
 | `POST /steps/recognize` | multipart `clip` (about 2 s, MP4/MOV, hvc1 or H.264), `process_id`, `employee_id`, `run_id` | `StepRecognition` (below) | glasses |
+| `POST /videos/steps` | multipart `video` (one continuous expert video, at most 80 MB) | `{"boundaries": [3.5, 31.5], "segments": [{"start": 0.0, "end": 3.5}, …], "backend": "vjepa21"}`: where V-JEPA sees one action end and the next begin (2 s before vs 2 s after, peaks at least 3 s apart). Suggestions for the person who splits the video into steps; nothing is stored | Studio |
 | `POST /steps/confirm` | JSON `{"run_id", "process_id", "step_id"}` | `204`: the run's last look becomes an example of that step | glasses, after the worker confirms a suggestion |
 | `POST /stage` | JSON `StageUpdate` (below) | `204` | glasses, only with "Stage mirroring" on |
 | `POST /stage/frame` | multipart `image`, `glasses_id` | `204` (kept in memory, at most 30 s, never on disk) | glasses, at most 1 a second |

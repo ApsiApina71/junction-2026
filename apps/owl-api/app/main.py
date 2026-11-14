@@ -5,6 +5,7 @@ Owl Check (vision + verifier), Ask and Record run the real engine; OWL_MOCK_* sw
 
 import asyncio
 import io
+import itertools
 import json
 import logging
 import os
@@ -547,6 +548,22 @@ class StepConfirm(BaseModel):
     run_id: str = Field(min_length=1, max_length=64)
     process_id: str
     step_id: str
+
+
+@app.post("/videos/steps", dependencies=[Auth])
+async def video_steps(video: Annotated[UploadFile, File()]) -> dict:
+    """Studio sends one continuous expert video (a whole task, filmed with a phone); V-JEPA suggests where one step
+    ends and the next begins, for the person who splits it into steps (Record, JUN-32). Nothing is stored."""
+    data = await video.read(MAX_CLIP_BYTES + 1)
+    if not data or len(data) > MAX_CLIP_BYTES:
+        raise HTTPException(status_code=413, detail="The video is empty or larger than 80 MB.")
+    try:
+        frames, fps = await run_in_threadpool(jepa.decode_timed, data)
+    except jepa.ClipError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    cuts = await run_in_threadpool(jepa.step_boundaries, frames, fps, jepa.embedder())
+    edges = [0.0, *cuts, round(len(frames) / fps, 1)]
+    return {"boundaries": cuts, "segments": [{"start": a, "end": b} for a, b in itertools.pairwise(edges)], "backend": jepa.embedder().name}
 
 
 @app.post("/steps/confirm", status_code=204, dependencies=[Auth])

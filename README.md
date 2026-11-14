@@ -30,11 +30,21 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 | [`apps/owl-studio`](apps/owl-studio/README.md) | The company's web app: documents, recorded tasks, workers, training, the map, the Help console and where the data goes |
 | [`apps/owl-site`](apps/owl-site/README.md) | The one-page launch site with the glasses in 3D and a view through the lens |
 
-**AI engine:** Claude (Anthropic API) reads the camera picture and the company's documents. Jev (TypeSafe) decides whether a step or an order is right and warns only above a threshold. Meta's V-JEPA 2 recognises which step the worker is on from short video clips.
+**AI engine (what runs in the demo, no Anthropic key needed):**
+
+| Job | Model |
+|---|---|
+| Owl Check sees the step in one camera picture | NVIDIA **Nemotron 3.5 Super VL**, open weights, on a **Verda** GPU in Finland (`LLM_BACKEND=nemotron`) |
+| Record, Ask, the customer-service Hint, translations, tasks from documents | the same Nemotron. Answers pass only with a quote found word for word in the company's documents |
+| Which step the worker is doing, from 2 s of video | Meta's **V-JEPA 2.1** (March 2026), frozen, with Meta's **attentive probe** trained per task on the expert's own clips (`JEPA_BACKEND=vjepa21`) |
+| Where the worker is (unlocks the next part) | Meta's **DINOv2** |
+| Right, wrong or done | deterministic rules: two looks in a row before a warning or Owl's own ✓ |
+
+Claude (`LLM_BACKEND=claude`) and Jev (TypeSafe) still work when their keys are set. `GET /health` says which models really run.
 
 ## Run it
 
-Without a model key, demo mode plays the whole pick-and-pack story: a wrong 0.5 l carton is caught, then the fixed box passes.
+With only a Verda key, `LLM_BACKEND=nemotron` and `JEPA_BACKEND=vjepa21` run everything on real models (the Junction volunteer story: `docs/runbooks/owl-junction-shoot.md`). Without any key, demo mode plays the pick-and-pack story: a wrong 0.5 l carton is caught, then the fixed box passes.
 
 ```sh
 # 1. owl-api (Python 3.13+, uv)
