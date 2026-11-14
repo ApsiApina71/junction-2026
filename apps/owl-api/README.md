@@ -55,7 +55,9 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 ## Step recognition (V-JEPA 2)
 
-`app/jepa.py` (JUN-34): `POST /steps/recognize` tells which step the worker is doing by comparing a 2 s clip from the glasses with the expert's clip of each step. Embeddings come from Meta's **V-JEPA 2** video encoder (`facebook/vjepa2-vitl-fpc64-256`, MIT) when the optional extra is installed, and from a small appearance-and-motion baseline otherwise (tests, CI, and machines without the model). Expert prototypes are cached in `data/jepa/`.
+`app/jepa.py` (JUN-34): `POST /steps/recognize` tells which step the worker is doing by comparing a 2 s clip from the glasses with the expert's clip of each step. Embeddings come from Meta's **V-JEPA 2** when the optional extra is installed, using the attentive pooler of its Something-Something v2 checkpoint (`facebook/vjepa2-vitl-fpc16-256-ssv2`, trained on hand-object actions, MIT), and from a small appearance-and-motion baseline otherwise (tests, CI, and machines without the model).
+
+What makes it work, all measured on real video clips (see JUN-34): the SSv2 pooler instead of the plain encoder's mean; the expert's clip looked at in 2 s windows like the worker's; the last three looks of a run together; and **learning from confirmations** (`POST /steps/confirm`): every step the worker confirms adds an example, and more examples is what helps most. Prototypes and examples are embeddings only, cached in `data/jepa/`.
 
 ```sh
 uv sync --extra jepa                      # torch + transformers; the model downloads from Hugging Face on first use, no login

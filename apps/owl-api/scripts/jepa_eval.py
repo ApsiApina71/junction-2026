@@ -36,14 +36,19 @@ def main() -> int:
         return 2
 
     def embed(path: Path) -> tuple[np.ndarray, float]:
+        """Like the server: three 2 s looks from the worker, taken together (a run's accumulated evidence)."""
         start = time.perf_counter()
-        vec = embedder.embed(jepa.decode_frames(path.read_bytes()))
+        frames, fps = jepa.decode_timed(path.read_bytes())
+        vec = jepa._unit(np.mean([embedder.embed(w) for w in jepa.windows(frames, fps)], axis=0))
         return vec, time.perf_counter() - start
 
     protos, seconds = {}, []
     for step, path in expert.items():
-        protos[step], t = embed(path)
-        seconds.append(t)
+        # Like owl-api: the expert's clip is looked at in 2 s windows (JUN-34).
+        start = time.perf_counter()
+        frames, fps = jepa.decode_timed(path.read_bytes())
+        protos[step] = jepa._unit(np.mean([embedder.embed(w) for w in jepa.windows(frames, fps)], axis=0))
+        seconds.append(time.perf_counter() - start)
     steps = list(protos)
     correct, margins = 0, []
     print(f"backend: {embedder.name}\n")
@@ -62,7 +67,7 @@ def main() -> int:
     accuracy = correct / len(trainee)
     print(f"\ntop-1 accuracy: {accuracy:.0%} ({correct}/{len(trainee)})")
     print(f"median margin: {np.median(margins):.3f}")
-    print(f"embedding time: median {np.median(seconds):.2f} s per clip")
+    print(f"embedding time: median {np.median(seconds):.2f} s per clip (three 2 s looks)")
     print("GO" if accuracy >= GO_ACCURACY else "NO-GO", f"(go means top-1 accuracy of at least {GO_ACCURACY:.0%})")
     return 0
 

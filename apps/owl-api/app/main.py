@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import ask as ask_engine
 from . import demo as demo_engine
@@ -395,6 +395,8 @@ async def recognize_step(
     clip: Annotated[UploadFile, File()],
     process_id: Annotated[str, Form()],
     employee_id: Annotated[str, Form(max_length=80)] = "",
+    # The run: the last few clips of the same run are looked at together (a longer look than one 2 s clip).
+    run_id: Annotated[str, Form(max_length=64)] = "",
 ) -> dict:
     process = get_process(process_id)
     worker = store.employees.get(employee_id) if employee_id else None
@@ -415,10 +417,25 @@ async def recognize_step(
         if path:
             clips[step.id] = path
     try:
-        result = await run_in_threadpool(recognizer.recognize, process, clips, data)
+        result = await run_in_threadpool(lambda: recognizer.recognize(process, clips, data, run_id=run_id or None))
     except jepa.ClipError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return result.to_dict()
+
+
+class StepConfirm(BaseModel):
+    run_id: str = Field(min_length=1, max_length=64)
+    process_id: str
+    step_id: str
+
+
+@app.post("/steps/confirm", status_code=204, dependencies=[Auth])
+async def confirm_step(body: StepConfirm) -> Response:
+    """The worker confirmed "Looks like step N" with a pinch: Owl learns that look as an example of the step (JUN-34)."""
+    get_step(get_process(body.process_id), body.step_id)
+    if not DEMO:
+        await run_in_threadpool(recognizer.confirm, body.run_id, body.process_id, body.step_id)
+    return Response(status_code=204)
 
 
 # Consent (JUN-80): what the worker agreed to on the glasses. Without camera_checks, /check answers 403.

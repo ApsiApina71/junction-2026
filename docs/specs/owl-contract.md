@@ -229,7 +229,8 @@ Answer to one camera frame during a step.
 | `PUT /employees/{id}` | JSON, any of the `POST /employees` fields | `Employee` | Studio |
 | `GET /employees/{id}/progress` | none | `Progress` (below) | glasses only |
 | `DELETE /employees/{id}/consent` | none | `204`: back to "not asked yet" (`at: null`), so the glasses ask again | Studio, rehearsals |
-| `POST /steps/recognize` | multipart `clip` (about 2 s, MP4/MOV, hvc1 or H.264), `process_id`, `employee_id` | `StepRecognition` (below) | glasses |
+| `POST /steps/recognize` | multipart `clip` (about 2 s, MP4/MOV, hvc1 or H.264), `process_id`, `employee_id`, `run_id` | `StepRecognition` (below) | glasses |
+| `POST /steps/confirm` | JSON `{"run_id", "process_id", "step_id"}` | `204`: the run's last look becomes an example of that step | glasses, after the worker confirms a suggestion |
 | `POST /stage` | JSON `StageUpdate` (below) | `204` | glasses, only with "Stage mirroring" on |
 | `POST /stage/frame` | multipart `image`, `glasses_id` | `204` (kept in memory, at most 30 s, never on disk) | glasses, at most 1 a second |
 | `GET /stage` | none | the stage page (HTML) | projector, video |
@@ -331,8 +332,12 @@ The third knowledge level: a written instruction becomes a guided process in one
 `POST /steps/recognize` answers which step the worker is doing, by comparing a short clip from the glasses with the expert's recorded clip of each step (cosine similarity of video embeddings; V-JEPA 2 when installed, otherwise a baseline descriptor):
 
 ```json
-{"status": "ok", "step_id": "step-4", "similarities": {"step-1": 0.12, "step-2": 0.08, "step-4": 0.91, "step-5": 0.33}, "margin": 0.58, "backend": "vjepa2"}
+{"status": "ok", "step_id": "step-4", "similarities": {"step-1": 0.12, "step-2": 0.08, "step-4": 0.91, "step-5": 0.33}, "margin": 0.58, "backend": "vjepa2", "action": "Putting something into something"}
 ```
+
+- With `run_id`, the last three clips of the run (within 10 s) are looked at together: a 2 s clip alone is a short look.
+- `action`: what the clip shows in V-JEPA 2's own action words (its Something-Something v2 head), or `null` with the baseline. The stage timeline can show it.
+- **Learning from confirmations:** when the worker confirms "Looks like step N" with a pinch, the glasses send `POST /steps/confirm`, and the run's last look is kept as one more example of that step: an embedding only, no video, not tied to the worker (at most 8 per step). More examples is what helps most (one example 65 %, three 80 % on real clips).
 
 - `status: "unsure"` and `step_id: null` when the best step does not beat the second by `JEPA_MIN_MARGIN`, or when no step has an expert clip.
 - The glasses show "Looks like step N" and move on only after a confirming pinch, never by themselves. Steps without an expert clip are not candidates.

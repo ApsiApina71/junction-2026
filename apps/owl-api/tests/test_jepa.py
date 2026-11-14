@@ -157,3 +157,40 @@ def _jpeg() -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (64, 48)).save(buf, format="JPEG")
     return buf.getvalue()
+
+
+def test_evidence_accumulates_over_the_run(tmp_path):
+    r = jepa.Recognizer(tmp_path, jepa.BaselineEmbedder())
+    a, b = jepa._unit(np.array([1.0, 0.0])), jepa._unit(np.array([0.0, 1.0]))
+    assert np.allclose(r.accumulate(None, a), a)  # no run: this clip alone
+    r.accumulate("run", a, now=0)
+    mixed = r.accumulate("run", b, now=1)
+    assert np.allclose(mixed, jepa._unit(np.array([1.0, 1.0])))
+    assert np.allclose(r.accumulate("run", b, now=100), b)  # old evidence expires
+    assert np.allclose(r.accumulate("other", a, now=100), a)  # runs never mix
+
+
+def test_long_expert_clips_are_looked_at_in_2_s_windows():
+    frames = [np.zeros((4, 4, 3), dtype=np.uint8)] * 150  # 10 s at 15 fps
+    parts = jepa.windows(frames, 15.0)
+    assert len(parts) == 3 and all(len(p) == 30 for p in parts)
+    assert jepa.windows(frames[:30], 15.0) == [frames[:30]]  # a short clip whole
+
+
+def test_learning_from_confirmations(tmp_path, expert_clips):
+    r = jepa.Recognizer(tmp_path / "cache", jepa.BaselineEmbedder())
+    assert r.confirm("run-x", "proc-pick-pack", "step-2") is False  # nothing looked at yet in this run
+    worker = scene_clip("step-2", seconds=2.0, noise=12, shift=7, seed=3)
+    before = r.recognize(PROCESS, expert_clips, worker, run_id="run-x")
+    assert r.confirm("run-x", "proc-pick-pack", "step-2") is True
+    assert r.confirm("run-x", "proc-bakery-rye", "step-2") is False  # never across processes
+    after = r.recognize(PROCESS, expert_clips, worker, run_id="run-y")
+    assert after.similarities["step-2"] > before.similarities["step-2"]  # the confirmed look now counts
+    saved = list((tmp_path / "cache").glob("examples-baseline-*.npy"))
+    assert len(saved) == 1 and np.load(saved[0]).shape[0] == 1  # one embedding, no video
+
+
+def test_confirm_over_http(client):
+    body = {"run_id": "r", "process_id": "proc-pick-pack", "step_id": "step-2"}
+    assert client.post("/steps/confirm", json=body).status_code == 204
+    assert client.post("/steps/confirm", json={**body, "step_id": "step-9"}).status_code == 404

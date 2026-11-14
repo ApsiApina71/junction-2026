@@ -20,6 +20,7 @@ import io
 import logging
 import os
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -33,25 +34,56 @@ from .models import Process
 log = logging.getLogger("owl.jepa")
 
 JEPA_BACKEND = os.getenv("JEPA_BACKEND", "baseline")
-JEPA_MODEL = os.getenv("JEPA_MODEL", "facebook/vjepa2-vitl-fpc64-256")
+# The SSv2 checkpoint's attentive pooler was trained on hand-object actions ("putting something into something"), which
+# is what work steps are. On real clips it beat the plain encoder's mean (65 % vs 55 % with one example, 80 % vs 65 %
+# with three; JUN-34). The plain encoder (facebook/vjepa2-vitl-fpc64-256) still works.
+JEPA_MODEL = os.getenv("JEPA_MODEL", "facebook/vjepa2-vitl-fpc16-256-ssv2")
 # The best step must beat the second best by this much, or the answer is "unsure".
 JEPA_MIN_MARGIN = float(os.getenv("JEPA_MIN_MARGIN", "0.02"))
+# Evidence over time: a 2 s clip is short, so the last few clips of the same run (within JEPA_WINDOW_S) are averaged.
+JEPA_ACCUMULATE = int(os.getenv("JEPA_ACCUMULATE", "3"))
+JEPA_WINDOW_S = float(os.getenv("JEPA_WINDOW_S", "10"))
+# Learning from confirmations: confirmed clips become extra examples of a step (embeddings only). 3 examples took the
+# SSv2 embedding from 65 % to 80 % on real clips.
+JEPA_MAX_EXAMPLES = int(os.getenv("JEPA_MAX_EXAMPLES", "8"))
 
 
 class ClipError(Exception):
     """The clip cannot be read."""
 
 
-def decode_frames(data: bytes, max_frames: int = 64) -> list[np.ndarray]:
-    """RGB frames (H x W x 3, uint8), sampled evenly to at most max_frames."""
+def decode_timed(data: bytes) -> tuple[list[np.ndarray], float]:
+    """Every RGB frame of a clip and its frame rate."""
     try:
         with av.open(io.BytesIO(data)) as container:
             stream = container.streams.video[0]
+            fps = float(stream.average_rate or 15)
             frames = [f.to_ndarray(format="rgb24") for f in container.decode(stream)]
     except (av.FFmpegError, IndexError, ValueError) as e:
         raise ClipError("Not a video clip this server can read.") from e
     if not frames:
         raise ClipError("The clip has no frames.")
+    return frames, fps
+
+
+def windows(frames: list[np.ndarray], fps: float, seconds: float = 2.0, count: int = 3) -> list[list[np.ndarray]]:
+    """Up to `count` windows of `seconds` from a long clip, at a quarter, half and three quarters; a short clip whole.
+
+    The worker sends about 2 s, so the expert's 5-10 s clip is looked at in pieces of the same length (JUN-34).
+    """
+    n = max(1, int(seconds * fps))
+    if len(frames) < 1.5 * n:
+        return [frames]
+    out = []
+    for share in np.linspace(0.25, 0.75, count):
+        start = max(0, min(len(frames) - n, int(len(frames) * share) - n // 2))
+        out.append(frames[start : start + n])
+    return out
+
+
+def decode_frames(data: bytes, max_frames: int = 64) -> list[np.ndarray]:
+    """RGB frames (H x W x 3, uint8), sampled evenly to at most max_frames."""
+    frames, _ = decode_timed(data)
     if len(frames) > max_frames:
         idx = np.linspace(0, len(frames) - 1, max_frames).round().astype(int)
         frames = [frames[i] for i in idx]
@@ -87,25 +119,37 @@ class BaselineEmbedder:
 
 
 class VJepa2Embedder:
-    """Meta's V-JEPA 2 encoder. Mean-pooled patch features of 64 frames at 256 px."""
+    """Meta's V-JEPA 2. With a classification checkpoint (SSv2), the embedding is its attentive pooler's output and the
+    top action label names what the clip shows; with the plain encoder, it is the mean of the patch features."""
 
     name = "vjepa2"
 
     def __init__(self, model_id: str = JEPA_MODEL) -> None:
         import torch  # optional extra
-        from transformers import AutoModel, AutoVideoProcessor
+        from transformers import AutoConfig, AutoModel, AutoModelForVideoClassification, AutoVideoProcessor
 
         self.torch = torch
         self.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
         self.processor = AutoVideoProcessor.from_pretrained(model_id)
-        self.model = AutoModel.from_pretrained(model_id).to(self.device).eval()
+        config = AutoConfig.from_pretrained(model_id)
+        self.classifier = bool(getattr(config, "id2label", None)) and len(config.id2label) > 2
+        loader = AutoModelForVideoClassification if self.classifier else AutoModel
+        self.model = loader.from_pretrained(model_id).to(self.device).eval()
         self.frames_per_clip = 64 if "fpc64" in model_id else 16
+        self.last_action: str | None = None
 
     def embed(self, frames: list[np.ndarray]) -> np.ndarray:
         idx = np.linspace(0, len(frames) - 1, self.frames_per_clip).round().astype(int)  # repeats frames of short clips
         video = self.torch.from_numpy(np.stack([frames[i] for i in idx])).permute(0, 3, 1, 2)  # T x C x H x W
         inputs = self.processor(video, return_tensors="pt").to(self.device)
         with self.torch.no_grad():
+            if self.classifier:
+                hidden = self.model.vjepa2(**inputs, skip_predictor=True).last_hidden_state
+                pooled = self.model.pooler(hidden)
+                pooled = pooled[0] if isinstance(pooled, tuple) else pooled
+                label = int(self.model.classifier(pooled)[0].argmax())
+                self.last_action = self.model.config.id2label[label].replace("[", "").replace("]", "")
+                return _unit(pooled[0].float().cpu().numpy().ravel())
             features = self.model.get_vision_features(**inputs)  # 1 x tokens x dim
         return _unit(features.mean(dim=1).squeeze(0).float().cpu().numpy())
 
@@ -151,9 +195,17 @@ class Recognition:
     similarities: dict[str, float]
     margin: float
     backend: str
+    action: str | None = None  # what the clip shows, in V-JEPA 2's SSv2 action words, when that model is on
 
     def to_dict(self) -> dict:
-        return {"status": self.status, "step_id": self.step_id, "similarities": self.similarities, "margin": self.margin, "backend": self.backend}
+        return {
+            "status": self.status,
+            "step_id": self.step_id,
+            "similarities": self.similarities,
+            "margin": self.margin,
+            "backend": self.backend,
+            "action": self.action,
+        }
 
 
 class Recognizer:
@@ -164,6 +216,8 @@ class Recognizer:
         self._embed = embed
         self._lock = threading.Lock()
         self._memory: dict[str, np.ndarray] = {}
+        self._recent: dict[str, list[tuple[float, np.ndarray]]] = {}  # run id -> recent query embeddings
+        self._last: dict[str, tuple[str, np.ndarray]] = {}  # run id -> (process id, the last accumulated query)
 
     @property
     def embed(self) -> ClipEmbedder:
@@ -172,7 +226,7 @@ class Recognizer:
     def prototype(self, clip: Path) -> np.ndarray:
         """The embedding of an expert clip. Keyed by the clip's bytes, so a new recording replaces the old one."""
         data = clip.read_bytes()
-        key = f"{self.embed.name}-{hashlib.sha256(data).hexdigest()[:20]}"
+        key = f"{self.embed.name}-w3-{hashlib.sha256(data).hexdigest()[:20]}"
         with self._lock:
             if key in self._memory:
                 return self._memory[key]
@@ -180,22 +234,68 @@ class Recognizer:
         if path.is_file():
             vec = np.load(path)
         else:
-            vec = self.embed.embed(decode_frames(data))
+            frames, fps = decode_timed(data)
+            vec = _unit(np.mean([self.embed.embed(w) for w in windows(frames, fps)], axis=0))
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             np.save(path, vec)
         with self._lock:
             self._memory[key] = vec
         return vec
 
-    def recognize(self, process: Process, clips: dict[str, Path], data: bytes, min_margin: float = JEPA_MIN_MARGIN) -> Recognition:
+    def _examples_path(self, process_id: str, step_id: str) -> Path:
+        safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in f"{process_id}--{step_id}")
+        return self.cache_dir / f"examples-{self.embed.name}-{safe}.npy"
+
+    def with_examples(self, process_id: str, step_id: str, prototype: np.ndarray) -> np.ndarray:
+        """The expert's prototype together with the confirmed examples of this step (learning from confirmations)."""
+        path = self._examples_path(process_id, step_id)
+        if not path.is_file():
+            return prototype
+        examples = np.load(path)
+        return _unit(np.mean([prototype, *examples], axis=0))
+
+    def confirm(self, run_id: str, process_id: str, step_id: str) -> bool:
+        """The worker confirmed the step: the run's last look becomes one more example of it (an embedding, no video).
+
+        Only an embedding is kept, never the clip, and it is not tied to the worker. At most JEPA_MAX_EXAMPLES per step.
+        """
+        with self._lock:
+            last = self._last.get(run_id)
+        if last is None or last[0] != process_id:
+            return False
+        path = self._examples_path(process_id, step_id)
+        examples = list(np.load(path)) if path.is_file() else []
+        examples = [*examples, last[1]][-JEPA_MAX_EXAMPLES:]
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        np.save(path, np.stack(examples))
+        return True
+
+    def accumulate(self, run_id: str | None, vec: np.ndarray, now: float | None = None) -> np.ndarray:
+        """The mean of this run's last JEPA_ACCUMULATE query embeddings within JEPA_WINDOW_S: a longer look than 2 s."""
+        if not run_id or JEPA_ACCUMULATE <= 1:
+            return vec
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            recent = [(t, v) for t, v in self._recent.get(run_id, []) if now - t <= JEPA_WINDOW_S][-(JEPA_ACCUMULATE - 1) :]
+            recent.append((now, vec))
+            self._recent[run_id] = recent
+            for key in [k for k, items in self._recent.items() if now - items[-1][0] > 10 * JEPA_WINDOW_S]:
+                del self._recent[key]
+        return _unit(np.mean([v for _, v in recent], axis=0))
+
+    def recognize(self, process: Process, clips: dict[str, Path], data: bytes, min_margin: float = JEPA_MIN_MARGIN, run_id: str | None = None) -> Recognition:
         """clips: step id -> the expert clip on disk. Steps without a clip are not candidates."""
         if not clips:
             return Recognition("unsure", None, {}, 0.0, self.embed.name)
-        query = self.embed.embed(decode_frames(data))
-        protos = {step.id: self.prototype(clips[step.id]) for step in process.steps if step.id in clips}
+        protos = {step.id: self.with_examples(process.id, step.id, self.prototype(clips[step.id])) for step in process.steps if step.id in clips}
+        query = self.accumulate(run_id, self.embed.embed(decode_frames(data)))
+        action = getattr(self.embed, "last_action", None)
+        if run_id:
+            with self._lock:
+                self._last[run_id] = (process.id, query)
         sims = {sid: round(s, 4) for sid, s in centred_similarities(query, protos).items()}
         ranked = sorted(sims.items(), key=lambda kv: -kv[1])
         best, best_sim = ranked[0]
         margin = round(best_sim - (ranked[1][1] if len(ranked) > 1 else -1.0), 4)
         status = "ok" if margin >= min_margin else "unsure"
-        return Recognition(status, best if status == "ok" else None, sims, margin, self.embed.name)
+        return Recognition(status, best if status == "ok" else None, sims, margin, self.embed.name, action)
