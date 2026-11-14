@@ -168,6 +168,8 @@ def test_record_flow(client, monkeypatch):
     assert process["steps"][0]["title"] == "Take a medium box."
     assert process["steps"][0]["clip_url"] == step["clip_url"]
     assert client.post(f"/record/{rec['id']}/finish").status_code == 409
+    second = client.post("/record", json={"title": "Second"}).json()
+    assert [r["id"] for r in client.get("/record").json()["recordings"]] == [second["id"], rec["id"]]
 
 
 def test_help_flow(client):

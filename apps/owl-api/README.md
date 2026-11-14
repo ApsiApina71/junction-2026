@@ -24,10 +24,12 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 
 ## Owl Check
 
-1. `app/vision.py`: Claude (`claude-opus-5-5`, low effort, structured output) describes the camera frame next to the expert's reference photo: which products and how many, or whether each visual criterion is met. It never judges.
-2. `app/verifier.py`, `compare()`: deterministic decision from that description: `ok`, `wrong_item`, `missing`, `too_many`, `not_matching` or `unsure`.
-3. **Jev** (TypeSafe's decision model, `typesafe/jev-1.13` through `JEV_URL`) answers the same question from the same description with a probability. Owl acts only when Jev agrees above `JEV_THRESHOLD`; otherwise it looks again (`unsure`). Without `JEV_API_KEY` the rules decide alone (`decided_by: "rules"`), so the demo never depends on one external API.
+1. `app/vision.py`: Claude (`claude-opus-5-5`, low effort, structured output) describes the camera frame: which products and how many for order steps, and for visual steps an answer per numbered criterion. The expert's reference photo goes along as context. Vision never judges.
+2. `app/verifier.py`, `compare()`: the deterministic decision from that description: `ok`, `wrong_item`, `missing`, `too_many`, `not_matching` or `unsure`. It abstains rather than passes what vision did not map (JUN-58): an item with an unknown line id counts as something extra, each criterion is matched by its number and exact text so one repeated answer cannot cover the others, an unanswered criterion gives `unsure`, and the reference photo never decides on its own.
+3. **Jev** (TypeSafe's decision model, `typesafe/jev-1.13` through `JEV_URL`) answers the same question from the same description. Owl acts only when Jev agrees above `JEV_THRESHOLD`; otherwise it looks again (`unsure`). Without `JEV_API_KEY` the rules decide alone (`decided_by: "rules"`, `confidence: null`), so the demo never depends on one external API.
 4. A problem becomes a warning only when the same problem is seen in two frames in a row. The Done pinch (`final=true`) answers at once, and **a step is only done when the rules say ok**: a wrong order is never marked done.
+
+**What this is and is not.** Jev is a second opinion on the decision, from the same observation: it cannot catch an item that vision missed or misread. Two frames in a row are consistency over time from the same model, with correlated errors: not an independent confirmation, and not calibrated confidence. `confidence` is Jev's reported probability, never a percentage for the worker. A passed check covers only the criteria and products that were visible and reviewed, and the apps say no more than that.
 
 Speech is in English or Finnish (`TEXTS` in `app/verifier.py`); other languages fall back to English.
 

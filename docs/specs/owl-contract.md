@@ -106,7 +106,7 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
 - `reference_image_url`: the expert's photo of the finished step, or `null`.
 - `clip_url`: a 5–10 s clip of the expert doing the step ("Watch how"), or `null`.
 - `check.kind`:
-  - `visual`: the camera view is compared with the reference image and `criteria`.
+  - `visual`: the camera view is checked against each of the `criteria`. The reference image is shown to the vision model as context and on the display, but it never decides on its own: a step passes only when every criterion was seen and met. A visual step without criteria can never pass.
   - `order`: the products and quantities seen are compared with `order_lines`.
   - `none`: no check. The worker confirms the step with a pinch.
 - `check.order_lines` is set only for `order` checks.
@@ -143,9 +143,11 @@ Answer to one camera frame during a step.
 - `lines`: one row per order line for `order` checks. `null` for `visual` and `none`.
   - `lines[].status`: `ok | wrong_item | missing | too_many`.
   - `lines[].note`: what was seen instead, or `null`.
-- `confidence`: 0–1. Owl warns only above the server's threshold.
-- `decided_by`: `jev` (TypeSafe Jev made the decision) or `rules` (the deterministic order compare, the fallback).
+- `confidence`: Jev's reported probability for its answer (0–1), or `null` when the rules decided alone. It is not a calibrated chance that the step is right: **never show it as a percentage**.
+- `decided_by`: `jev` (Jev agreed with the rules above the server's threshold) or `rules` (the deterministic compare decided alone, for example without a Jev key).
 - `step_done`: `true` only when `final` was sent and the step is right. **A step is never done while something is wrong.**
+
+**What a passed check means.** Vision describes one frame; the rules decide from that description. A product vision did not map to an order line counts as something extra in the box, and a criterion that was not answered is not passed (`unsure`). Jev, when on, is a second opinion on the decision from the same description: it cannot catch an item vision missed or misread. The "two frames in a row" rule is consistency over time from the same model, not an independent confirmation. So a passed check covers only what was visible in the frame and reviewed against the step, and the apps say no more than that ("Owl checked the box", not "the order is correct").
 
 ### Answer
 
@@ -230,6 +232,7 @@ Answer to one camera frame during a step.
 | `POST /record` | JSON `{"title", "expert"}` | `Recording` | glasses |
 | `POST /record/{id}/steps` | multipart (below) | `Recording` | glasses |
 | `POST /record/{id}/finish` | none | `Recording` (`processing`, then `done`) | glasses |
+| `GET /record` | none | `{"recordings": [Recording]}` (newest first) | Studio |
 | `GET /record/{id}` | none | `Recording` | glasses, Studio |
 | `POST /help/frames` | multipart (below) | `HelpSession` | glasses |
 | `GET /help` | none | `{"sessions": [HelpSession]}` (open ones first) | Studio |

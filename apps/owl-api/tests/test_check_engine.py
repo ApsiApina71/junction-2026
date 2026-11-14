@@ -11,7 +11,7 @@ from app import main, verifier
 from app.models import Process
 from app.store import Store, load_fixture
 from app.verifier import JevAnswer, Tracker, run_check
-from app.vision import CriterionSeen, Observation, SeenItem
+from app.vision import CriterionSeen, Observation, SeenItem, line_id
 
 PROCESS = Process.model_validate(load_fixture("process-pick-pack.json"))
 ORDER_STEP = PROCESS.steps[1]  # Oat drink 1 l × 2, Coffee 500 g × 1, Rye crispbread × 1
@@ -262,3 +262,59 @@ def test_check_endpoint_maps_model_errors(client, monkeypatch):
     monkeypatch.setattr(main.vision, "observe", broken)
     assert post_check(client).status_code == 502
     assert main.tracker.try_begin("run-1")  # the run is free again after an error
+
+
+# JUN-58: abstain instead of passing what vision did not map (tests from the Codex review, adapted)
+
+
+def _final(step, *, items=(), criteria=(), reference="no_reference"):
+    obs = Observation(visibility="clear", hint=None, items=list(items), criteria=list(criteria), matches_reference=reference, summary="synthetic")
+    return run_check(step, b"", None, "regression", True, "en", Tracker(), observe=lambda *_: obs, jev=lambda *_: None)
+
+
+def test_unknown_line_id_is_not_dropped():
+    step = next(s for s in PROCESS.steps if s.check.kind == "order")
+    items = [SeenItem(line=line_id(i, ol.sku), description=ol.name, qty=ol.qty) for i, ol in enumerate(step.check.order_lines)]
+    items.append(SeenItem(line="UNRECOGNISED-SKU", description="Extra unwanted product", qty=1))
+    result = _final(step, items=items)
+    assert not result.step_done
+    assert result.status in ("warning", "unsure")
+    assert result.problem == "too_many"
+    assert result.say == "Too many in the box: Extra unwanted product."
+
+
+def test_repeated_criterion_does_not_cover_the_others():
+    step = next(s for s in PROCESS.steps if s.check.kind == "visual" and len(s.check.criteria) > 1)
+    criteria = [CriterionSeen(criterion=step.check.criteria[0], met="yes", note="repeated") for _ in step.check.criteria]
+    result = _final(step, criteria=criteria, reference="yes")
+    assert not result.step_done
+    assert result.status == "unsure"
+
+
+def test_repeated_index_with_the_first_text_does_not_cover_the_others():
+    criteria = [CriterionSeen(index=i, criterion=VISUAL_STEP.check.criteria[0], met="yes", note="") for i in range(1, len(VISUAL_STEP.check.criteria) + 1)]
+    assert _final(VISUAL_STEP, criteria=criteria).status == "unsure"
+
+
+def test_criteria_are_matched_by_number_and_text():
+    criteria = [CriterionSeen(index=i, criterion=c, met="yes", note="") for i, c in enumerate(VISUAL_STEP.check.criteria, start=1)]
+    assert _final(VISUAL_STEP, criteria=list(reversed(criteria))).step_done is True
+    # A conflicting second answer to one criterion: "no" wins.
+    no = CriterionSeen(index=2, criterion=VISUAL_STEP.check.criteria[1], met="no", note="")
+    assert _final(VISUAL_STEP, criteria=[*criteria, no]).problem == "not_matching"
+
+
+def test_the_reference_photo_never_decides_alone():
+    yes = [CriterionSeen(criterion=c, met="yes", note="") for c in VISUAL_STEP.check.criteria]
+    assert _final(VISUAL_STEP, criteria=yes, reference="no").step_done is True
+    assert _final(VISUAL_STEP, criteria=[], reference="yes").status == "unsure"
+
+
+def test_a_visual_step_without_criteria_is_never_passed():
+    step = VISUAL_STEP.model_copy(update={"check": VISUAL_STEP.check.model_copy(update={"criteria": []})})
+    assert _final(step, reference="yes").status == "unsure"
+
+
+def test_rules_only_results_have_no_confidence():
+    assert _final(ORDER_STEP, items=RIGHT.items).confidence is None
+    assert check(WRONG_SIZE, Tracker(), final=True, jev=JevAnswer("wrong_item", 0.93)).confidence == 0.93

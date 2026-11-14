@@ -278,7 +278,7 @@ async def check(
     language = language or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
     if not tracker.try_begin(run_id):
         # One check per run at a time: a frame that arrives while the last one is checked is answered at once.
-        return out(request, CheckResult(status="checking", text="Checking...", confidence=0.0, decided_by="rules"))
+        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="rules"))
     try:
         reference = reference_image(step)
         result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
@@ -420,6 +420,13 @@ def record_finish(record_id: str, request: Request, background: BackgroundTasks)
     # Poll GET /record/{id} until the status is done (process_id is set) or failed.
     background.add_task(finish_recording, rec, f"proc-{rec.id}")
     return out(request, rec)
+
+
+@app.get("/record", dependencies=[Auth])
+def record_list(request: Request) -> dict:
+    """Every recording, newest first, so Owl Studio can show "Owl is writing the steps"."""
+    recordings = sorted(store.recordings.values(), key=lambda r: int(r.id.rsplit("-", 1)[-1]), reverse=True)
+    return {"recordings": [out(request, r) for r in recordings]}
 
 
 @app.get("/record/{record_id}", response_model=Recording, dependencies=[Auth])

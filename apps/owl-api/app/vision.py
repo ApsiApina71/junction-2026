@@ -30,9 +30,11 @@ box" or "Hold the box still". Otherwise null.
 into one entry with their count. Set line to the id of the order line that this exact product is (same product, same \
 size or variant), or "other" when it is not exactly any order line, for example a different size. Read sizes such as \
 0.5 l or 1 l from the package when you can; if the size cannot be read, say so in description.
-- criteria (visual steps only, otherwise empty): for each criterion of the step, "yes", "no" or "unclear" with a short note.
+- criteria (visual steps only, otherwise empty): one entry per numbered criterion of the step, in order, with its \
+number as index and its text copied exactly: "yes", "no" or "unclear", with a short note. Answer "yes" only when the \
+frame itself shows it.
 - matches_reference: compare the frame with the expert's reference photo when one is given: "yes", "no", "unclear", or \
-"no_reference".
+"no_reference". The photo is for context only; the criteria decide.
 - summary: one short sentence about what you see."""
 
 
@@ -43,6 +45,7 @@ class SeenItem(BaseModel):
 
 
 class CriterionSeen(BaseModel):
+    index: int = Field(default=0, description="The criterion's number in the step's list, starting at 1")
     criterion: str
     met: Literal["yes", "no", "unclear"]
     note: str
@@ -86,7 +89,7 @@ def _step_text(step: Step) -> str:
         lines += [f"- {line_id(i, ol.sku)}: {ol.name} × {ol.qty}" for i, ol in enumerate(step.check.order_lines or [])]
     if step.check.criteria:
         lines.append("Criteria:")
-        lines += [f"- {c}" for c in step.check.criteria]
+        lines += [f"{n}. {c}" for n, c in enumerate(step.check.criteria, start=1)]
     return "\n".join(lines)
 
 

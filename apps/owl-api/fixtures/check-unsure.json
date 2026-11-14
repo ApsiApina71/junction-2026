@@ -5,7 +5,7 @@
   "say": "I can't see the box well. Move a bit closer.",
   "hint": "Move closer to the box",
   "lines": null,
-  "confidence": 0.32,
+  "confidence": null,
   "decided_by": "rules",
   "step_done": false
 }

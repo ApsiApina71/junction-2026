@@ -61,7 +61,9 @@ def compare(step: Step, obs: Observation) -> Verdict:
 
 
 def _compare_order(step: Step, obs: Observation) -> Verdict:
-    others = [i for i in obs.items if i.line == OTHER and i.qty > 0]
+    known = {line_id(idx, ol.sku) for idx, ol in enumerate(step.check.order_lines or [])}
+    # Anything vision did not map to a line of this order counts as something else in the box (JUN-58).
+    others = [i for i in obs.items if i.line not in known and i.qty > 0]
     other_text = ", ".join(f"{i.qty} × {i.description}" for i in others) or None
     lines: list[CheckLine] = []
     for idx, ol in enumerate(step.check.order_lines or []):
@@ -88,14 +90,35 @@ def _compare_order(step: Step, obs: Observation) -> Verdict:
     return Verdict("ok", lines=lines)
 
 
+def _norm(text: str) -> str:
+    return " ".join(text.lower().replace(".", " ").split())
+
+
+def criteria_answers(step: Step, obs: Observation) -> list[str | None]:
+    """The answer to each criterion of the step, in its order: yes, no, unclear, or None when it was not answered.
+
+    An answer counts for a criterion only by its number or its exact text, so one answer repeated cannot cover the
+    others (JUN-58). Conflicting answers to one criterion: no beats unclear beats yes.
+    """
+    wanted = [_norm(c) for c in step.check.criteria]
+    answers: list[str | None] = [None] * len(wanted)
+    rank = {"yes": 0, "unclear": 1, "no": 2}
+    for c in obs.criteria:
+        slot = c.index - 1 if 1 <= c.index <= len(wanted) and _norm(c.criterion) in ("", wanted[c.index - 1]) else None
+        if slot is None and _norm(c.criterion) in wanted:
+            slot = wanted.index(_norm(c.criterion))
+        if slot is not None and (answers[slot] is None or rank[c.met] > rank[answers[slot]]):
+            answers[slot] = c.met
+    return answers
+
+
 def _compare_visual(step: Step, obs: Observation) -> Verdict:
-    failed = next((c for c in obs.criteria if c.met == "no"), None)
-    if failed:
-        return Verdict("not_matching", failed=failed.criterion)
-    if obs.matches_reference == "no" and obs.visibility == "clear":
-        return Verdict("not_matching", failed=None)
-    if obs.visibility != "clear" or any(c.met == "unclear" for c in obs.criteria) or len(obs.criteria) < len(step.check.criteria):
-        return Verdict("unsure")
+    """The step's criteria decide. The expert's photo is context for vision and never decides on its own."""
+    answers = criteria_answers(step, obs)
+    if "no" in answers:
+        return Verdict("not_matching", failed=step.check.criteria[answers.index("no")])
+    if not answers or obs.visibility != "clear" or any(a != "yes" for a in answers):
+        return Verdict("unsure")  # a criterion that was not seen is not passed
     return Verdict("ok")
 
 
@@ -110,8 +133,8 @@ def jev_state(step: Step, obs: Observation) -> dict:
             {"product": i.description, "qty": i.qty, "is_order_line": None if i.line == OTHER else _line_name(step, i.line)} for i in obs.items
         ]
     else:
-        state["criteria"] = [{"criterion": c.criterion, "met": c.met, "note": c.note} for c in obs.criteria]
-        state["matches_expert_photo"] = obs.matches_reference
+        answers = criteria_answers(step, obs)
+        state["criteria"] = [{"criterion": c, "met": a or "not answered"} for c, a in zip(step.check.criteria, answers, strict=True)]
     return state
 
 
@@ -168,10 +191,14 @@ def ask_jev(step: Step, obs: Observation) -> JevAnswer | None:
         return None
 
 
-def decide(rules: Verdict, jev: JevAnswer | None) -> tuple[Verdict, float, str]:
-    """Combines the rules and Jev. Returns the verdict, its confidence and who decided it."""
+def decide(rules: Verdict, jev: JevAnswer | None) -> tuple[Verdict, float | None, str]:
+    """Combines the rules and Jev. Returns the verdict, Jev's probability (None without Jev) and who decided it.
+
+    Jev is a second opinion on the decision from the same observation: it cannot catch an item that vision missed or
+    misread, and its probability is what Jev reports, not a calibrated chance that the box is right.
+    """
     if jev is None:
-        return rules, (0.9 if rules.verdict != "unsure" else 0.3), "rules"
+        return rules, None, "rules"
     if jev.verdict == rules.verdict and jev.probability >= JEV_THRESHOLD:
         return rules, jev.probability, "jev"
     # Jev disagrees or is not sure enough: never warn and never pass on a doubtful frame; look again.
@@ -211,7 +238,7 @@ def _texts(language: str) -> dict:
 
 
 def build_result(
-    step: Step, verdict: Verdict, confidence: float, decided_by: str, status: str, final: bool, language: str, hint: str | None, first_ok: bool = True
+    step: Step, verdict: Verdict, confidence: float | None, decided_by: str, status: str, final: bool, language: str, hint: str | None, first_ok: bool = True
 ) -> CheckResult:
     t = _texts(language)
     v = verdict.verdict
@@ -240,7 +267,7 @@ def build_result(
         say=say,
         hint=hint if status == "unsure" else None,
         lines=verdict.lines if step.check.kind == "order" else None,
-        confidence=round(max(0.0, min(1.0, confidence)), 2),
+        confidence=None if confidence is None else round(max(0.0, min(1.0, confidence)), 2),
         decided_by=decided_by,
         step_done=final and status == "ok",
     )
@@ -313,7 +340,7 @@ def run_check(
     jev: Callable[[Step, Observation], JevAnswer | None] = ask_jev,
 ) -> CheckResult:
     if step.check.kind == "none":
-        return CheckResult(status="ok", text="Pinch Done when you are ready.", confidence=1.0, decided_by="rules", step_done=final)
+        return CheckResult(status="ok", text="Pinch Done when you are ready.", confidence=None, decided_by="rules", step_done=final)
     obs = observe(frame, step, reference, language)
     rules = compare(step, obs)
     verdict, confidence, decided_by = decide(rules, jev(step, obs) if rules.verdict != "unsure" else None)
