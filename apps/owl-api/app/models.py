@@ -81,6 +81,9 @@ class Check(BaseModel):
     kind: Literal["visual", "order", "none"]
     criteria: list[str] = []
     order_lines: list[OrderLine] | None = None
+    # JUN-106: the expert's own sentence for a check that does not match ("That's a deposit bottle. It goes to the
+    # return crate."). Shown and spoken as it is, instead of "Check again: <criterion>".
+    warning: str | None = Field(default=None, max_length=140)
 
 
 class Source(BaseModel):
