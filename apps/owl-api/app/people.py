@@ -104,11 +104,12 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 language=body.language,
                 role=body.role,
                 company=company,
-                welcome=body.welcome or write_welcome(store, body.name, body.language, company, body.process_ids),
+                welcome=body.welcome or write_welcome(store, body.name, body.welcome_language or body.language, company, body.process_ids),
                 process_ids=body.process_ids,
                 glasses_id=body.glasses_id,
                 access=body.access,
                 shift_manager=body.shift_manager,
+                welcome_language=body.welcome_language,
             )
             if body.welcome:
                 store.custom_welcomes.add(employee.id)
@@ -124,11 +125,13 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
         if "process_ids" in sent and body.process_ids is not None:
             _check_processes(store, body.process_ids)
         with store.lock:
-            before = (employee.name, employee.language, employee.process_ids)
+            before = (employee.name, employee.language, employee.process_ids, employee.welcome_language)
             for field in ("name", "language", "role", "process_ids"):
                 value = getattr(body, field)
                 if field in sent and value is not None:
                     setattr(employee, field, value)
+            if "welcome_language" in sent:  # null: the welcome follows the employee's language again
+                employee.welcome_language = body.welcome_language
             if "access" in sent and body.access is not None:
                 employee.access = body.access
             if "shift_manager" in sent and body.shift_manager is not None:
@@ -148,9 +151,9 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 rewrite = True
             elif employee.id not in store.custom_welcomes:
                 # A welcome Owl wrote follows the name, the language and the first task. A hand-written one stays.
-                rewrite = before != (employee.name, employee.language, employee.process_ids)
+                rewrite = before != (employee.name, employee.language, employee.process_ids, employee.welcome_language)
             if rewrite:
-                employee.welcome = write_welcome(store, employee.name, employee.language, employee.company, employee.process_ids)
+                employee.welcome = write_welcome(store, employee.name, employee.welcome_language or employee.language, employee.company, employee.process_ids)
         return out(request, employee)
 
     @api.get("/glasses/{glasses_id}/employee", response_model=Employee)

@@ -44,6 +44,8 @@ class Employee(BaseModel):
     access: Access = Access()
     # JUN-100: can be the manager on shift, who answers Help on their own glasses.
     shift_manager: bool = False
+    # The language of the welcome and the voice that speaks it; null: the same as language (JUN-108).
+    welcome_language: str | None = None
 
 
 class EmployeeCreate(BaseModel):
@@ -56,6 +58,7 @@ class EmployeeCreate(BaseModel):
     welcome: Welcome | None = None
     access: Access = Access()
     shift_manager: bool = False
+    welcome_language: Language | None = None
 
 
 class EmployeeUpdate(BaseModel):
@@ -69,6 +72,8 @@ class EmployeeUpdate(BaseModel):
     welcome: Welcome | None = None
     access: Access | None = None
     shift_manager: bool | None = None
+    # Sent as null: back to the employee's language.
+    welcome_language: Language | None = None
 
 
 class OrderLine(BaseModel):

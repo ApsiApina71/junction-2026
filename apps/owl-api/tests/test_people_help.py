@@ -349,3 +349,17 @@ def test_leftover_help_frames_are_deleted_at_start(tmp_path, monkeypatch):
         assert client.get("/health").status_code == 200
     assert not leftover.exists()
     assert recorded.is_file()  # recorded reference photos are the company's and stay
+
+
+def test_a_welcome_in_another_language_than_the_steps(client):
+    """JUN-108: Sami follows the steps in English but is welcomed in Finnish, with the Finnish voice."""
+    sami = client.put("/employees/emp-sami", json={"welcome_language": "fi"}).json()
+    assert sami["language"] == "en" and sami["welcome_language"] == "fi"
+    assert sami["welcome"].startswith("Tervetuloa, Sami!")
+    # A welcome written by hand stays, whatever the language.
+    client.put("/employees/emp-sami", json={"welcome": "Moi Sami, kiva että tulit!"})
+    assert client.put("/employees/emp-sami", json={"welcome_language": "en"}).json()["welcome"] == "Moi Sami, kiva että tulit!"
+    # null: back to the employee's own language.
+    assert client.put("/employees/emp-sami", json={"welcome_language": None}).json()["welcome_language"] is None
+    new = client.post("/employees", json={"name": "Aino", "language": "en", "welcome_language": "fi"}).json()
+    assert new["welcome"].startswith("Tervetuloa, Aino!")
