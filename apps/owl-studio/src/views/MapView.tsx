@@ -1,4 +1,4 @@
-import { Button, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { Button, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { usePolling } from '../lib/hooks.ts'
@@ -6,7 +6,7 @@ import { useStudio } from '../lib/studio.ts'
 import { rectFrom, zoneId } from '../lib/training.ts'
 import type { Process, Step, TraineePlace, Zone, ZoneKind } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { Actions, ChoiceRow, DangerButton, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
+import { Actions, ChoiceRow, DangerButton, InlineList, PrimaryButton, Problem, StatusText, TextField } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
 // JUN-97. No markers: Owl recognises a step's place in the worker's camera picture, from the expert's photo of the step
@@ -161,11 +161,11 @@ export function MapView() {
                       No areas yet. Draw the aisles, the packing station and the loading bay on the map.
                     </TextView>
                   ) : (
-                    <VerticalList ariaLabel="Areas" className="inline-list">
+                    <InlineList label="Areas">
                       {(zones ?? []).map((zone) => (
                         <ListItem key={zone.id} title={zone.name} subtitle={KIND_NAME[zone.kind]} icon={ICONS.map} visualStateOverride={selected === zone.id ? VisualState.FOCUSED : undefined} onClick={() => setSelected(zone.id)} />
                       ))}
-                    </VerticalList>
+                    </InlineList>
                   )}
                 </section>
               )}
@@ -285,9 +285,9 @@ function ZoneForm({ zone, onSave, onRemove, onClose }: { zone: Zone; onSave: (zo
             {zone.name}
           </TextView>
           <TextField id="zone-name" label="Name" value={name} maxLength={60} onChange={setName} />
-          <VerticalList ariaLabel="Kind of area" className="inline-list">
+          <InlineList label="Kind of area">
             <ChoiceRow label="Kind" choices={kindChoices} value={kind} onChange={setKind} />
-          </VerticalList>
+          </InlineList>
           <Actions align="start">
             <PrimaryButton title="Save" icon={ICONS.check} disabled={!name.trim()} onClick={() => name.trim() && void onSave({ ...zone, name: name.trim(), kind })} />
             <Button title="Close" alwaysShowText onClick={onClose} />
@@ -351,7 +351,7 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
           const isOpen = open === process.id
           return (
             <div key={process.id} className="plan">
-              <VerticalList ariaLabel={`Places of ${process.title}`} className="inline-list">
+              <InlineList label={`Places of ${process.title}`}>
                 <ListItem title={process.title} subtitle={`${process.steps.filter((step) => step.checkpoint).length} steps with a place`} icon={ICONS.map} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? '' : process.id)} />
                 {isOpen &&
                   process.steps.map((step) => {
@@ -367,7 +367,7 @@ function Checkpoints({ zones, processes }: { zones: Zone[]; processes: Process[]
                       />
                     )
                   })}
-              </VerticalList>
+              </InlineList>
               {isOpen && (
                 <div className="plan-foot checkpoint-fields">
                   {process.steps.map((step) => {
@@ -512,10 +512,10 @@ function Unlock({ places, processes }: { places: TraineePlace[]; processes: Proc
           <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
             When Owl does not recognise the place, for example after the shelves have moved.
           </TextView>
-          <VerticalList ariaLabel="Trainee and step" className="inline-list">
+          <InlineList label="Trainee and step">
             <ChoiceRow label="Trainee" choices={whoChoices} value={who} onChange={setWho} />
             <ChoiceRow label="Step" choices={stepChoices} value={step} onChange={setStep} />
-          </VerticalList>
+          </InlineList>
           {error && <StatusText tone="negative">{error}</StatusText>}
           <Actions align="start">
             <Button title="Open the step" icon={ICONS.check} alwaysShowText onClick={() => void open()} />

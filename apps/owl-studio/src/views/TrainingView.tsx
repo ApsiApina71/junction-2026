@@ -1,4 +1,4 @@
-import { Button, ContainerHeader, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
+import { Button, ContainerHeader, ListItem, Page, Panel, ScrollView, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useCallback, useEffect, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { useStudio } from '../lib/studio.ts'
@@ -6,7 +6,7 @@ import { newId, resultText, todayIso } from '../lib/training.ts'
 import { count } from '../lib/words.ts'
 import type { Employee, Process, Trainee, TrainingPlan, TrainingResult } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { Actions, ChoiceRow, FieldLabel, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import { Actions, ChoiceRow, FieldLabel, InlineList, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast } from '../ui/toast.ts'
 
@@ -224,9 +224,9 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
                 They saw this on the glasses first. Owl gives the evidence; you decide.
               </TextView>
               <TextField id={`by-${trainee.employee_id}`} label="Your name" value={by} maxLength={60} onChange={setBy} error={error || null} />
-              <VerticalList ariaLabel="More practice" className="inline-list">
+              <InlineList label="More practice">
                 <ChoiceRow label="More practice for" choices={extendChoices} value={String(extend)} onChange={(days) => setExtend(Number(days))} />
-              </VerticalList>
+              </InlineList>
               <Actions align="start">
                 <PrimaryButton title="Confirm: ready" icon={ICONS.check} disabled={busy} onClick={() => void confirm('ready')} />
                 <Button title="Confirm: more practice" alwaysShowText disabled={busy} onClick={() => void confirm('more_practice')} />
@@ -297,10 +297,10 @@ function StartTraining({ employees, trainees, plans, onStarted }: { employees: E
           <TextView as="h2" id="start-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
             Start a training period
           </TextView>
-          <VerticalList ariaLabel="Who and which level" className="inline-list">
+          <InlineList label="Who and which level">
             <ChoiceRow label="Who" choices={whoChoices} value={employeeId} onChange={setEmployeeId} />
             <ChoiceRow label="Level" choices={levelChoices} value={planId} onChange={setPlanId} />
-          </VerticalList>
+          </InlineList>
           <div className="field">
             <FieldLabel htmlFor="start-day">First day</FieldLabel>
             <input id="start-day" className="edit-field uit-text-body2" type="date" value={starts} onChange={(event) => setStarts(event.target.value)} />
@@ -356,7 +356,7 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
   const requiredChoices = [0, 1, 2, 3, 4, 5, 10].map((n) => ({ value: String(n), label: n === 0 ? 'Not in the level' : n === 1 ? 'Once without help' : `${n} times without help` }))
   return (
     <div className="plan">
-      <VerticalList ariaLabel={`The level for ${plan.role}`} className="inline-list">
+      <InlineList label={`The level for ${plan.role}`}>
         <ListItem
           title={plan.role}
           subtitle={`${count(plan.days, 'day', 'days')} · ${count(plan.target.length, 'step', 'steps')}${plan.customer_service ? ' · customer service' : ''}`}
@@ -389,7 +389,7 @@ function PlanEditor({ plan, processes, onSaved }: { plan: TrainingPlan; processe
             )}
           </>
         )}
-      </VerticalList>
+      </InlineList>
       {open && (
         <div className="plan-foot">
           {relevant.length === 0 && (

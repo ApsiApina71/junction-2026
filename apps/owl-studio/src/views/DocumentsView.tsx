@@ -74,7 +74,7 @@ export function DocumentsView() {
 
   return (
     <Page headerText="Documents" enableSystemBarInset={false} className="route">
-      <div className="split">
+      <div className="split split-wide">
         <section className="split-list" aria-labelledby="docs-heading">
           <VerticalList insetForHeader ariaLabel="Documents">
             <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-lede">
@@ -132,7 +132,7 @@ export function DocumentsView() {
                 key={doc.id}
                 title={doc.title}
                 subtitle={`${doc.filename} · ${lengthText(doc.chars)} · added ${timeAgo(doc.uploaded_at, now)}`}
-                subtitleMaxLines={2}
+                subtitleMaxLines={3}
                 icon={ICONS.documents}
                 accessoryIcon={ICONS.trash}
                 accessoryIconAlwaysVisible

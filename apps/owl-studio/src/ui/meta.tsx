@@ -11,6 +11,18 @@ import { counterText } from '../lib/steps.ts'
 import { CARET_KEYS } from './keys.ts'
 
 /**
+ * A short list inside a page that already scrolls: the toolkit's VerticalList at its content's height, so it never
+ * becomes a small scroller of its own (its default fills its parent and scrolls). The page's column is the one scroller.
+ */
+export function InlineList({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+  return (
+    <VerticalList ariaLabel={label} height="auto" fadingEdgeEnabled={false} scrollbarEnabled={false} className={['inline-list', className].filter(Boolean).join(' ')}>
+      {children}
+    </VerticalList>
+  )
+}
+
+/**
  * A row of actions: the toolkit's ButtonGroup. Buttons keep their own width, as the toolkit asks; when the row has no
  * room it wraps instead of squeezing them (a squeezed toolkit Button cuts its label).
  */
@@ -348,7 +360,8 @@ export function ChoiceDialog<T extends string>({ title, choices, value, onChoose
               {title}
             </TextView>
             <div role="radiogroup" aria-labelledby={titleId} className="choice-list">
-              <VerticalList ariaLabel={title}>
+              {/* Room under the last row for its focus glow, so a short list does not scroll by a few pixels. */}
+              <VerticalList ariaLabel={title} height="auto" className="choice-scroll" contentStyle={{ paddingBlockEnd: 'var(--uit-spacing-xlarge)' }}>
                 {choices.map((choice) => (
                   <ListItem key={choice.value} title={choice.label} subtitle={choice.detail} showRadioButton checked={choice.value === value} onCheckedChange={() => onChoose(choice.value)} />
                 ))}

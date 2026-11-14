@@ -44,7 +44,7 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
                   key={employee.id}
                   title={employee.name}
                   subtitle={facts.filter(Boolean).join(' · ')}
-                  subtitleMaxLines={2}
+                  subtitleMaxLines={4}
                   avatarPrimaryContent={<span className="initial uit-text-body1-emphasized">{employee.name.trim().charAt(0).toUpperCase()}</span>}
                   avatarStatusIndicator={employee.glasses_id ? StatusIndicatorType.POSITIVE : StatusIndicatorType.INACTIVE}
                   visualStateOverride={current ? VisualState.FOCUSED : undefined}
@@ -222,7 +222,7 @@ function PersonForm({ employee }: { employee: Employee | null }) {
                 : 'No glasses yet. A pair has one wearer at a time.'
           }
         />
-        <ListItem title="Shift manager" subtitle="When on shift, answers a new worker's Help call on their own glasses and sees the worker's view." subtitleMaxLines={2} showSwitch checked={shiftManager} onCheckedChange={setShiftManager} />
+        <ListItem title="Shift manager" subtitle="When on shift, answers a new worker's Help call on their own glasses and sees the worker's view." subtitleMaxLines={4} showSwitch checked={shiftManager} onCheckedChange={setShiftManager} />
         {studio.processes?.length ? (
           studio.processes.map((process) => (
             <ListItem

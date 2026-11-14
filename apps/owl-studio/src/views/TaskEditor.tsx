@@ -1,4 +1,4 @@
-import { Button, IconTintColor, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
+import { Button, IconTintColor, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { glassesName } from '../lib/docs.ts'
@@ -29,7 +29,7 @@ import type { Issue } from '../lib/steps.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { Check, CheckKind, Employee, OrderLine, Process, Step } from '../lib/types.ts'
 import { ICONS } from '../ui/icons.ts'
-import { Actions, CharacterCount, ChoiceRow, EditInput, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import { Actions, CharacterCount, ChoiceRow, EditInput, InlineList, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 import { useToast, useUnsaved } from '../ui/toast.ts'
 import { GlassesPreview } from './GlassesPreview.tsx'
@@ -221,7 +221,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                       <TextField id="task-summary" label="In one sentence" value={draft.summary} multiline onChange={(summary) => setDraft({ ...draft, summary })} />
                     </div>
                   </Panel>
-                  <VerticalList ariaLabel="Language of this task" className="inline-list">
+                  <InlineList label="Language of this task">
                     <ChoiceRow
                       label="Language of this task"
                       choices={languageChoices}
@@ -229,7 +229,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                       onChange={(language) => setDraft({ ...draft, language })}
                       note={isDraft && draft.source === 'record' ? `${languageName(draft.language)}. Owl guessed this from the recording. Correct it if it is wrong.` : languageName(draft.language)}
                     />
-                  </VerticalList>
+                  </InlineList>
                 </div>
               )}
             </header>
@@ -249,11 +249,11 @@ export function TaskEditor({ processId }: { processId: string }) {
                   </div>
                 </Panel>
                 {issues.length > 0 && (
-                  <VerticalList ariaLabel="What to fix" className="inline-list">
+                  <InlineList label="What to fix">
                     {issues.map((issue) => (
                       <ListItem key={`${issue.stepId}-${issue.field}-${issue.message}`} title={issue.message} icon={ICONS.info} iconTintColor={IconTintColor.WARNING} onClick={() => goTo(issue)} />
                     ))}
-                  </VerticalList>
+                  </InlineList>
                 )}
               </section>
             )}
@@ -268,7 +268,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                     This task has no steps left. Undo the last removal, or leave without saving.
                   </TextView>
                 ) : (
-                  <VerticalList ariaLabel="Steps" className="step-list">
+                  <InlineList label="Steps" className="step-list">
                     {draft.steps.map((step, i) => {
                       const isSelected = selected?.id === step.id
                       const hints = cutHints(step)
@@ -308,7 +308,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                         />
                       )
                     })}
-                  </VerticalList>
+                  </InlineList>
                 )}
                 {selected && (
                   <Actions align="start">
@@ -409,7 +409,7 @@ function Learners({ process, headingRef }: { process: Process; headingRef: React
           <Button title="Add a person" icon={ICONS.plus} alwaysShowText onClick={() => (window.location.hash = href('people', 'new'))} />
         </div>
       ) : (
-        <VerticalList ariaLabel="People who can learn it" className="inline-list learner-list">
+        <InlineList label="People who can learn it" className="learner-list">
           {employees.map((employee) => (
             <ListItem
               key={employee.id}
@@ -422,7 +422,7 @@ function Learners({ process, headingRef }: { process: Process; headingRef: React
               onCheckedChange={() => void toggle(employee)}
             />
           ))}
-        </VerticalList>
+        </InlineList>
       )}
       {problem && <Problem>{problem}</Problem>}
     </section>
@@ -612,11 +612,11 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
         </TextView>
       </legend>
       <div id="step-criteria" tabIndex={-1} role="radiogroup" aria-label="How Owl checks this step">
-        <VerticalList ariaLabel="Kinds of check" className="inline-list">
+        <InlineList label="Kinds of check">
           {KINDS.map(({ kind, label }) => (
             <ListItem key={kind} title={label} showRadioButton checked={check.kind === kind} onCheckedChange={() => choose(kind)} />
           ))}
-        </VerticalList>
+        </InlineList>
       </div>
 
       {check.kind === 'none' && (

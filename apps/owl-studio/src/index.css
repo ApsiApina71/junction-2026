@@ -77,6 +77,13 @@ body,
   grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
 }
 
+/* On a narrower window the sidebar gives the open view more room. */
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: 330px minmax(0, 1fr);
+  }
+}
+
 .sidebar {
   min-block-size: 0;
   display: grid;
@@ -114,6 +121,21 @@ body,
   display: flex;
   padding-inline: var(--uit-spacing-large);
   min-inline-size: 0;
+}
+
+/* Compact desktop navigation: all seven sections fit without scrolling, while the toolkit keeps its text and icons. */
+@media (min-width: 701px) {
+  .sidebar-nav {
+    --uit-listitem-min-height: 88px;
+    min-block-size: 0;
+  }
+}
+
+@media (min-width: 701px) and (max-height: 700px) {
+  .sidebar-nav {
+    --uit-listitem-min-height: 76px;
+    --uit-spacing-large: 16px;
+  }
 }
 
 .sidebar-foot {
@@ -464,8 +486,13 @@ body,
     grid-column: 1 / -1;
   }
 
-  .context-scroll {
+  /* The toolkit's ScrollView sets its own height; when the console wraps, the step is as tall as its content and the
+     console is the one scroller. */
+  .context-scroll,
+  .context-scroll [data-scroll-view='true'] {
     flex: none;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   /* The conversation keeps room for a few messages. */
@@ -569,15 +596,32 @@ body,
   color: var(--uit-color-text-primary);
 }
 
-@media (max-width: 1200px) {
+/* On a narrow window the list and the record stack, and the page scrolls as one: each column grows to its content
+   instead of keeping a scroller of its own (the toolkit's ScrollView and VerticalList set their own height). */
+@media (max-width: 900px) {
   .split {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding-inline-end: 0;
   }
 
+  .split-list,
+  .split-detail,
+  .detail-shell {
+    display: block;
+  }
+
+  .split-list > *,
+  .split-detail > *,
+  .detail-shell > *,
+  .split [data-scroll-view='true'] {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   .split-detail {
-    padding-block-start: 0;
+    padding-block-start: var(--uit-spacing-large);
   }
 }
 
@@ -1034,9 +1078,12 @@ body,
   align-items: stretch;
 }
 
-/* A short list inside the page's flow: it shows every row and does not scroll on its own. */
-.inline-list {
+/* A short list inside the page's flow (InlineList): it shows every row and never scrolls on its own. The toolkit's
+   rows draw their focus glow a little past their box, which would otherwise give the list a few pixels to scroll. */
+.inline-list,
+.inline-list [data-scroll-view='true'] {
   block-size: auto;
+  overflow: visible !important;
 }
 
 .learners-empty {
@@ -1304,6 +1351,7 @@ body,
   z-index: 1000;
   display: grid;
   place-items: center;
+  overflow: auto;
   padding: var(--uit-spacing-xlarge);
   /* The toolkit's panels are translucent (made for see-through glasses), so the page behind is darkened almost to the
      window colour and softened: the decision is the only thing to read. */
@@ -1311,10 +1359,10 @@ body,
   backdrop-filter: blur(8px);
 }
 
+/* A dialog never scrolls inside itself; on a very small window the shade scrolls instead. */
 .dialog-frame {
   inline-size: min(100%, 880px);
-  max-block-size: 100%;
-  overflow: auto;
+  margin-block: auto;
 }
 
 .dialog-content {
@@ -1345,10 +1393,17 @@ body,
   inline-size: min(100%, 760px);
 }
 
+/* A list of choices is as tall as its rows, up to a cap; a longer one (the languages) scrolls inside the dialog. */
 .choice-list {
-  max-block-size: 60vh;
   display: flex;
   flex-direction: column;
+}
+
+/* The cap is the window's height (vh is not scaled by the zoom, so it is divided by it) less the dialog's title,
+   Cancel and margins: a list scrolls only when it cannot fit on the screen. */
+.choice-scroll,
+.choice-scroll [data-scroll-view='true'] {
+  max-block-size: calc(100vh / var(--studio-zoom) - 380px);
 }
 
 /* The toolkit's text field hides the caret (on the glasses the host owns text entry); on a desktop it is shown. */
