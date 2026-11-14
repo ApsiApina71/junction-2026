@@ -33,7 +33,8 @@
   .display.still img { width: 100%; height: 100%; display: block; }
   /* The expert's clip as the glasses show it: a rounded card centred on the black display. */
   .display.clip { padding: 0; background: #000; align-items: center; justify-content: center; }
-  .display.clip video { height: 92%; max-width: 92%; border-radius: 18px; display: block; }
+  .display.clip { overflow: hidden; }
+  .display.clip video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .caption { margin-top: 16px; padding: 12px 16px; background: var(--panel); border-radius: 12px; border-left: 4px solid var(--gold); font-size: 20px; min-height: 52px; }
   .caption small { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
   .camera { width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 16px; border: 1px solid var(--line); object-fit: cover; }
@@ -117,37 +118,16 @@
     const s = g && g.screen;
     if (!s) return null;
     const t = `${s.title || ""} ${s.text || ""}`.toLowerCase();
-    const last = (g.events || [])[0] || {};
-    const check = (g.events || []).find((ev) => ev.kind === "check");
-    if (/expert.s clip/i.test(t)) return "clip";
+    if (/expert.s clip/.test(t)) return "clip";
     switch (s.kind) {
-      case "welcome": return "welcome";
-      case "tasks": return t.includes("training") ? "training" : "tasks";
       case "locked": return "goto";
-      case "clip": case "video": return "clip";
-      case "finished": case "done": return "finished";
-      case "check":
-        if (t.includes("can't check") || t.includes("cannot check")) return "cant-check";
-        return "warning";
-      case "help":
-        if (t.includes("who can help")) return "help-choice";
-        if (t.includes("calling")) return "calling-mika";
-        return "mika-watching";
-      case "assist":
-        if (t.includes("not in the handbook")) return "hint-not-found";
-        if (t.includes("10:00") || t.includes("deadline")) return "hint-deadline";
-        return "customer-service";
-      case "step": {
-        if (last.kind === "said" && /you are there/i.test(last.text || "")) return "you-are-there";
-        if (!check) return "step-watching";
-        if (check.step_done) return "done";
-        if (check.status === "warning") return "warning";
-        if (check.status === "ok") return "step-looks-right";
-        if (check.status === "unsure") return "step-cant-see";
+      case "check": return /can.t check|cannot check/.test(t) ? null : "warning";
+      case "done": return "finished";
+      case "step":
+        if (t.includes("looks right")) return "step-looks-right";
+        if (t.includes("can't see") || t.includes("cannot see") || t.includes("move closer")) return "step-cant-see";
         return "step-watching";
-      }
     }
-    if (t.includes("well done")) return "finished";
     return null;
   }
 
