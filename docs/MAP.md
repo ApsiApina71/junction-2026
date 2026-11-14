@@ -17,6 +17,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | glasses-api | api | [../apps/glasses-api](../apps/glasses-api/README.md) | Automatic calorie tracker for camera glasses: frames in, a food log and a spoken sentence out |
 | copilot-api | api | [../apps/copilot-api](../apps/copilot-api/README.md) | Photo from the glasses → Claude → product check |
 | glasses-ios | ios (DAT) | [../apps/glasses-ios](../apps/glasses-ios/README.md) | iPhone app for Meta glasses: camera, speech, display |
+| bite-ios | ios (DAT) | [../apps/bite-ios](../apps/bite-ios/README.md) | Display-glasses app (display, camera, Neural Band, speech); base for the Onboarding Owl glasses app |
 
 ## Agent tooling
 
@@ -43,6 +44,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [architecture/adr-002-coach-architecture.md](architecture/adr-002-coach-architecture.md) | Coach architecture: engine computes, model talks, model is swappable |
 | [architecture/adr-003-glasses-app-dat-ios.md](architecture/adr-003-glasses-app-dat-ios.md) | Glasses app on Meta DAT iOS + copilot-api |
 | [specs/_template.md](specs/_template.md) | Lean PRD template |
+| [specs/onboarding-owl.md](specs/onboarding-owl.md) | Onboarding Owl: what we build for the Meta challenge |
 | [security/security-rules.md](security/security-rules.md) | Security rules for code, agents and reviews |
 | [runbooks/agent-onboarding.md](runbooks/agent-onboarding.md) | How agents and humans get productive |
 | [runbooks/local-dev.md](runbooks/local-dev.md) | Local tooling and running apps |
@@ -55,7 +57,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 
 | Spec | Ticket |
 |---|---|
-| _none yet_ | |
+| [Onboarding Owl](specs/onboarding-owl.md) | [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) |
 
 ## Decisions (ADRs)
 
