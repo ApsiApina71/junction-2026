@@ -25,8 +25,8 @@ from pydantic import BaseModel
 from . import ask as ask_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
+from . import jepa, people, persist, verifier, vision
 from . import media as media_engine
-from . import people, persist, verifier, vision
 from . import progress as progress_engine
 from . import record as record_engine
 from . import stage as stage_engine
@@ -73,6 +73,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 
 store = Store()
 tracker = verifier.Tracker()
+recognizer = jepa.Recognizer(store.data_dir / "jepa")
 stage = stage_engine.Stage()
 progress = progress_engine.Progress()
 # JUN-78: state survives restarts. OWL_RESET=1 starts clean from the fixtures (rehearsals).
@@ -384,6 +385,35 @@ def with_pace(step: Step, result: CheckResult) -> CheckResult:
     else:
         ms = {"checking": 800, "warning": 1500, "unsure": 1500}.get(result.status, 3000)
     return result.model_copy(update={"next_check_ms": ms})
+
+
+# Step recognition (JUN-34): which step is the worker doing? V-JEPA 2 (or the baseline) against the expert's clips.
+
+
+@app.post("/steps/recognize", dependencies=[Auth])
+async def recognize_step(
+    clip: Annotated[UploadFile, File()],
+    process_id: Annotated[str, Form()],
+    employee_id: Annotated[str, Form(max_length=80)] = "",
+) -> dict:
+    process = get_process(process_id)
+    worker = store.employees.get(employee_id) if employee_id else None
+    if worker is not None and not store.consents.get(worker.id, {}).get("camera_checks"):
+        raise HTTPException(status_code=403, detail="consent_required")
+    data = await clip.read(MAX_FRAME_BYTES * 3 + 1)
+    if not data or len(data) > MAX_FRAME_BYTES * 3:
+        raise HTTPException(status_code=413, detail="The clip is empty or larger than 18 MB.")
+    clips = {}
+    for step in process.steps:
+        url = step.clip_url or ""
+        path = store.media_path(url.removeprefix("/media/")) if url.startswith("/media/") else None
+        if path:
+            clips[step.id] = path
+    try:
+        result = await run_in_threadpool(recognizer.recognize, process, clips, data)
+    except jepa.ClipError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return result.to_dict()
 
 
 # Consent (JUN-80): what the worker agreed to on the glasses. Without camera_checks, /check answers 403.

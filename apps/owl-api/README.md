@@ -53,6 +53,16 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 `app/translate.py` (JUN-72): `POST /processes/{id}/translate` has Claude write the process in the worker's language and stores it as the process's translation (the same store as `PUT /processes/{id}?language=`). Step ids, media, checks and order line names are kept; a translation that does not keep the steps is refused. Needs the model.
 
+## Step recognition (V-JEPA 2)
+
+`app/jepa.py` (JUN-34): `POST /steps/recognize` tells which step the worker is doing by comparing a 2 s clip from the glasses with the expert's clip of each step. Embeddings come from Meta's **V-JEPA 2** video encoder (`facebook/vjepa2-vitl-fpc64-256`, MIT) when the optional extra is installed, and from a small appearance-and-motion baseline otherwise (tests, CI, and machines without the model). Expert prototypes are cached in `data/jepa/`.
+
+```sh
+uv sync --extra jepa                      # torch + transformers; the model downloads from Hugging Face on first use, no login
+JEPA_BACKEND=vjepa2 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+uv run python scripts/jepa_eval.py --expert <dir> --trainee <dir> --backend vjepa2   # go/no-go on real clips
+```
+
 ## Stage view
 
 `GET /stage` (JUN-79) is a full-screen page for the projector, the peer-review table and the video: the glasses screen as the wearer sees it, the live camera view, and a timeline of Owl's checks, answers and spoken lines with who decided (`demo`, `rules`, `jev`). The glasses post their state to `POST /stage` when "Stage mirroring" is on; owl-api adds its own decisions. Everything is in memory; frames expire after 30 s and never touch the disk. Open `https://<tunnel>/stage?token=<API_TOKEN>` on any laptop.
