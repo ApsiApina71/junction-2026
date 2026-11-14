@@ -1,7 +1,7 @@
 // Studio's shared parts, composed from Meta's UI Toolkit for Meta Ray-Ban Display (JUN-101). Each part is one
 // toolkit component, or toolkit components arranged; none of them redraws what the toolkit already has.
 
-import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, InputTextView, ListItem, MaterialLibrary, Modal, Panel, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
+import { Button, ButtonGroup, ButtonGroupAlignment, IconImage, IndeterminateLoader, IndeterminateLoaderSize, InputTextView, InputTextViewSize, ListItem, MaterialLibrary, Modal, Panel, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList } from '@wearables-ui-toolkit/mrbd'
 import type { ButtonProps } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
@@ -175,6 +175,9 @@ export function TextField({
   lang,
   extra,
   multiline = false,
+  hintTone,
+  invalid,
+  autoFocus,
 }: {
   id: string
   label: string
@@ -188,6 +191,10 @@ export function TextField({
   extra?: ReactNode
   /** Without it, a line break typed or pasted becomes a space: names and titles are one line. */
   multiline?: boolean
+  /** A hint that is a warning (cut text, too long) is tinted; the words still say it. */
+  hintTone?: Tone
+  invalid?: boolean
+  autoFocus?: boolean
 }) {
   const note = error ? `${id}-error` : hint ? `${id}-hint` : undefined
   return (
@@ -195,14 +202,14 @@ export function TextField({
       <FieldLabel htmlFor={id} extra={extra}>
         {label}
       </FieldLabel>
-      <InputTextView text={value} hint={placeholder ?? ''} onTextChange={(text) => onChange(multiline ? text : text.replace(/\s*\n\s*/g, ' '))} inputProps={{ id, maxLength, lang, autoComplete: 'off', 'aria-invalid': error ? true : undefined, 'aria-describedby': note }} />
+      <InputTextView size={InputTextViewSize.FULL} text={value} hint={placeholder ?? ''} onTextChange={(text) => onChange(multiline ? text : text.replace(/\s*\n\s*/g, ' '))} inputProps={{ id, maxLength, lang, autoFocus, autoComplete: 'off', 'aria-invalid': error || invalid ? true : undefined, 'aria-describedby': note }} />
       {error ? (
         <TextView as="p" id={`${id}-error`} textStyle={TextStyle.META1}>
           <span className="status-text is-negative">{error}</span>
         </TextView>
       ) : hint ? (
         <TextView as="p" id={`${id}-hint`} textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-          {hint}
+          {hintTone ? <span className={`status-text is-${hintTone}`}>{hint}</span> : hint}
         </TextView>
       ) : null}
     </div>

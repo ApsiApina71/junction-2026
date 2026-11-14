@@ -521,6 +521,244 @@ body {
   }
 }
 
+/* The task editor: the task's state and details, then the steps, the open step and what the worker sees. */
+
+.editor-shell {
+  block-size: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.editor-scroll {
+  min-block-size: 0;
+}
+
+.editor-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-xlarge);
+  padding: 0 var(--uit-spacing-xlarge) var(--uit-spacing-2xl);
+}
+
+.editor-head,
+.problems,
+.learners {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.editor-head-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--uit-spacing-small) var(--uit-spacing-xlarge);
+}
+
+.task-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--uit-spacing-large);
+  align-items: start;
+}
+
+.panel-body.task-details-body {
+  align-items: stretch;
+}
+
+/* A short list inside the page's flow: it shows every row and does not scroll on its own. */
+.inline-list {
+  block-size: auto;
+}
+
+.learners-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--uit-spacing-large);
+}
+
+.learners {
+  margin-block-start: var(--uit-spacing-large);
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--uit-spacing-xlarge);
+  align-items: start;
+}
+
+.steps-column,
+.step-side,
+.preview-panel {
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.column-label {
+  padding-inline: var(--uit-spacing-small);
+}
+
+.step-list .is-drop-target {
+  outline: 3px dashed var(--uit-color-text-accent);
+  outline-offset: -3px;
+}
+
+.step-form {
+  min-inline-size: 0;
+}
+
+.panel-body.step-form-body {
+  align-items: stretch;
+  gap: var(--uit-spacing-xlarge);
+}
+
+.step-form-head,
+.reviewed-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--uit-spacing-medium);
+}
+
+.needs-you,
+.nudge,
+.check-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--uit-spacing-medium);
+}
+
+.check {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-medium);
+}
+
+.check > legend {
+  padding: 0;
+  margin-block-end: var(--uit-spacing-small);
+}
+
+.criteria {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+}
+
+.criteria li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--uit-spacing-small);
+}
+
+.order-lines {
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+}
+
+.order-line {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 0.8fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--uit-spacing-small);
+}
+
+.narration,
+.media {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+}
+
+.media img,
+.media video {
+  display: block;
+  inline-size: 100%;
+  border-radius: var(--uit-corner-radius-xsmall);
+  background: var(--uit-color-background-input-field);
+}
+
+/* The display: 600 toolkit pixels square, black like the glasses (black is see-through there). */
+.glasses {
+  box-sizing: border-box;
+  inline-size: min(100%, 600px);
+  aspect-ratio: 1;
+  padding: var(--uit-spacing-large);
+  border: 2px solid var(--uit-color-border-primary);
+  border-radius: var(--uit-corner-radius-large);
+  background: var(--uit-color-background-window);
+  overflow: hidden;
+}
+
+.glasses-screen {
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--uit-spacing-medium);
+}
+
+.glasses-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  padding: var(--uit-spacing-medium) var(--uit-spacing-large) var(--uit-spacing-large);
+}
+
+.glasses-photo {
+  display: block;
+  inline-size: 100%;
+  max-block-size: 160px;
+  object-fit: cover;
+  border-radius: var(--uit-corner-radius-xxsmall);
+}
+
+.editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--uit-spacing-medium);
+  padding: var(--uit-spacing-small) var(--uit-spacing-xlarge) var(--uit-spacing-xsmall);
+  border-block-start: 1px solid var(--uit-color-border-primary);
+  background: var(--uit-color-background-window);
+}
+
+@media (max-width: 1500px) {
+  .editor-grid {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  }
+
+  .step-side {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .step-recording {
+    flex: 1 1 520px;
+  }
+}
+
 /* Shared parts on the toolkit (ui/meta.tsx) */
 
 .panel-body {

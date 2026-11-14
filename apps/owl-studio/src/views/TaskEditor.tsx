@@ -1,3 +1,4 @@
+import { Button, ButtonGroup, ButtonGroupAlignment, IconTintColor, InputTextView, InputTextViewSize, ListItem, Page, Panel, ScrollView, SubtitleTextColor, TextColor, TextStyle, TextView, VerticalList, VisualState } from '@wearables-ui-toolkit/mrbd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { messageOf } from '../lib/api.ts'
 import { glassesName } from '../lib/docs.ts'
@@ -7,6 +8,7 @@ import {
   CHECK_LABEL,
   LIMITS,
   countWords,
+  counterText,
   cutHints,
   cutIssues,
   insertStep,
@@ -26,8 +28,9 @@ import {
 import type { Issue } from '../lib/steps.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { Check, CheckKind, Employee, OrderLine, Process, Step } from '../lib/types.ts'
-import { Icon } from '../ui/Icon.tsx'
-import { Counter, IconButton, Loading, Problem, StatusTag } from '../ui/parts.tsx'
+import { ICONS } from '../ui/icons.ts'
+import { CharacterCount, ChoiceRow, PrimaryButton, Problem, StatusText, TextField, Waiting } from '../ui/meta.tsx'
+import type { Tone } from '../ui/meta.tsx'
 import { useToast, useUnsaved } from '../ui/toast.ts'
 import { GlassesPreview } from './GlassesPreview.tsx'
 
@@ -88,24 +91,29 @@ export function TaskEditor({ processId }: { processId: string }) {
 
   if (loadError) {
     return (
-      <div className="view">
-        <a className="back-link" href={href('tasks')}>
-          <Icon name="back" size={18} />
-          Tasks
-        </a>
-        <Problem>{loadError}</Problem>
-      </div>
+      <Page headerText="Task" enableSystemBarInset={false} className="route">
+        <ScrollView insetForHeader ariaLabel="Task" className="route-scroll">
+          <div className="route-content">
+            <Problem>{loadError}</Problem>
+          </div>
+        </ScrollView>
+      </Page>
     )
   }
   if (!draft || !saved) {
     return (
-      <div className="view">
-        <Loading what="Opening the task" />
-      </div>
+      <Page headerText="Task" enableSystemBarInset={false} className="route">
+        <ScrollView insetForHeader ariaLabel="Task" className="route-scroll">
+          <div className="route-content">
+            <Waiting what="Opening the task" />
+          </div>
+        </ScrollView>
+      </Page>
     )
   }
 
   const selected = draft.steps.find((step) => step.id === selectedId) ?? draft.steps[0] ?? null
+  const selectedIndex = selected ? draft.steps.findIndex((step) => step.id === selected.id) : -1
   const isDraft = saved.status === 'draft'
   const issues = [...wrong, ...notReady]
   const stepIsWrong = (stepId: string) => wrong.some((issue) => issue.stepId === stepId)
@@ -185,219 +193,179 @@ export function TaskEditor({ processId }: { processId: string }) {
     }
   }
 
-  return (
-    <div className="view editor">
-      <a className="back-link" href={href('tasks')}>
-        <Icon name="back" size={18} />
-        Tasks
-      </a>
+  const status: { tone: Tone; text: string } = isDraft ? { tone: 'warning', text: 'Draft, needs review' } : learners.length ? { tone: 'positive', text: 'Published' } : { tone: 'quiet', text: 'Published, no one assigned' }
+  const languageChoices = languages.map((option) => ({ value: option.code, label: option.native, detail: option.native === option.english ? undefined : option.english }))
 
-      <header className="editor-head">
-        <div className="editor-head-line">
-          <h1>{draft.title.trim() || 'Untitled task'}</h1>
-          {isDraft ? (
-            <StatusTag tone="signal" shape="diamond">
-              Draft, needs review
-            </StatusTag>
-          ) : learners.length ? (
-            <StatusTag tone="success" shape="disc">
-              Published
-            </StatusTag>
-          ) : (
-            <StatusTag tone="muted" shape="ring">
-              Published, no one assigned
-            </StatusTag>
-          )}
-          <button type="button" className="button button-quiet button-small" onClick={() => setDetailsOpen(!detailsOpen)} aria-expanded={detailsOpen} aria-controls="task-details">
-            {detailsOpen ? 'Hide details' : 'Edit name and language'}
-          </button>
-        </div>
-        <p className="editor-meta">
-          {[stepsText(draft.steps.length), originText(draft), languageName(draft.language), isDraft && toReview > 0 ? `${toReview} of ${draft.steps.length} to review` : isDraft ? 'every step reviewed' : learnersText(learners.map((e) => e.name))]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
-        {detailsOpen && (
-          <div id="task-details" className="panel task-details">
-            <div className="field">
-              <label htmlFor="task-title">Task name</label>
-              <input id="task-title" className="input" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} autoComplete="off" />
-            </div>
-            <div className="field">
-              <label htmlFor="task-summary">In one sentence</label>
-              <textarea id="task-summary" className="input" rows={2} value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} />
-            </div>
-            <div className="field">
-              <label htmlFor="task-language">Language of this task</label>
-              <select id="task-language" className="input" value={draft.language} onChange={(event) => setDraft({ ...draft, language: event.target.value })} aria-describedby={isDraft && draft.source === 'record' ? 'task-language-hint' : undefined}>
-                {languages.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.native === option.english ? option.native : `${option.native} (${option.english})`}
-                  </option>
-                ))}
-              </select>
-              {isDraft && draft.source === 'record' && (
-                <p className="hint" id="task-language-hint">
-                  Owl guessed this from the recording. Correct it if it is wrong.
-                </p>
+  return (
+    <Page headerText={draft.title.trim() || 'Untitled task'} enableSystemBarInset={false} className="route">
+      <div className="editor-shell">
+        <ScrollView insetForHeader ariaLabel="Review the task" className="editor-scroll">
+          <div className="editor-content">
+            <header className="editor-head">
+              <div className="editor-head-line">
+                <StatusText tone={status.tone} textStyle={TextStyle.BODY2_EMPHASIZED}>
+                  {status.text}
+                </StatusText>
+                <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                  {[stepsText(draft.steps.length), originText(draft), languageName(draft.language), isDraft && toReview > 0 ? `${toReview} of ${draft.steps.length} to review` : isDraft ? 'every step reviewed' : learnersText(learners.map((e) => e.name))]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </TextView>
+                <Button title={detailsOpen ? 'Hide details' : 'Edit name and language'} icon={ICONS.settings} alwaysShowText aria-expanded={detailsOpen} aria-controls="task-details" onClick={() => setDetailsOpen(!detailsOpen)} />
+              </div>
+              {detailsOpen && (
+                <div id="task-details" className="task-details">
+                  <Panel width="100%">
+                    <div className="panel-body task-details-body">
+                      <TextField id="task-title" label="Task name" value={draft.title} maxLength={120} onChange={(title) => setDraft({ ...draft, title })} />
+                      <TextField id="task-summary" label="In one sentence" value={draft.summary} multiline onChange={(summary) => setDraft({ ...draft, summary })} />
+                    </div>
+                  </Panel>
+                  <VerticalList ariaLabel="Language of this task" className="inline-list">
+                    <ChoiceRow
+                      label="Language of this task"
+                      choices={languageChoices}
+                      value={draft.language}
+                      onChange={(language) => setDraft({ ...draft, language })}
+                      note={isDraft && draft.source === 'record' ? `${languageName(draft.language)}. Owl guessed this from the recording. Correct it if it is wrong.` : languageName(draft.language)}
+                    />
+                  </VerticalList>
+                </div>
               )}
+            </header>
+
+            {problemsOpen && (issues.length > 0 || saveError) && (
+              <section className="problems" aria-labelledby="problems-heading">
+                <Panel width="100%">
+                  <div className="panel-body">
+                    <TextView as="h2" id="problems-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+                      <span className="status-text is-warning">{isDraft ? 'Before this can be published' : 'Before this can be saved'}</span>
+                    </TextView>
+                    {saveError && (
+                      <TextView as="p" textStyle={TextStyle.BODY2}>
+                        {saveError}
+                      </TextView>
+                    )}
+                  </div>
+                </Panel>
+                {issues.length > 0 && (
+                  <VerticalList ariaLabel="What to fix" className="inline-list">
+                    {issues.map((issue) => (
+                      <ListItem key={`${issue.stepId}-${issue.field}-${issue.message}`} title={issue.message} icon={ICONS.info} iconTintColor={IconTintColor.WARNING} onClick={() => goTo(issue)} />
+                    ))}
+                  </VerticalList>
+                )}
+              </section>
+            )}
+
+            <div className="editor-grid">
+              <section className="steps-column" aria-labelledby="steps-heading">
+                <TextView as="h2" id="steps-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="column-label">
+                  STEPS
+                </TextView>
+                {draft.steps.length === 0 ? (
+                  <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                    This task has no steps left. Undo the last removal, or leave without saving.
+                  </TextView>
+                ) : (
+                  <VerticalList ariaLabel="Steps" className="step-list">
+                    {draft.steps.map((step, i) => {
+                      const isSelected = selected?.id === step.id
+                      const hints = cutHints(step)
+                      const cut = hints.title || hints.instruction
+                      const needsYou = !isReviewed(step) || cut
+                      const title = step.title.trim() || 'Untitled step'
+                      return (
+                        <ListItem
+                          key={step.id}
+                          data-step-title={title}
+                          title={`${i + 1}. ${title}`}
+                          subtitle={cut ? 'Cut text, needs rewriting' : needsYou ? 'Needs your review' : `${CHECK_LABEL[step.check.kind]}${stepIsWrong(step.id) ? ' · needs fixing' : ''}`}
+                          subtitleTextColor={needsYou || stepIsWrong(step.id) ? SubtitleTextColor.WARNING : SubtitleTextColor.SECONDARY}
+                          avatarSrc={step.reference_image_url ?? undefined}
+                          icon={step.reference_image_url ? undefined : ICONS.tasks}
+                          visualStateOverride={isSelected ? VisualState.FOCUSED : undefined}
+                          aria-current={isSelected ? 'step' : undefined}
+                          className={drag && drag.over === i && drag.from !== i ? 'is-drop-target' : undefined}
+                          draggable
+                          onDragStart={(event: React.DragEvent) => {
+                            event.dataTransfer.effectAllowed = 'move'
+                            event.dataTransfer.setData('text/plain', step.id)
+                            setDrag({ from: i, over: null })
+                          }}
+                          onDragOver={(event: React.DragEvent) => {
+                            if (!drag) return
+                            event.preventDefault()
+                            if (drag.over !== i) setDrag({ ...drag, over: i })
+                          }}
+                          onDrop={(event: React.DragEvent) => {
+                            event.preventDefault()
+                            if (drag) move(drag.from, i)
+                            setDrag(null)
+                          }}
+                          onDragEnd={() => setDrag(null)}
+                          onClick={() => setSelectedId(step.id)}
+                        />
+                      )
+                    })}
+                  </VerticalList>
+                )}
+                {selected && (
+                  <ButtonGroup alignment={ButtonGroupAlignment.START}>
+                    <Button title={`Move step ${selectedIndex + 1} up`} icon={ICONS.up} disabled={selectedIndex === 0} onClick={() => move(selectedIndex, selectedIndex - 1)} />
+                    <Button title={`Move step ${selectedIndex + 1} down`} icon={ICONS.down} disabled={selectedIndex === draft.steps.length - 1} onClick={() => move(selectedIndex, selectedIndex + 1)} />
+                    <Button title={`Remove step ${selectedIndex + 1}`} icon={ICONS.trash} onClick={() => remove(selected)} />
+                  </ButtonGroup>
+                )}
+                <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  Drag a step, or choose it and use the arrows, to change the order.
+                </TextView>
+                <p className="visually-hidden" aria-live="polite">
+                  {moved}
+                </p>
+                {!isDraft && <Learners process={saved} headingRef={learnersRef} />}
+              </section>
+
+              {selected && <StepForm key={selected.id} step={selected} total={draft.steps.length} process={draft} onChange={changeStep} />}
             </div>
           </div>
-        )}
-      </header>
+        </ScrollView>
 
-      {problemsOpen && (issues.length > 0 || saveError) && (
-        <section className="note note-signal problems" aria-labelledby="problems-heading">
-          <span className="shape shape-diamond" aria-hidden="true" />
-          <div className="note-body">
-            <h2 id="problems-heading">{isDraft ? 'Before this can be published' : 'Before this can be saved'}</h2>
-            {saveError && <p>{saveError}</p>}
-            {issues.length > 0 && (
-              <ul>
-                {issues.map((issue) => (
-                  <li key={`${issue.stepId}-${issue.field}-${issue.message}`}>
-                    <button type="button" className="link-button" onClick={() => goTo(issue)}>
-                      {issue.message}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+        <div className="editor-bar">
+          <div className="editor-bar-status">
+            {issues.length > 0 ? (
+              <Button
+                title={`${issues.length} to fix before ${isDraft && wrong.length === 0 ? 'publishing' : 'saving'}`}
+                icon={ICONS.info}
+                alwaysShowText
+                onClick={() => {
+                  setProblemsOpen(true)
+                  goTo(issues[0])
+                }}
+              />
+            ) : (
+              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                {dirty ? 'Not saved yet' : 'Saved'}
+              </TextView>
             )}
           </div>
-        </section>
-      )}
-
-      {!isDraft && <Learners process={saved} headingRef={learnersRef} />}
-
-      <div className="editor-grid">
-        <section className="panel steps-panel" aria-labelledby="steps-heading">
-          <h2 id="steps-heading">Steps</h2>
-          {draft.steps.length === 0 ? (
-            <p className="muted">This task has no steps left. Undo the last removal, or leave without saving.</p>
-          ) : (
-            <ol className="step-list">
-              {draft.steps.map((step, i) => {
-                const isSelected = selected?.id === step.id
-                const hints = cutHints(step)
-                const cut = hints.title || hints.instruction
-                const classes = ['step-item', isSelected && 'is-selected', drag?.from === i && 'is-dragging', drag && drag.over === i && drag.from !== i && 'is-drop-target'].filter(Boolean).join(' ')
-                return (
-                  <li
-                    key={step.id}
-                    className={classes}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = 'move'
-                      event.dataTransfer.setData('text/plain', step.id)
-                      setDrag({ from: i, over: null })
-                    }}
-                    onDragOver={(event) => {
-                      if (!drag) return
-                      event.preventDefault()
-                      if (drag.over !== i) setDrag({ ...drag, over: i })
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      if (drag) move(drag.from, i)
-                      setDrag(null)
-                    }}
-                    onDragEnd={() => setDrag(null)}
-                  >
-                    <span className="step-grip" aria-hidden="true">
-                      <Icon name="grip" size={18} />
-                    </span>
-                    <button type="button" className="step-pick" onClick={() => setSelectedId(step.id)} aria-current={isSelected ? 'step' : undefined}>
-                      <span className="step-number">{i + 1}</span>
-                      <span className="step-pick-text">
-                        <span className="step-pick-title">{step.title.trim() || 'Untitled step'}</span>
-                        {!isReviewed(step) || cut ? (
-                          <span className="step-pick-meta is-signal">
-                            <span className="shape shape-diamond" aria-hidden="true" />
-                            {cut ? 'Cut text, needs rewriting' : 'Needs your review'}
-                          </span>
-                        ) : (
-                          <span className="step-pick-meta">
-                            {CHECK_LABEL[step.check.kind]}
-                            {stepIsWrong(step.id) ? ' · needs fixing' : ''}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                    {isSelected && (
-                      <span className="step-tools">
-                        <IconButton icon="up" label={`Move step ${i + 1} up`} disabled={i === 0} onClick={() => move(i, i - 1)} />
-                        <IconButton icon="down" label={`Move step ${i + 1} down`} disabled={i === draft.steps.length - 1} onClick={() => move(i, i + 1)} />
-                        <IconButton icon="trash" tone="danger" label={`Remove step ${i + 1}`} onClick={() => remove(step)} />
-                      </span>
-                    )}
-                  </li>
-                )
-              })}
-            </ol>
-          )}
-          <p className="hint">Drag a step, or choose it and use the arrows, to change the order.</p>
-          <p className="visually-hidden" aria-live="polite">
-            {moved}
-          </p>
-        </section>
-
-        {selected && (
-          <>
-            <StepForm key={selected.id} step={selected} total={draft.steps.length} process={draft} onChange={changeStep} />
-            <aside className="preview-panel" aria-labelledby="preview-heading">
-              <h2 id="preview-heading">On the glasses</h2>
-              <GlassesPreview step={selected} total={draft.steps.length} />
-              <p className="hint">Black is see-through on the glasses, so the worker sees their hands and the task through it.</p>
-            </aside>
-          </>
-        )}
-      </div>
-
-      <div className="editor-bar">
-        <div className="editor-bar-status">
-          {issues.length > 0 ? (
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => {
-                setProblemsOpen(true)
-                goTo(issues[0])
-              }}
-            >
-              {issues.length} to fix<span className="bar-more"> before {isDraft && wrong.length === 0 ? 'publishing' : 'saving'}</span>
-            </button>
-          ) : (
-            <span className="muted">{dirty ? 'Not saved yet' : 'Saved'}</span>
-          )}
-        </div>
-        <div className="editor-bar-actions">
-          {removed && (
-            <button type="button" className="button button-quiet" onClick={undoRemove}>
-              Undo
-            </button>
-          )}
-          {isDraft ? (
-            <>
-              <button type="button" className="button button-secondary" onClick={() => void send('save')} disabled={busy !== null || !dirty}>
-                {busy === 'save' ? 'Saving' : 'Save draft'}
-              </button>
-              <button type="button" className="button button-primary" onClick={() => void send('publish')} disabled={busy !== null}>
-                {busy === 'publish' ? 'Publishing' : 'Publish'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="button button-quiet" onClick={() => void send('unpublish')} disabled={busy !== null}>
-                {busy === 'unpublish' ? 'Unpublishing' : 'Unpublish'}
-              </button>
-              <button type="button" className="button button-primary" onClick={() => void send('save')} disabled={busy !== null || !dirty}>
-                {busy === 'save' ? 'Saving' : 'Save changes'}
-              </button>
-            </>
-          )}
+          <ButtonGroup alignment={ButtonGroupAlignment.END}>
+            {removed && <Button title="Undo" icon={ICONS.undo} alwaysShowText onClick={undoRemove} />}
+            {isDraft ? (
+              <>
+                <Button title={busy === 'save' ? 'Saving' : 'Save draft'} alwaysShowText disabled={busy !== null || !dirty} onClick={() => void send('save')} />
+                <PrimaryButton title={busy === 'publish' ? 'Publishing' : 'Publish'} icon={ICONS.check} disabled={busy !== null} onClick={() => void send('publish')} />
+              </>
+            ) : (
+              <>
+                <Button title={busy === 'unpublish' ? 'Unpublishing' : 'Unpublish'} alwaysShowText disabled={busy !== null} onClick={() => void send('unpublish')} />
+                <PrimaryButton title={busy === 'save' ? 'Saving' : 'Save changes'} icon={ICONS.check} disabled={busy !== null || !dirty} onClick={() => void send('save')} />
+              </>
+            )}
+          </ButtonGroup>
         </div>
       </div>
-    </div>
+    </Page>
   )
 }
 
@@ -424,33 +392,36 @@ function Learners({ process, headingRef }: { process: Process; headingRef: React
   }
 
   return (
-    <section className="panel learners" aria-labelledby="learners-heading" ref={headingRef} tabIndex={-1}>
+    <section className="learners" aria-labelledby="learners-heading" ref={headingRef} tabIndex={-1}>
       <div className="learners-head">
-        <h2 id="learners-heading">Who learns this task</h2>
-        <p className="hint">A worker gets it the next time they open Owl on their glasses.</p>
+        <TextView as="h2" id="learners-heading" textStyle={TextStyle.BODY2_EMPHASIZED}>
+          Who learns this task
+        </TextView>
+        <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+          A worker gets it the next time they open Owl on their glasses.
+        </TextView>
       </div>
       {employees.length === 0 ? (
-        <p className="muted">
-          There is no one to give it to yet. <a href={href('people', 'new')}>Add a person</a>.
-        </p>
+        <div className="learners-empty">
+          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+            There is no one to give it to yet.
+          </TextView>
+          <Button title="Add a person" icon={ICONS.plus} alwaysShowText onClick={() => (window.location.hash = href('people', 'new'))} />
+        </div>
       ) : (
-        <ul className="learner-list">
+        <VerticalList ariaLabel="People who can learn it" className="inline-list learner-list">
           {employees.map((employee) => (
-            <li key={employee.id}>
-              <label className={employee.process_ids.includes(process.id) ? 'learner is-on' : 'learner'}>
-                <input type="checkbox" checked={employee.process_ids.includes(process.id)} disabled={busyId !== null} onChange={() => void toggle(employee)} />
-                <span>
-                  {employee.name}
-                  <span className="learner-meta">
-                    {' '}
-                    · {languageName(employee.language)}
-                    {employee.glasses_id ? ` · ${glassesName(employee.glasses_id)}` : ' · no glasses yet'}
-                  </span>
-                </span>
-              </label>
-            </li>
+            <ListItem
+              key={employee.id}
+              title={employee.name}
+              subtitle={[languageName(employee.language), employee.glasses_id ? glassesName(employee.glasses_id) : 'no glasses yet'].join(' · ')}
+              showSwitch
+              checked={employee.process_ids.includes(process.id)}
+              disabled={busyId !== null}
+              onCheckedChange={() => void toggle(employee)}
+            />
           ))}
-        </ul>
+        </VerticalList>
       )}
       {problem && <Problem>{problem}</Problem>}
     </section>
@@ -480,132 +451,137 @@ function StepForm({ step, total, process, onChange }: { step: Step; total: numbe
   }
 
   return (
-    <section className="panel step-form" aria-labelledby="step-heading">
-      <div className="step-form-head">
-        <h2 id="step-heading">
-          Step {step.index} of {total}
-        </h2>
-        {recorded && reviewed && (
-          <span className="reviewed-line">
-            <StatusTag tone="success" shape="disc">
-              Reviewed
-            </StatusTag>
-            <button type="button" className="link-button" onClick={() => onChange({ ...step, reviewed: false })}>
-              Not yet
-            </button>
-          </span>
-        )}
-      </div>
-
-      {!reviewed && (
-        <div className="note note-signal">
-          <span className="shape shape-diamond" aria-hidden="true" />
-          <div className="note-body">
-            <p>
-              <strong>This step needs you.</strong> Owl wrote it from what {expert} said. Read the title, the instruction and what Owl says against {step.source ? `everything ${expert} said beside them` : 'the photo'}, fix what is missing, then mark the step reviewed.
-            </p>
-            {refused && (
-              <p className="field-error" role="alert">
-                {refused}
-              </p>
-            )}
-            <button type="button" id="step-review" className="button button-secondary" onClick={markReviewed}>
-              <Icon name="check" size={18} />
-              Mark step reviewed
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="step-columns">
-        <div className="step-written">
-          <div className="field">
-            <div className="field-label">
-              <label htmlFor="step-title">Title</label>
-              <Counter used={titleLength} limit={LIMITS.title} unit="characters" />
+    <>
+      <section className="step-form" aria-labelledby="step-heading">
+        <Panel width="100%">
+          <div className="panel-body step-form-body">
+            <div className="step-form-head">
+              <TextView as="h2" id="step-heading" textStyle={TextStyle.BODY1_EMPHASIZED}>
+                {`Step ${step.index} of ${total}`}
+              </TextView>
+              {recorded && reviewed && (
+                <div className="reviewed-line">
+                  <StatusText tone="positive" as="span">
+                    Reviewed
+                  </StatusText>
+                  <Button title="Not yet" alwaysShowText onClick={() => onChange({ ...step, reviewed: false })} />
+                </div>
+              )}
             </div>
-            <input
+
+            {!reviewed && (
+              <div className="needs-you">
+                <TextView as="p" textStyle={TextStyle.BODY2}>
+                  <span className="status-text is-warning">
+                    <strong>This step needs you.</strong>
+                  </span>{' '}
+                  {`Owl wrote it from what ${expert} said. Read the title, the instruction and what Owl says against ${step.source ? `everything ${expert} said beside them` : 'the photo'}, fix what is missing, then mark the step reviewed.`}
+                </TextView>
+                {refused && (
+                  <TextView as="p" textStyle={TextStyle.BODY2} role="alert">
+                    <span className="status-text is-negative">{refused}</span>
+                  </TextView>
+                )}
+                <PrimaryButton id="step-review" title="Mark step reviewed" icon={ICONS.check} onClick={markReviewed} />
+              </div>
+            )}
+
+            <TextField
               id="step-title"
-              className="input"
+              label="Title"
               value={step.title}
-              onChange={(event) => onChange({ ...step, title: event.target.value })}
-              aria-invalid={titleLength > LIMITS.title || titleLength === 0 || hints.title}
-              data-cut={hints.title}
-              autoComplete="off"
+              onChange={(title) => onChange({ ...step, title })}
+              invalid={titleLength > LIMITS.title || titleLength === 0 || hints.title}
+              extra={<CharacterCount used={titleLength} limit={LIMITS.title} />}
+              hint={hints.title ? 'Cut to fit. Rewrite it so it does not end in "…".' : undefined}
+              hintTone={hints.title ? 'warning' : undefined}
             />
-            {hints.title && <p className="field-error is-signal">Cut to fit. Rewrite it so it does not end in "…".</p>}
-          </div>
-
-          <div className="field">
-            <div className="field-label">
-              <label htmlFor="step-instruction">Instruction on the display</label>
-              <Counter used={instructionLength} limit={LIMITS.instruction} unit="characters" />
-            </div>
-            <textarea
+            <TextField
               id="step-instruction"
-              className="input"
-              rows={5}
+              label="Instruction on the display"
               value={step.instruction}
-              onChange={(event) => onChange({ ...step, instruction: event.target.value })}
-              aria-invalid={instructionLength > LIMITS.instruction || instructionLength === 0 || hints.instruction}
-              data-cut={hints.instruction}
+              multiline
+              onChange={(instruction) => onChange({ ...step, instruction })}
+              invalid={instructionLength > LIMITS.instruction || instructionLength === 0 || hints.instruction}
+              extra={<CharacterCount used={instructionLength} limit={LIMITS.instruction} />}
+              hint={hints.instruction ? 'Cut to fit. Rewrite it so it does not end in "…".' : undefined}
+              hintTone={hints.instruction ? 'warning' : undefined}
             />
-            {hints.instruction && <p className="field-error is-signal">Cut to fit. Rewrite it so it does not end in "…".</p>}
-          </div>
-
-          <div className="field">
-            <div className="field-label">
-              <label htmlFor="step-say">What Owl says</label>
-              <Counter used={sayWords} limit={LIMITS.sayWords} unit="words" />
-            </div>
-            <textarea
+            <TextField
               id="step-say"
-              className="input"
-              rows={3}
+              label="What Owl says"
               value={step.say}
-              onChange={(event) => onChange({ ...step, say: event.target.value })}
-              aria-invalid={sayWords > LIMITS.sayWords || sayWords === 0}
-              data-cut={hints.say}
-              aria-describedby="step-say-hint"
+              multiline
+              onChange={(say) => onChange({ ...step, say })}
+              invalid={sayWords > LIMITS.sayWords || sayWords === 0}
+              extra={<WordCount used={sayWords} limit={LIMITS.sayWords} />}
+              hint={hints.say ? `These are the first ${sayWords} words of what ${expert} said, and ${expert} said more. Write one whole sentence for Owl to say.` : "Spoken in the worker's ear when the step opens. Say it the way you would to a new colleague."}
+              hintTone={hints.say ? 'warning' : undefined}
             />
-            {hints.say ? (
-              <p className="field-error is-signal" id="step-say-hint">
-                These are the first {sayWords} words of what {expert} said, and {expert} said more. Write one whole sentence for Owl to say.
-              </p>
-            ) : (
-              <p className="hint" id="step-say-hint">
-                Spoken in the worker's ear when the step opens. Say it the way you would to a new colleague.
-              </p>
-            )}
+
+            <CheckEditor step={step} onChange={onChange} />
           </div>
+        </Panel>
+      </section>
 
-          <CheckEditor step={step} onChange={onChange} />
-        </div>
-
+      <aside className="step-side" aria-label="The recording and the glasses">
         <div className="step-recording" role="group" aria-label={recorded ? `${expert}'s recording of this step` : 'Where this step comes from'}>
-          {step.source && (
-            <figure className="narration">
-              <figcaption>{recorded ? `What ${expert} said` : `From ${step.source.doc}${step.source.section ? `, ${step.source.section}` : ''}`}</figcaption>
-              <blockquote>{step.source.quote}</blockquote>
-            </figure>
-          )}
-          <figure className="media">
-            {step.reference_image_url ? (
-              <img src={step.reference_image_url} alt={`The expert's photo of step ${step.index} done right`} />
-            ) : (
-              <div className="media-empty">No photo for this step</div>
-            )}
-            <figcaption>{recorded ? `${expert}'s photo of the finished step.` : 'The photo of the finished step.'} The worker sees it on the glasses.</figcaption>
-          </figure>
-          {step.clip_url && (
-            <figure className="media">
-              <video src={step.clip_url} controls preload="metadata" playsInline muted aria-label={`The expert's clip of step ${step.index}`} />
-              <figcaption>Watch how: played on the glasses when the worker asks.</figcaption>
-            </figure>
-          )}
+          <Panel width="100%">
+            <div className="panel-body">
+              {step.source && (
+                <figure className="narration">
+                  <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="field-label">
+                    {recorded ? `What ${expert} said` : `From ${step.source.doc}${step.source.section ? `, ${step.source.section}` : ''}`}
+                  </TextView>
+                  <TextView as="p" textStyle={TextStyle.BODY2}>
+                    {step.source.quote}
+                  </TextView>
+                </figure>
+              )}
+              <figure className="media">
+                {step.reference_image_url ? (
+                  <img src={step.reference_image_url} alt={`The expert's photo of step ${step.index} done right`} />
+                ) : (
+                  <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                    No photo for this step
+                  </TextView>
+                )}
+                <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  {`${recorded ? `${expert}'s photo of the finished step.` : 'The photo of the finished step.'} The worker sees it on the glasses.`}
+                </TextView>
+              </figure>
+              {step.clip_url && (
+                <figure className="media">
+                  <video src={step.clip_url} controls preload="metadata" playsInline muted aria-label={`The expert's clip of step ${step.index}`} />
+                  <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                    Watch how: played on the glasses when the worker asks.
+                  </TextView>
+                </figure>
+              )}
+            </div>
+          </Panel>
         </div>
-      </div>
-    </section>
+        <section className="preview-panel" aria-labelledby="preview-heading">
+          <TextView as="h2" id="preview-heading" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY} className="column-label">
+            ON THE GLASSES
+          </TextView>
+          <GlassesPreview step={step} total={total} />
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            Black is see-through on the glasses, so the worker sees their hands and the task through it.
+          </TextView>
+        </section>
+      </aside>
+    </>
+  )
+}
+
+/** "18/25", or "30/25, 5 too many": the words Owl says. */
+function WordCount({ used, limit }: { used: number; limit: number }) {
+  return (
+    <TextView as="span" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} aria-live="polite">
+      <span className="visually-hidden">words: </span>
+      <span className={used > limit ? 'status-text is-warning' : undefined}>{counterText(used, limit)}</span>
+    </TextView>
   )
 }
 
@@ -629,103 +605,96 @@ function CheckEditor({ step, onChange }: { step: Step; onChange: (step: Step) =>
 
   return (
     <fieldset className="check">
-      <legend>How Owl checks this step</legend>
-      <div className="segmented" id="step-criteria" tabIndex={-1}>
-        {KINDS.map(({ kind, label }) => (
-          <label key={kind} className={check.kind === kind ? 'segment is-on' : 'segment'}>
-            <input type="radio" name={`check-${step.id}`} checked={check.kind === kind} onChange={() => choose(kind)} />
-            <span>{label}</span>
-          </label>
-        ))}
+      <legend className="field-label">
+        <TextView as="span" textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.SECONDARY}>
+          How Owl checks this step
+        </TextView>
+      </legend>
+      <div id="step-criteria" tabIndex={-1} role="radiogroup" aria-label="How Owl checks this step">
+        <VerticalList ariaLabel="Kinds of check" className="inline-list">
+          {KINDS.map(({ kind, label }) => (
+            <ListItem key={kind} title={label} showRadioButton checked={check.kind === kind} onCheckedChange={() => choose(kind)} />
+          ))}
+        </VerticalList>
       </div>
 
       {check.kind === 'none' && (
         <div className="nudge">
-          <p>
+          <TextView as="p" textStyle={TextStyle.BODY2}>
             <strong>Owl does not check this step yet.</strong> The worker confirms it with a pinch. Tell Owl what a finished step looks like and it speaks up when something is off.
-          </p>
-          <div className="nudge-actions">
-            <button type="button" className="button button-secondary" onClick={() => choose('visual')}>
-              <Icon name="plus" size={18} />
-              Add what Owl should check
-            </button>
-            <button type="button" className="button button-quiet" onClick={() => choose('order')}>
-              Check an order instead
-            </button>
-          </div>
+          </TextView>
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <PrimaryButton title="Add what Owl should check" icon={ICONS.plus} onClick={() => choose('visual')} />
+            <Button title="Check an order instead" alwaysShowText onClick={() => choose('order')} />
+          </ButtonGroup>
         </div>
       )}
 
       {check.kind === 'visual' && (
         <div className="check-body">
-          <p className="hint">Things anyone can see when the step is done right. Owl passes the step only when it has seen every one of them, so keep to one to three.</p>
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            Things anyone can see when the step is done right. Owl passes the step only when it has seen every one of them, so keep to one to three.
+          </TextView>
           <ul className="criteria">
             {check.criteria.map((criterion, i) => (
               <li key={i}>
-                <input
-                  className="input"
-                  value={criterion}
-                  aria-label={`Thing to look for ${i + 1}`}
-                  placeholder={i === 0 ? 'For example: the box is taped shut' : ''}
-                  autoFocus={focusNew && i === check.criteria.length - 1}
-                  onChange={(event) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? event.target.value : c)) })}
+                <InputTextView
+                  size={InputTextViewSize.FULL}
+                  text={criterion}
+                  hint={i === 0 ? 'For example: the box is taped shut' : 'Something to look for'}
+                  onTextChange={(text) => set({ ...check, criteria: check.criteria.map((c, at) => (at === i ? text.replace(/\s*\n\s*/g, ' ') : c)) })}
+                  inputProps={{ 'aria-label': `Thing to look for ${i + 1}`, autoFocus: focusNew && i === check.criteria.length - 1 }}
                 />
-                <IconButton icon="x" label={`Remove thing to look for ${i + 1}`} onClick={() => set({ ...check, criteria: check.criteria.filter((_, at) => at !== i) })} />
+                <Button title={`Remove thing to look for ${i + 1}`} icon={ICONS.x} onClick={() => set({ ...check, criteria: check.criteria.filter((_, at) => at !== i) })} />
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            className="button button-quiet button-small"
-            onClick={() => {
-              set({ ...check, criteria: [...check.criteria, ''] })
-              setFocusNew(true)
-            }}
-          >
-            <Icon name="plus" size={18} />
-            Add another thing to look for
-          </button>
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <Button
+              title="Add another thing to look for"
+              icon={ICONS.plus}
+              alwaysShowText
+              onClick={() => {
+                set({ ...check, criteria: [...check.criteria, ''] })
+                setFocusNew(true)
+              }}
+            />
+          </ButtonGroup>
         </div>
       )}
 
       {check.kind === 'order' && (
         <div className="check-body" id="step-order" tabIndex={-1}>
-          <p className="hint">Owl counts what it sees in the box against these lines and speaks up about a wrong product or number.</p>
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+            Owl counts what it sees in the box against these lines and speaks up about a wrong product or number.
+          </TextView>
           <div className="order-lines" role="group" aria-label="Products on the order">
-            <div className="order-line order-head" aria-hidden="true">
-              <span>Product</span>
-              <span>How many</span>
-              <span>Code</span>
-              <span />
-            </div>
             {lines.map((line, i) => (
               <div className="order-line" key={i}>
-                <input className="input" value={line.name} aria-label={`Product ${i + 1}`} autoFocus={focusNew && i === lines.length - 1} onChange={(event) => setLine(i, { name: event.target.value })} />
-                <input
-                  className="input input-number"
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  value={Number.isFinite(line.qty) && line.qty > 0 ? line.qty : ''}
-                  aria-label={`How many of product ${i + 1}`}
-                  onChange={(event) => setLine(i, { qty: Number.parseInt(event.target.value, 10) || 0 })}
+                <InputTextView size={InputTextViewSize.FULL} text={line.name} hint="Product" onTextChange={(text) => setLine(i, { name: text.replace(/\s*\n\s*/g, ' ') })} inputProps={{ 'aria-label': `Product ${i + 1}`, autoFocus: focusNew && i === lines.length - 1 }} />
+                <InputTextView
+                  size={InputTextViewSize.FULL}
+                  text={Number.isFinite(line.qty) && line.qty > 0 ? String(line.qty) : ''}
+                  hint="How many"
+                  onTextChange={(text) => setLine(i, { qty: Number.parseInt(text.replace(/\D/g, ''), 10) || 0 })}
+                  inputProps={{ 'aria-label': `How many of product ${i + 1}`, inputMode: 'numeric' }}
                 />
-                <input className="input" value={line.sku ?? ''} aria-label={`Code of product ${i + 1}`} onChange={(event) => setLine(i, { sku: event.target.value || null })} />
-                <IconButton icon="x" label={`Remove product ${i + 1}`} onClick={() => set({ ...check, order_lines: lines.filter((_, at) => at !== i) })} />
+                <InputTextView size={InputTextViewSize.FULL} text={line.sku ?? ''} hint="Code" onTextChange={(text) => setLine(i, { sku: text.trim() ? text.replace(/\s*\n\s*/g, ' ') : null })} inputProps={{ 'aria-label': `Code of product ${i + 1}` }} />
+                <Button title={`Remove product ${i + 1}`} icon={ICONS.x} onClick={() => set({ ...check, order_lines: lines.filter((_, at) => at !== i) })} />
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            className="button button-quiet button-small"
-            onClick={() => {
-              set({ ...check, order_lines: [...lines, { sku: null, name: '', qty: 1 }] })
-              setFocusNew(true)
-            }}
-          >
-            <Icon name="plus" size={18} />
-            Add a product
-          </button>
+          <ButtonGroup alignment={ButtonGroupAlignment.START}>
+            <Button
+              title="Add a product"
+              icon={ICONS.plus}
+              alwaysShowText
+              onClick={() => {
+                set({ ...check, order_lines: [...lines, { sku: null, name: '', qty: 1 }] })
+                setFocusNew(true)
+              }}
+            />
+          </ButtonGroup>
         </div>
       )}
     </fieldset>

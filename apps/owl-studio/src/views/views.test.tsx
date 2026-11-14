@@ -12,7 +12,7 @@ import { TaskEditor } from './TaskEditor.tsx'
 import { TasksView } from './TasksView.tsx'
 
 const sentTask = (api: Api, call = 0) => vi.mocked(api.saveProcess).mock.calls[call][0] as Process
-const stepTitles = (container: HTMLElement) => [...container.querySelectorAll('.step-pick-title')].map((el) => el.textContent)
+const stepTitles = (container: HTMLElement) => [...container.querySelectorAll('[data-step-title]')].map((el) => el.getAttribute('data-step-title'))
 
 // What Laura said while sealing a box. The last sentence is the rule that must not get lost.
 const NARRATION =
@@ -255,10 +255,12 @@ describe('reviewing a task', () => {
     const studio = fakeStudio()
     renderWith(<TaskEditor processId="proc-1" />, studio)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Pick and pack an order' })).toBeTruthy()
-    expect(screen.queryByLabelText('Language of this task')).toBeNull()
+    // The page header names the task.
+    expect(screen.getByRole('main', { name: 'Pick and pack an order' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Language of this task/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Edit name and language' }))
-    await user.selectOptions(screen.getByLabelText('Language of this task'), 'fi')
+    await user.click(screen.getByRole('button', { name: /^Language of this task/ }))
+    await user.click(screen.getByRole('radio', { name: /^Suomi/ }))
     await user.click(screen.getByRole('button', { name: 'Save draft' }))
     await waitFor(() => expect(studio.api.saveProcess).toHaveBeenCalled())
     expect(sentTask(studio.api).language).toBe('fi')
