@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import anthropic
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
@@ -28,7 +28,7 @@ from . import ask as ask_engine
 from . import assist as assist_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
-from . import jepa, location, people, persist, place, training, verifier, vision
+from . import jepa, location, people, persist, place, shift, training, verifier, vision
 from . import media as media_engine
 from . import progress as progress_engine
 from . import record as record_engine
@@ -45,6 +45,7 @@ from .models import (
     Doc,
     Employee,
     FromDocs,
+    HelpAnswer,
     HelpMessage,
     HelpSession,
     Mark,
@@ -92,6 +93,9 @@ if os.getenv("OWL_RESET", "") != "1":
 demo = demo_engine.Demo()
 if DEMO:
     training.seed_demo(store, progress)  # JUN-96: Sami on the last day of their training week
+    # JUN-100: Mika is the manager on shift at Kide Logistics, unless Studio set someone.
+    if "emp-mika" in store.employees and store.employees["emp-mika"].company not in store.on_shift:
+        store.on_shift[store.employees["emp-mika"].company] = "emp-mika"
 
 
 @asynccontextmanager
@@ -230,6 +234,8 @@ app.include_router(people.router(lambda: store, Auth, out))
 app.include_router(training.router(lambda: store, lambda: progress, Auth))
 # Location during training: zones, QR markers, checkpoints that unlock steps (JUN-97).
 app.include_router(location.router(lambda: store, lambda: locations, Auth))
+# The manager on shift (JUN-100).
+app.include_router(shift.router(lambda: store, Auth))
 
 LanguageQuery = Annotated[str, Query(max_length=10)]
 
@@ -863,7 +869,7 @@ def get_help(help_id: str) -> HelpSession:
     session = store.help.get(help_id)
     if session is None:
         raise HTTPException(status_code=404, detail=f"No help session {help_id}.")
-    return session
+    return shift.settle(session)
 
 
 @app.post("/help/frames", response_model=HelpSession, dependencies=[Auth])
@@ -876,6 +882,8 @@ async def help_frame(
     process_id: Annotated[str, Form()] = "",
     step_id: Annotated[str, Form()] = "",
     help_id: Annotated[str, Form()] = "",
+    # JUN-100: "manager" calls the manager on shift on their own glasses; "studio" (the default) the console.
+    to: Annotated[Literal["manager", "studio"], Form()] = "studio",
 ):
     frame = await read_frame(image, clip, REFERENCE_SIDE)
     if help_id:
@@ -884,6 +892,12 @@ async def help_frame(
             raise HTTPException(status_code=409, detail="This help session has ended.")
     else:
         session = HelpSession(id=store.next_id("help"), status="waiting", updated_at=now_iso())
+        if to == "manager":
+            manager = shift.manager_for(store, store.employees.get(employee_id))
+            if manager is not None:
+                shift.ring(session, manager)
+            else:
+                session.fallback = "no_manager"
         store.help[session.id] = session
     # The frame is the worker's live view and /media needs no token, so its folder name cannot be guessed.
     session.latest_frame_url = store.save_media(f"{store.help_dir(session.id)}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
@@ -897,9 +911,60 @@ async def help_frame(
 
 @app.get("/help", dependencies=[Auth])
 def help_list(request: Request) -> dict:
-    newest_first = sorted(store.help.values(), key=lambda s: s.updated_at, reverse=True)
+    newest_first = sorted((shift.settle(s) for s in store.help.values()), key=lambda s: s.updated_at, reverse=True)
     sessions = sorted(newest_first, key=lambda s: s.status == "ended")
     return {"sessions": [out(request, s) for s in sessions]}
+
+
+@app.get("/help/incoming", dependencies=[Auth])
+def help_incoming(employee_id: str, request: Request) -> dict:
+    """The shift manager's glasses: calls ringing for them and the one they are on, newest first (JUN-100)."""
+    if employee_id not in store.employees:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    mine = [shift.settle(s) for s in store.help.values() if s.assignee == employee_id]
+    mine = sorted((s for s in mine if s.status in {"ringing", "accepted"} and s.assignee == employee_id), key=lambda s: s.updated_at, reverse=True)
+    rows = []
+    for session in mine:
+        worker = store.employees.get(session.employee_id or "")
+        process = store.processes.get(session.process_id or "")
+        shown = store.translated(process, store.employees[employee_id].language) if process else None
+        step = next((x for x in shown.steps if x.id == session.step_id), None) if shown else None
+        rows.append(
+            out(request, session)
+            | {
+                "employee_name": worker.name if worker else None,
+                "process_title": shown.title if shown else None,
+                "step_index": step.index if step else None,
+                "step_title": step.title if step else None,
+            }
+        )
+    return {"sessions": rows}
+
+
+def manager_session(help_id: str, employee_id: str) -> HelpSession:
+    session = get_help(help_id)
+    if session.assignee != employee_id:
+        raise HTTPException(status_code=409, detail="This call is not for you, or it has gone to Studio.")
+    return session
+
+
+@app.post("/help/{help_id}/accept", response_model=HelpSession, dependencies=[Auth])
+def help_accept(help_id: str, body: HelpAnswer, request: Request):
+    session = manager_session(help_id, body.employee_id)
+    if session.status != "ringing":
+        raise HTTPException(status_code=409, detail="This call is no longer ringing.")
+    session.status, session.updated_at = "accepted", now_iso()
+    return out(request, session)
+
+
+@app.post("/help/{help_id}/later", response_model=HelpSession, dependencies=[Auth])
+def help_later(help_id: str, body: HelpAnswer, request: Request):
+    """The manager cannot take it now: the request goes to the Studio console."""
+    session = manager_session(help_id, body.employee_id)
+    if session.status != "ringing":
+        raise HTTPException(status_code=409, detail="This call is no longer ringing.")
+    shift.to_studio(session, "later")
+    return out(request, session)
 
 
 @app.get("/help/{help_id}", response_model=HelpSession, dependencies=[Auth])
@@ -946,7 +1011,7 @@ def help_say(help_id: str, body: SayRequest, request: Request):
             # The expert can point: the glasses show the worker's own view with a ring around the spot.
             message.image_url = marked_frame(session, message.id, body.mark)
         session.messages.append(message)
-    if body.from_ == "expert":
+    if body.from_ == "expert" and session.status == "waiting":
         session.status = "connected"
     session.updated_at = message.at
     return out(request, session)

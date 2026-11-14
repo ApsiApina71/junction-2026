@@ -42,6 +42,8 @@ class Employee(BaseModel):
     process_ids: list[str]
     glasses_id: str | None = None
     access: Access = Access()
+    # JUN-100: can be the manager on shift, who answers Help on their own glasses.
+    shift_manager: bool = False
 
 
 class EmployeeCreate(BaseModel):
@@ -53,6 +55,7 @@ class EmployeeCreate(BaseModel):
     # Empty or left out: the server writes the welcome in the employee's language.
     welcome: Welcome | None = None
     access: Access = Access()
+    shift_manager: bool = False
 
 
 class EmployeeUpdate(BaseModel):
@@ -65,6 +68,7 @@ class EmployeeUpdate(BaseModel):
     glasses_id: GlassesId | None = None
     welcome: Welcome | None = None
     access: Access | None = None
+    shift_manager: bool | None = None
 
 
 class OrderLine(BaseModel):
@@ -176,7 +180,7 @@ class Doc(BaseModel):
 
 class HelpMessage(BaseModel):
     id: int
-    from_: Literal["worker", "expert"] = Field(alias="from")
+    from_: Literal["worker", "expert", "manager"] = Field(alias="from")
     text: str
     at: str
     image_url: str | None = None
@@ -186,7 +190,8 @@ class HelpMessage(BaseModel):
 
 class HelpSession(BaseModel):
     id: str
-    status: Literal["waiting", "connected", "ended"]
+    # waiting/connected: the Studio console. ringing/accepted: the shift manager's own glasses (JUN-100).
+    status: Literal["waiting", "connected", "ringing", "accepted", "ended"]
     employee_id: str | None = None
     process_id: str | None = None
     step_id: str | None = None
@@ -194,6 +199,13 @@ class HelpSession(BaseModel):
     frame_at: str | None = None
     updated_at: str
     messages: list[HelpMessage] = []
+    # JUN-100: who the request went to. routed "manager": the manager on shift, on their glasses; "studio": the console.
+    routed: Literal["manager", "studio"] = "studio"
+    assignee: str | None = None
+    assignee_name: str | None = None
+    rang_at: str | None = None
+    # Why a call to the manager went to Studio instead.
+    fallback: Literal["no_answer", "later", "no_manager"] | None = None
 
 
 class Mark(BaseModel):
@@ -204,7 +216,7 @@ class Mark(BaseModel):
 
 
 class SayRequest(BaseModel):
-    from_: Literal["worker", "expert"] = Field(default="expert", alias="from")
+    from_: Literal["worker", "expert", "manager"] = Field(default="expert", alias="from")
     text: str = Field(min_length=1, max_length=500)
     mark: Mark | None = None
 
@@ -340,3 +352,16 @@ class AssistSign(BaseModel):
     """The text of the sign at the desk that tells customers Owl is listening."""
 
     text: str = Field(min_length=1, max_length=300)
+
+
+class ShiftSet(BaseModel):
+    """Studio sets who is the manager on shift at a company. null: no one."""
+
+    company: str = Field(min_length=1, max_length=80)
+    employee_id: str | None = None
+
+
+class HelpAnswer(BaseModel):
+    """The shift manager answers on their glasses (JUN-100)."""
+
+    employee_id: str

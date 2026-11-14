@@ -67,6 +67,8 @@ class Store:
         self.zones: dict[str, Zone] = {}
         # JUN-98: the sign at the desk that tells customers Owl is listening. Studio edits it.
         self.assist_sign = DEFAULT_SIGN
+        # JUN-100: company -> the employee id of its manager on shift now.
+        self.on_shift: dict[str, str] = {}
         self._counter = 0
 
         for path in sorted(FIXTURES.glob("employee*.json")):

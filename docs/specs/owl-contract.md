@@ -196,8 +196,9 @@ Answer to one camera frame during a step.
 }
 ```
 
-- `status`: `waiting` (no expert yet), `connected` (an expert has answered), `ended`.
-- The glasses speak every `expert` message once. `id` grows, so the app remembers the last one it spoke.
+- `status`: `waiting` (no expert yet), `connected` (an expert has answered), `ringing` (calling the manager on shift), `accepted` (the manager answered on their glasses), `ended`. See "Help from the shift manager" (JUN-100).
+- `routed`: `studio` (the console) or `manager`. `assignee` and `assignee_name`: the manager the call rings for, or `null`; after a fall back to Studio `assignee` is `null` and `assignee_name` still says who did not answer. `rang_at`: when it started ringing. `fallback`: `null`, `no_answer` (30 s without an answer), `later` (the manager said Later) or `no_manager` (no one on shift).
+- The glasses speak every `expert` and `manager` message once. `id` grows, so the app remembers the last one it spoke.
 - `frame_at`: when the latest frame arrived. `updated_at` also moves when someone speaks, so the console uses `frame_at` to tell a live view from a stale one.
 - `messages[].image_url`: the worker's own view with a ring where the expert pointed, or `null`. The glasses show it with the expert's words.
 - When the session ends, its frames are deleted, and `latest_frame_url` and every `image_url` become `null`.
@@ -264,7 +265,7 @@ Answer to one camera frame during a step.
 | `POST /help/frames` | multipart (below) | `HelpSession` | glasses |
 | `GET /help` | none | `{"sessions": [HelpSession]}` (open ones first) | Studio |
 | `GET /help/{id}` | none | `HelpSession` | glasses (poll every 2 s), Studio |
-| `POST /help/{id}/say` | JSON `{"from": "expert" \| "worker", "text", "mark"}` (below) | `HelpSession` | Studio, glasses |
+| `POST /help/{id}/say` | JSON `{"from": "expert" \| "manager" \| "worker", "text", "mark"}` (below) | `HelpSession` | Studio, glasses |
 | `POST /help/{id}/end` | none | `HelpSession` | glasses, Studio |
 | `GET /media/{path}` | none | JPEG or MP4 | glasses display, Studio |
 
@@ -363,7 +364,7 @@ Only the wearer sees the display, so `GET /stage` shows the audience the glasses
 | Data | Kept |
 |---|---|
 | Check frames | Never stored: read, described and dropped. |
-| Help frames | In memory and on disk only while the help session is open; deleted when it ends. |
+| Help frames | In memory and on disk only while the help session is open; deleted when it ends. The same for a call to the shift manager (JUN-100): the manager's glasses only show the newest frame, nothing is recorded. |
 | Recorded photos and clips | Faces blurred before storing; kept until the process is deleted in Studio. |
 | Learning progress | Per worker, for their own glasses; erased with `DELETE /employees/{id}/progress`. Studio sees `/stats`, and per worker only the end-of-training result and its counts (JUN-96), after the worker has seen it. |
 | Location (JUN-97) | Only during training and with `location` consent: the current area and today's areas, in memory only. Never on disk, gone on restart, dropped when training ends or consent is taken back. |
@@ -527,7 +528,24 @@ The glasses show only processes with `status: "published"`.
 
 ### `POST /help/frames`
 
-Multipart form: `image` (JPEG) or `clip` (as in `POST /check`), `employee_id`, `process_id`, `step_id`, `help_id` (empty on the first frame; the answer's `id` is used after that). The first frame opens a session. Send about one frame every 2 s while help is on.
+Multipart form: `image` (JPEG) or `clip` (as in `POST /check`), `employee_id`, `process_id`, `step_id`, `help_id` (empty on the first frame; the answer's `id` is used after that). The first frame opens a session. Send about one frame every 2 s while help is on. `to`: `studio` (the default) or `manager` (JUN-100): with `manager`, the first frame calls the manager on shift instead of the console.
+
+### Help from the shift manager (JUN-100)
+
+The worker calls the manager on shift, who answers on **their own glasses**, sees the worker's live view and talks them through it. Only the manager on shift at the worker's company gets the call.
+
+- `Employee.shift_manager` (bool, default `false`): this person can be on shift and answer on their glasses. The same Owl app shows the manager screens when the assigned employee is a shift manager. Set with `PUT /employees/{id}`; turning it off also takes them off shift.
+- `GET /shift` → `{"on_shift": [{"company", "employee_id", "name"}]}`; `PUT /shift` `{"company", "employee_id"}` (Studio; `null` takes the manager off shift; `422` for someone who is not a shift manager).
+- `GET /shift/manager?employee_id=<worker>` → `{"employee_id", "name"}`: who the worker's glasses would call; `404` when no one is on shift (Help goes to Studio).
+
+1. **Call:** the worker's glasses send the first Help frame with `to=manager`. The session is `ringing` with `assignee` set. With no one on shift it is `waiting` for Studio with `fallback: "no_manager"`.
+2. **Ring:** the manager's glasses poll `GET /help/incoming?employee_id=<manager>` (about every 2 s) → `{"sessions": [HelpSession + "employee_name", "process_title", "step_index", "step_title"]}`: their `ringing` and `accepted` calls, newest first, step names in the manager's language.
+3. **Answer:** `POST /help/{id}/accept` `{"employee_id"}` → `accepted`. `POST /help/{id}/later` `{"employee_id"}` → to Studio (`fallback: "later"`). Both `409` when the call is not for that person or no longer rings. After 30 s of ringing (`HELP_RING_SECONDS`) the server moves it to Studio (`fallback: "no_answer"`), checked on every read.
+4. **Live view:** the manager's glasses read `GET /help/{id}` about once a second: `latest_frame_url` (a new `?t=` with every frame, so nothing is cached), `frame_at`, `process_id`, `step_id`.
+5. **Talk:** `POST /help/{id}/say` with `from: "manager"` (spoken and shown on the worker's glasses) and `from: "worker"` (shown to the manager). A mark is only for the Studio expert.
+6. **End:** either side calls `POST /help/{id}/end`. The frames are deleted, as for any Help session.
+
+Demo mode: Mika (`emp-mika`, `glasses-7`, Kide Logistics) is the manager on shift unless Studio set someone. Sami calls him from one simulator, Mika answers in the other.
 
 ### `POST /help/{id}/say`
 

@@ -70,6 +70,7 @@ def snapshot(store: Store, progress: Progress) -> dict:
             "trainings": store.trainings,
             "zones": [z.model_dump(mode="json") for z in store.zones.values()],
             "assist_sign": store.assist_sign,
+            "on_shift": store.on_shift,
         }
     with progress._lock:
         state["runs"] = [_run_to_state(r) for r in progress.runs.values()]
@@ -117,6 +118,7 @@ def load(store: Store, progress: Progress) -> bool:
         if "zones" in state:
             store.zones = {z.id: z for z in zones}
         store.assist_sign = state.get("assist_sign", store.assist_sign)
+        store.on_shift.update(state.get("on_shift", {}))
         store._counter = max(store._counter, int(state.get("counter", 0)))
     with progress._lock:
         progress.runs.update({r.run_id: r for r in runs})

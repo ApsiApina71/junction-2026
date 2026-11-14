@@ -1,0 +1,16 @@
+{
+  "id": "emp-mika",
+  "name": "Mika",
+  "language": "en",
+  "role": "Shift manager",
+  "company": "Kide Logistics",
+  "welcome": "Hi Mika! When a new worker calls for help, you see their view here and can talk them through it.",
+  "process_ids": [],
+  "glasses_id": "glasses-7",
+  "access": {
+    "audio_first": false,
+    "display_first": false,
+    "easy_language": false
+  },
+  "shift_manager": true
+}

@@ -108,6 +108,7 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                 process_ids=body.process_ids,
                 glasses_id=body.glasses_id,
                 access=body.access,
+                shift_manager=body.shift_manager,
             )
             if body.welcome:
                 store.custom_welcomes.add(employee.id)
@@ -130,6 +131,11 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
                     setattr(employee, field, value)
             if "access" in sent and body.access is not None:
                 employee.access = body.access
+            if "shift_manager" in sent and body.shift_manager is not None:
+                employee.shift_manager = body.shift_manager
+                if not employee.shift_manager:  # no longer a manager: no longer on shift
+                    for company in [c for c, e in store.on_shift.items() if e == employee.id]:
+                        del store.on_shift[company]
             if "glasses_id" in sent:  # null takes the glasses away
                 employee.glasses_id = body.glasses_id
                 _wear(store, employee.id, employee.glasses_id)
