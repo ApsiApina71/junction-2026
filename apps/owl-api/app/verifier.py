@@ -301,6 +301,11 @@ def build_result(
         "hint": hint.rstrip("."),
     }
     say = say.format(**values) if say else None
+    own = step.check.warning.strip() if step.check.warning else ""
+    if status == "warning" and v == "not_matching" and own:
+        # JUN-106: the expert's own sentence, shown and spoken as it is ("That's a deposit bottle. It goes to the
+        # return crate."), instead of "Check again: <criterion>".
+        text, say = own.replace("{", "{{").replace("}", "}}"), own
     if status == "unsure" and not final:
         say = None  # stay quiet while the worker is still working; speak the hint only on the Done pinch
     if status == "ok" and not final and not first_ok:

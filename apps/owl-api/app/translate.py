@@ -20,6 +20,7 @@ display. Translate into the requested language (a BCP 47 tag) in plain, everyday
 - Keep every step, in the same order, with the same id.
 - title: at most 32 characters. instruction: at most 140 characters. say: at most 25 words, for the worker's ear.
 - criteria: translate each one, the same number in the same order.
+- warning: the expert's own sentence for a wrong result, at most 140 characters. Translate it when it is given; leave it empty when it is empty.
 - Keep numbers, units, product names, machine names and positions (such as "oven 2" or "lever on 1") exactly right.
 - Do not add or drop any rule or safety instruction."""
 
@@ -30,6 +31,7 @@ class TranslatedStep(BaseModel):
     instruction: str
     say: str
     criteria: list[str]
+    warning: str = ""
 
 
 class TranslatedProcess(BaseModel):
@@ -51,7 +53,10 @@ def _source(process: Process) -> dict:
     return {
         "title": process.title,
         "summary": process.summary,
-        "steps": [{"id": s.id, "title": s.title, "instruction": s.instruction, "say": s.say, "criteria": s.check.criteria} for s in process.steps],
+        "steps": [
+            {"id": s.id, "title": s.title, "instruction": s.instruction, "say": s.say, "criteria": s.check.criteria, "warning": s.check.warning or ""}
+            for s in process.steps
+        ],
     }
 
 
@@ -63,7 +68,9 @@ def apply(process: Process, translated: TranslatedProcess, language: str) -> Pro
     for original, t in zip(process.steps, translated.steps, strict=True):
         if len(t.criteria) != len(original.check.criteria):
             raise TranslationError(f"Step {original.id}: the translation has a different number of criteria.")
-        check = original.check.model_copy(update={"criteria": [_clip(c, 120) for c in t.criteria]})
+        # JUN-106: the expert's warning line, translated; the original stays when the model left it out.
+        warning = _clip(t.warning, 140) if original.check.warning and t.warning.strip() else original.check.warning
+        check = original.check.model_copy(update={"criteria": [_clip(c, 120) for c in t.criteria], "warning": warning})
         steps.append(
             original.model_copy(
                 update={"title": _clip(t.title, 32), "instruction": _clip(t.instruction, 140), "say": " ".join(t.say.split()[:25]), "check": check}

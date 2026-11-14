@@ -31,6 +31,10 @@ names of tools, levers and places, and any safety rule they mention.
 - check: "visual" when the photo shows a result that can be checked by looking (the box is taped, the label is on top), \
 otherwise "none".
 - criteria: for visual checks, 1 to 3 short things anyone can see in a photo of the step done right. Empty for "none".
+- warning: when the expert says a rule about a mistake to avoid in this step ("deposit bottles go to the return crate, \
+not the trash"), write it as the one sentence the worker hears when the check finds the step done wrong, at most 140 \
+characters, in the expert's words as far as possible ("That's a deposit bottle. It goes to the return crate."). Only \
+for visual checks, and only from what the expert said; otherwise empty.
 
 Also write the process title (at most 60 characters), a one-sentence summary, and the language of the narration as a \
 BCP 47 tag. Write everything in the narration's language. Do not invent steps, rules or facts the expert did not say."""
@@ -42,6 +46,7 @@ class StepDraft(BaseModel):
     say: str
     check: Literal["visual", "none"]
     criteria: list[str]
+    warning: str = ""
 
 
 class ProcessDraft(BaseModel):
@@ -148,7 +153,10 @@ def build_process(process_id: str, rec: Recording, draft: ProcessDraft, company:
                 say=_words(s.say, 25),
                 reference_image_url=recorded.photo_url,
                 clip_url=recorded.clip_url,
-                check=Check(kind=kind, criteria=criteria if kind == "visual" else []),
+                # JUN-106: the expert's rule as the step's own warning line. A person reviews it with the step.
+                check=Check(
+                    kind=kind, criteria=criteria if kind == "visual" else [], warning=_clip(s.warning, 140) if kind == "visual" and s.warning.strip() else None
+                ),
                 # The whole narration, never shortened: the reviewer in Owl Studio reads it beside the written step.
                 source={"doc": f"{rec.expert or 'Expert'}'s recording", "quote": re.sub(r"\s+", " ", recorded.narration).strip()}
                 if recorded.narration
