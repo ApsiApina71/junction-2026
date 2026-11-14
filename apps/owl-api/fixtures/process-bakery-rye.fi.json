@@ -1,0 +1,117 @@
+{
+  "id": "proc-bakery-rye",
+  "title": "Paista aamun ruisleipä",
+  "summary": "Valmistaudu, punnitse, sekoita hitaalla nopeudella, muotoile kahdeksan leipää ja paista ne uunissa 2.",
+  "company": "Leipomo Ruis",
+  "language": "fi",
+  "status": "published",
+  "source": "record",
+  "expert": "Helena",
+  "steps": [
+    {
+      "id": "step-1",
+      "index": 1,
+      "title": "Pese kädet, laita hiusverkko",
+      "instruction": "Pese kädet 30 sekuntia ja laita sitten hiusverkko, puhdas esiliina ja käsineet.",
+      "say": "Pese kädet ja laita hiusverkko, esiliina ja käsineet.",
+      "reference_image_url": "/media/proc-bakery-rye/step-1.jpg",
+      "clip_url": null,
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Hiusverkko peittää kaikki hiukset",
+          "Käsineet ovat molemmissa käsissä"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helenan tallenne",
+        "quote": "Hiusverkko ja käsineet ennen kuin kosket taikinaan, joka kerta."
+      }
+    },
+    {
+      "id": "step-2",
+      "index": 2,
+      "title": "Punnitse jauhot ja juuri",
+      "instruction": "Punnitse sekoituskulhoon 2,0 kg ruisjauhoja ja 1,2 kg juurta. Paina ensin TARE.",
+      "say": "Punnitse kaksi kiloa ruisjauhoja ja yksi pilkku kaksi kiloa juurta. Paina ensin tare.",
+      "reference_image_url": "/media/proc-bakery-rye/step-2.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-2.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Vaaka näyttää 2,0 kg ruisjauhoja",
+          "Juuriastiassa on tämän päivän päivämäärä"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helenan tallenne",
+        "quote": "Taaraa tyhjällä kulholla, muuten koko erä menee pieleen."
+      }
+    },
+    {
+      "id": "step-3",
+      "index": 3,
+      "title": "Sekoita hitaalla nopeudella",
+      "instruction": "Sulje suojakansi ja käännä taikinakoneen vipu asentoon 1 (hidas). Sekoita 8 minuuttia.",
+      "say": "Sulje suojakansi ja käännä vipu ykköselle, hitaalle. Ruisleivälle ei koskaan kakkosta.",
+      "reference_image_url": "/media/proc-bakery-rye/step-3.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-3.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Taikinakoneen vipu on asennossa 1",
+          "Suojakansi on kiinni"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helenan tallenne",
+        "quote": "Ruis kakkosnopeudella kuumenee ja muuttuu tahmeaksi. Aina ykkönen."
+      }
+    },
+    {
+      "id": "step-4",
+      "index": 4,
+      "title": "Muotoile kahdeksan leipää",
+      "instruction": "Leikkaa kahdeksan 600 g:n palaa, muotoile pyöreät leivät ja nosta ne pellille sauma alaspäin.",
+      "say": "Muotoile kahdeksan pyöreää leipää ja nosta ne sauma alaspäin, kaksi neljän riviä.",
+      "reference_image_url": "/media/proc-bakery-rye/step-4.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-4.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Pellillä on kahdeksan leipää",
+          "Leivät ovat sauma alaspäin"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helenan tallenne",
+        "quote": "Sauma alaspäin, muuten ne halkeavat uunissa."
+      }
+    },
+    {
+      "id": "step-5",
+      "index": 5,
+      "title": "Paista uunissa 2",
+      "instruction": "Laita pelti uuniin 2 230 asteeseen, paina höyryä kerran ja aseta ajastin 50 minuuttiin.",
+      "say": "Uuni kaksi, kaksisataakolmekymmentä astetta. Paina höyryä kerran ja aseta ajastin viiteenkymmeneen minuuttiin.",
+      "reference_image_url": "/media/proc-bakery-rye/step-5.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-5.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Uuni 2 näyttää 230 °C",
+          "Ajastin on asetettu"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helenan tallenne",
+        "quote": "Uuni kaksi on vain ruisleivälle. Ja aseta ajastin, aina."
+      }
+    }
+  ]
+}

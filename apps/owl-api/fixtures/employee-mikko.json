@@ -1,0 +1,12 @@
+{
+  "id": "emp-mikko",
+  "name": "Mikko",
+  "language": "fi",
+  "role": "Leipuriharjoittelija",
+  "company": "Leipomo Ruis",
+  "welcome": "Tervetuloa Leipomo Ruisiin, Mikko! Tänään opit paistamaan aamun ruisleivän. Olen Owl ja näytän sinulle jokaisen vaiheen.",
+  "process_ids": [
+    "proc-bakery-rye"
+  ],
+  "glasses_id": "glasses-2"
+}

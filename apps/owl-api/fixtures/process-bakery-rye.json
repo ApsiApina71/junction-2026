@@ -1,0 +1,117 @@
+{
+  "id": "proc-bakery-rye",
+  "title": "Bake the morning rye bread",
+  "summary": "Get ready, weigh, mix on the slow speed, shape eight loaves and bake them in oven 2.",
+  "company": "Leipomo Ruis",
+  "language": "en",
+  "status": "published",
+  "source": "record",
+  "expert": "Helena",
+  "steps": [
+    {
+      "id": "step-1",
+      "index": 1,
+      "title": "Wash hands, put on hairnet",
+      "instruction": "Wash your hands for 30 seconds, then put on the hairnet, a clean apron and gloves.",
+      "say": "Wash your hands, then put on the hairnet, apron and gloves.",
+      "reference_image_url": "/media/proc-bakery-rye/step-1.jpg",
+      "clip_url": null,
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "The hairnet covers all hair",
+          "Gloves are on both hands"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helena's recording",
+        "quote": "Hairnet and gloves before you touch any dough, every single time."
+      }
+    },
+    {
+      "id": "step-2",
+      "index": 2,
+      "title": "Weigh flour and sourdough",
+      "instruction": "Weigh 2.0 kg rye flour and 1.2 kg sourdough into the mixer bowl. Press TARE first.",
+      "say": "Weigh two kilos of rye flour and one point two kilos of sourdough. Press tare first.",
+      "reference_image_url": "/media/proc-bakery-rye/step-2.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-2.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "The scale shows 2.0 kg of rye flour",
+          "The sourdough bucket is labelled with today's date"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helena's recording",
+        "quote": "Tare with the empty bowl, or the whole batch is wrong."
+      }
+    },
+    {
+      "id": "step-3",
+      "index": 3,
+      "title": "Mix on slow speed",
+      "instruction": "Close the safety guard and turn the mixer lever to 1 (slow). Mix for 8 minutes.",
+      "say": "Close the guard and turn the lever to one, slow. Never two for rye.",
+      "reference_image_url": "/media/proc-bakery-rye/step-3.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-3.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "The mixer lever is in position 1",
+          "The safety guard is closed"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helena's recording",
+        "quote": "Rye on speed two overheats and goes sticky. Always one."
+      }
+    },
+    {
+      "id": "step-4",
+      "index": 4,
+      "title": "Shape eight loaves",
+      "instruction": "Cut eight 600 g pieces, shape round loaves and set them seam side down on the tray.",
+      "say": "Shape eight round loaves and put them seam side down, two rows of four.",
+      "reference_image_url": "/media/proc-bakery-rye/step-4.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-4.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Eight loaves are on the tray",
+          "The loaves are seam side down"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helena's recording",
+        "quote": "Seam side down, or they split in the oven."
+      }
+    },
+    {
+      "id": "step-5",
+      "index": 5,
+      "title": "Bake in oven 2",
+      "instruction": "Put the tray in oven 2 at 230 °C, press steam once and set the timer for 50 minutes.",
+      "say": "Oven two, two hundred thirty degrees. Press steam once and set the timer for fifty minutes.",
+      "reference_image_url": "/media/proc-bakery-rye/step-5.jpg",
+      "clip_url": "/media/proc-bakery-rye/step-5.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": [
+          "Oven 2 shows 230 °C",
+          "The timer is set"
+        ],
+        "order_lines": null
+      },
+      "source": {
+        "doc": "Helena's recording",
+        "quote": "Oven two is only for rye. And set the timer, always."
+      }
+    }
+  ]
+}
