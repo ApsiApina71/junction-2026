@@ -336,9 +336,17 @@ class DisplayViewModel {
   // MARK: - Video
 
   /// Plays an MP4 (https only, one at a time) and calls `onFinish` when it ends, stops or
-  /// fails, so the caller can go back to its screen.
-  func playVideo(url: String, onFinish: @escaping @MainActor (Bool) -> Void) async {
+  /// fails, so the caller can go back to its screen. `onStarted` tells that the picture is
+  /// moving: a player that never says so has not started.
+  func playVideo(
+    url: String, onStarted: (@MainActor () -> Void)? = nil, onFinish: @escaping @MainActor (Bool) -> Void
+  ) async {
     display?.onPlaybackEvent = { [weak self] event in
+      NSLog("[Owl] video event: \(event.type)")
+      if event.type == .started {
+        Task { @MainActor in onStarted?() }
+        return
+      }
       guard event.type == .ended || event.type == .stopped || event.type == .error else { return }
       Task { @MainActor [weak self] in
         self?.display?.onPlaybackEvent = nil

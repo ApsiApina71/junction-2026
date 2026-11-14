@@ -294,6 +294,18 @@ struct OwlAPI: Sendable {
 
   // Media
 
+  /// Whether a clip can be fetched: asks for its first byte. The display's player says nothing
+  /// about a clip that is missing or out of reach, so Owl looks before it sends the player.
+  func clipIsThere(_ url: URL) async -> Bool {
+    var request = URLRequest(url: url, timeoutInterval: 6)
+    request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
+    authorize(&request)
+    guard let (_, response) = try? await URLSession.shared.data(for: request),
+      let status = (response as? HTTPURLResponse)?.statusCode
+    else { return false }
+    return status == 200 || status == 206
+  }
+
   /// Downloads an image for the display. Relative paths (`/media/...`) resolve against the server.
   func image(_ urlString: String) async throws -> UIImage? {
     guard let url = resolve(urlString) else { return nil }

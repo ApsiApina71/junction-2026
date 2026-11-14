@@ -36,6 +36,8 @@ SIMCTL_CHILD_OWL_AUTO_PREVIEW=inApp xcrun simctl launch "iPhone 17" fi.junction2
 
 The glasses id is a setting: `xcrun simctl spawn "iPhone 17" defaults write fi.junction2026.bossit.owl owl.glassesID glasses-1`. With the preview on, the preview sheet also has buttons for "Hey Meta", taking the glasses off, a spoken question and the mock Check answer. Logs: `xcrun simctl spawn "iPhone 17" log stream --predicate 'eventMessage CONTAINS "[Owl]"'`. The mock camera streams `Assets.xcassets/owlDemoFeed` (falls back to `demoMeal`) as a generated HEVC clip, because MockDeviceKit streams video files only. A check that logs `perf: 6 KB` is looking at a flat grey picture (JUN-91); a real frame is 80 to 90 KB.
 
+Clips play over https only, also in the simulator. Without a tunnel: make a test CA and a certificate for `localhost` with `openssl`, trust the CA in the simulator (`xcrun simctl keychain <device> add-root-cert ca.pem`), start owl-api with `--ssl-keyfile`/`--ssl-certfile` and `PUBLIC_BASE_URL=https://localhost:8443`, and point the app at it (`defaults write fi.junction2026.bossit.owl owl.serverURL https://localhost:8443`).
+
 Unsigned simulator builds (`CODE_SIGNING_ALLOWED=NO`) crash in `Wearables.configure()`; always ad-hoc sign as above.
 
 ## Run on an iPhone with glasses

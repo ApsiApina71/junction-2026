@@ -1162,12 +1162,27 @@ final class OwlViewModel {
       await showProblem(.video)
       return
     }
+    // The display's player shows a dead picture for a clip it cannot fetch and reports nothing,
+    // so Owl looks first: a missing clip gets its own screen, and the step goes on without it.
+    statusText = "Opening the expert's clip"
+    await showScreen {
+      OwlScreens.status(
+        OwlStrings.openingClip, detail: step.title, mood: .watching,
+        onCancel: self.waitAction { await $0.backToStep() })
+    }
+    guard await api.clipIsThere(url) else {
+      guard isCurrent(number) else { return }
+      NSLog("[Owl] clip cannot be fetched: \(url.path)")
+      await showProblem(.video)
+      return
+    }
+    guard isCurrent(number) else { return }
     statusText = "Playing the expert's clip"
     isPlayingClip = true
-    var finished = false
-    await displayViewModel.playVideo(url: url.absoluteString) { [weak self] played in
-      guard let self, !finished else { return }
-      finished = true
+    let playback = ClipPlayback()
+    await displayViewModel.playVideo(url: url.absoluteString, onStarted: { playback.started = true }) { [weak self] played in
+      guard let self, !playback.finished else { return }
+      playback.finished = true
       // The worker may have moved on while the clip played.
       guard self.isCurrent(number) else { return }
       self.isPlayingClip = false
@@ -1183,6 +1198,25 @@ final class OwlViewModel {
         }
       }
     }
+    // A player that has not started after a while will not start. Owl ends it and says so.
+    Task { [weak self] in
+      try? await Task.sleep(for: Self.clipStartLimit)
+      guard let self, self.isCurrent(number), self.isPlayingClip, !playback.started, !playback.finished else { return }
+      playback.finished = true
+      NSLog("[Owl] clip did not start in \(Self.clipStartLimit)")
+      self.isPlayingClip = false
+      await self.displayViewModel.stopVideo()
+      await self.showProblem(.video)
+    }
+  }
+
+  /// How long the display's player gets to start a clip before Owl gives up on it.
+  private static let clipStartLimit: Duration = .seconds(8)
+
+  /// What Owl knows about the clip that is playing.
+  @MainActor private final class ClipPlayback {
+    var started = false
+    var finished = false
   }
 
   // MARK: - Ask (JUN-31)
