@@ -40,6 +40,11 @@ body {
   background: var(--uit-color-background-window);
 }
 
+/* The toolkit parks focus on its content root when a page has nothing to focus first; that root is not a control. */
+[data-app-content-root]:focus {
+  outline: none;
+}
+
 .visually-hidden {
   position: absolute;
   inline-size: 1px;
@@ -126,12 +131,6 @@ body {
   grid-row: 2;
   min-block-size: 0;
   min-inline-size: 0;
-}
-
-/* A view still on its old layout scrolls on its own (legacy.css). */
-.view-slot.legacy {
-  box-sizing: border-box;
-  overflow: auto;
 }
 
 .main:focus {
@@ -599,6 +598,97 @@ body {
 
 .new-plan {
   align-items: stretch;
+}
+
+/* Data: what stays on the company's server and what goes out, said in full. */
+
+.data-list {
+  gap: var(--uit-spacing-large);
+}
+
+.panel-body.data-body,
+.panel-body.facts {
+  align-items: stretch;
+}
+
+.data-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--uit-spacing-small) var(--uit-spacing-large);
+}
+
+.data-intro {
+  margin: 0;
+  max-inline-size: 70ch;
+  color: var(--uit-color-text-secondary);
+}
+
+.data-intro strong {
+  color: var(--uit-color-text-primary);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.data-body dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.36fr) minmax(0, 1fr);
+  gap: var(--uit-spacing-medium) var(--uit-spacing-xlarge);
+}
+
+.data-body dt {
+  color: var(--uit-color-text-primary);
+}
+
+.data-body dd {
+  margin: 0;
+  max-inline-size: 72ch;
+  color: var(--uit-color-text-secondary);
+}
+
+.data-body a {
+  color: var(--uit-color-text-accent);
+  text-underline-offset: 4px;
+}
+
+.facts-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.facts-list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--uit-spacing-large);
+  padding-block: var(--uit-spacing-small);
+  border-block-end: 1px solid var(--uit-color-border-primary);
+}
+
+.facts-list dt {
+  color: var(--uit-color-text-secondary);
+}
+
+.facts-list dd {
+  margin: 0;
+  text-align: end;
+  color: var(--uit-color-text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1500px) {
+  .data-body dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--uit-spacing-xsmall);
+  }
+
+  .data-body dd {
+    margin-block-end: var(--uit-spacing-medium);
+  }
 }
 
 /* Map: the areas drawn on a floor, who is where now, and the places of steps. */
