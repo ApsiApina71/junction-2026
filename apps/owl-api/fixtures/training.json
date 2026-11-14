@@ -1,0 +1,47 @@
+{
+  "plans": [
+    {
+      "id": "plan-warehouse-picker",
+      "role": "Warehouse picker",
+      "days": 5,
+      "target": [
+        {"process_id": "proc-pick-pack", "step_id": "step-1", "required": 3},
+        {"process_id": "proc-pick-pack", "step_id": "step-2", "required": 3},
+        {"process_id": "proc-pick-pack", "step_id": "step-3", "required": 3},
+        {"process_id": "proc-pick-pack", "step_id": "step-4", "required": 3},
+        {"process_id": "proc-pick-pack", "step_id": "step-5", "required": 3}
+      ]
+    },
+    {
+      "id": "plan-varastotyontekija",
+      "role": "Varastotyöntekijä",
+      "days": 5,
+      "target": [
+        {"process_id": "proc-pick-pack", "step_id": "step-2", "required": 3},
+        {"process_id": "proc-pick-pack", "step_id": "step-3", "required": 3},
+        {"process_id": "proc-pick-pack", "step_id": "step-4", "required": 3}
+      ]
+    },
+    {
+      "id": "plan-leipuriharjoittelija",
+      "role": "Leipuriharjoittelija",
+      "days": 10,
+      "target": [
+        {"process_id": "proc-bakery-rye", "step_id": "step-1", "required": 3},
+        {"process_id": "proc-bakery-rye", "step_id": "step-2", "required": 3},
+        {"process_id": "proc-bakery-rye", "step_id": "step-4", "required": 3}
+      ]
+    }
+  ],
+  "demo": {
+    "trainings": {
+      "emp-sami": {"plan_id": "plan-warehouse-picker", "day": 5}
+    },
+    "runs": [
+      {"employee_id": "emp-sami", "process_id": "proc-pick-pack", "days_ago": 4, "seconds": 610, "helped_steps": ["step-2", "step-4"], "problems_caught": 2, "problems_fixed": 2},
+      {"employee_id": "emp-sami", "process_id": "proc-pick-pack", "days_ago": 3, "seconds": 480, "helped_steps": [], "problems_caught": 1, "problems_fixed": 1},
+      {"employee_id": "emp-sami", "process_id": "proc-pick-pack", "days_ago": 2, "seconds": 420, "helped_steps": [], "problems_caught": 0, "problems_fixed": 0},
+      {"employee_id": "emp-sami", "process_id": "proc-pick-pack", "days_ago": 1, "seconds": 390, "helped_steps": ["step-4"], "problems_caught": 1, "problems_fixed": 1}
+    ]
+  }
+}

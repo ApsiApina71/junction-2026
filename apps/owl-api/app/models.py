@@ -1,5 +1,6 @@
 """The shared JSON shapes of docs/specs/owl-contract.md. Keep the two in step."""
 
+from datetime import date
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
@@ -232,3 +233,37 @@ class FromDocs(BaseModel):
 class RecordStart(BaseModel):
     title: str = Field(min_length=1, max_length=80)
     expert: str | None = Field(default=None, max_length=80)
+
+
+class TargetStep(BaseModel):
+    """One part of the target level: this step verified this many times without help (JUN-96)."""
+
+    process_id: str
+    step_id: str
+    required: int = Field(default=3, ge=1, le=20)
+
+
+class TrainingPlan(BaseModel):
+    """What the company set for a role in Studio: how long training lasts and the level to reach (JUN-96)."""
+
+    id: str = Field(min_length=1, max_length=60, pattern=r"^[A-Za-z0-9_-]+$")
+    role: Role
+    days: int = Field(default=5, ge=1, le=90)
+    target: list[TargetStep] = []
+
+
+class TrainingStart(BaseModel):
+    """Studio puts a worker on a training period. starts null ends it; plan_id null: the plan of the worker's role."""
+
+    starts: date | None = None
+    plan_id: str | None = None
+
+
+class TrainingConfirm(BaseModel):
+    """A person confirms the end result. Owl only suggests it."""
+
+    result: Literal["ready", "more_practice"]
+    by: Name
+    note: str | None = Field(default=None, max_length=300)
+    # more_practice: training goes on this many days more.
+    extend_days: int = Field(default=3, ge=1, le=30)

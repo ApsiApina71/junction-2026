@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .models import Doc, Employee, HelpSession, Process, Recording
+from .models import Doc, Employee, HelpSession, Process, Recording, TrainingPlan
 
 APP_DIR = Path(__file__).resolve().parent.parent
 FIXTURES = APP_DIR / "fixtures"
@@ -58,6 +58,10 @@ class Store:
         self.custom_welcomes: set[str] = set()
         # employee id -> what they agreed to and when (JUN-80)
         self.consents: dict[str, dict] = {}
+        # JUN-96: the company's plans per role, and employee id -> their training period
+        # ({starts, plan_id, extra_days, seen_at, confirmed, demo}).
+        self.training_plans: dict[str, TrainingPlan] = {}
+        self.trainings: dict[str, dict] = {}
         self._counter = 0
 
         for path in sorted(FIXTURES.glob("employee*.json")):
@@ -69,6 +73,9 @@ class Store:
                 self.translations[(process.id, lang_key(process.language))] = process
             else:
                 self.processes[process.id] = process
+        for plan in load_fixture("training.json")["plans"]:
+            plan = TrainingPlan.model_validate(plan)
+            self.training_plans[plan.id] = plan
         for folder in (FIXTURES / "docs", data_dir / "docs"):
             for path in sorted(folder.glob("*")) if folder.is_dir() else []:
                 if path.suffix.lower() in {".md", ".txt"}:

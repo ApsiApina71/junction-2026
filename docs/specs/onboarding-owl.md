@@ -79,6 +79,7 @@ The demo task is decided in [JUN-44](https://linear.app/junction-2026-bossit/iss
 ## Safety and privacy
 
 - **A learning aid, not monitoring.** The EU AI Act treats AI used to monitor workers as high-risk. Owl does not score people. The worker sees their own progress on the glasses and can erase it ("Forget me"); Owl Studio shows only totals for everyone together.
+- **The end of training: Owl gives evidence, a person decides (JUN-96).** The company sets a training length and a target level made of its own steps ("Packing: verified 3 times without help"), and the worker sees the level from day one. At the end Owl suggests "Ready" or "More practice: steps X and Y". Only verified steps count, and a fixed mistake is learning, not a minus point. The worker sees the suggestion on the glasses first; only then does Studio show it, and a trainer confirms it. This end result and its counts are the only thing Studio shows about one worker: no camera images, no location and no timing go into it.
 - **The worker chooses.** On the first start Owl says what the camera does, on the display and aloud in the worker's language, and the worker allows or refuses checks with a pinch. Without a yes, Owl guides without looking, and owl-api refuses the pictures. The camera can be paused on any step. An expert agrees before anything is recorded.
 - **Honest about what a check is.** A step counts as verified only when a check passed for it. When Owl could not check, the summary says so.
 

@@ -11,7 +11,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from .models import Employee, Process, Recording
+from .models import Employee, Process, Recording, TrainingPlan
 from .progress import Progress, Run
 from .store import Store
 
@@ -34,6 +34,7 @@ def _run_to_state(run: Run) -> dict:
         "problems_caught": run.problems_caught,
         "problems_fixed": run.problems_fixed,
         "open_problems": sorted(run.open_problems),
+        "helped_steps": sorted(run.helped_steps),
     }
 
 
@@ -50,6 +51,7 @@ def _run_from_state(data: dict) -> Run:
         problems_caught=data["problems_caught"],
         problems_fixed=data["problems_fixed"],
         open_problems=set(data["open_problems"]),
+        helped_steps=set(data.get("helped_steps", [])),
     )
 
 
@@ -64,6 +66,8 @@ def snapshot(store: Store, progress: Progress) -> dict:
             "recordings": [r.model_dump(mode="json") for r in store.recordings.values()],
             "custom_welcomes": sorted(store.custom_welcomes),
             "consents": store.consents,
+            "training_plans": [p.model_dump(mode="json") for p in store.training_plans.values()],
+            "trainings": store.trainings,
         }
     with progress._lock:
         state["runs"] = [_run_to_state(r) for r in progress.runs.values()]
@@ -93,6 +97,7 @@ def load(store: Store, progress: Progress) -> bool:
         translations = [(t["process_id"], t["lang"], Process.model_validate(t["process"])) for t in state.get("translations", [])]
         recordings = [Recording.model_validate(r) for r in state.get("recordings", [])]
         runs = [_run_from_state(r) for r in state.get("runs", [])]
+        plans = [TrainingPlan.model_validate(p) for p in state.get("training_plans", [])]
     except (OSError, ValueError, KeyError, TypeError) as e:
         log.error("owl-api state in %s cannot be read, starting from the fixtures: %s", path, e)
         return False
@@ -103,6 +108,9 @@ def load(store: Store, progress: Progress) -> bool:
         store.recordings.update({r.id: r for r in recordings})
         store.custom_welcomes |= set(state.get("custom_welcomes", []))
         store.consents.update(state.get("consents", {}))
+        if "training_plans" in state:  # Studio may have deleted a fixture plan
+            store.training_plans = {p.id: p for p in plans}
+        store.trainings.update(state.get("trainings", {}))
         store._counter = max(store._counter, int(state.get("counter", 0)))
     with progress._lock:
         progress.runs.update({r.run_id: r for r in runs})

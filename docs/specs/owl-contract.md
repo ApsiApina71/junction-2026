@@ -362,13 +362,13 @@ Only the wearer sees the display, so `GET /stage` shows the audience the glasses
 | Check frames | Never stored: read, described and dropped. |
 | Help frames | In memory and on disk only while the help session is open; deleted when it ends. |
 | Recorded photos and clips | Faces blurred before storing; kept until the process is deleted in Studio. |
-| Learning progress | Per worker, for their own glasses; erased with `DELETE /employees/{id}/progress`. Studio sees only `/stats`. |
+| Learning progress | Per worker, for their own glasses; erased with `DELETE /employees/{id}/progress`. Studio sees `/stats`, and per worker only the end-of-training result and its counts (JUN-96), after the worker has seen it. |
 | Consent | What was agreed and when. |
 | Anything to Meta | Nothing: DAT analytics and crash reporting are opted out in the glasses app. |
 
 ### Learning progress (JUN-73)
 
-Owl is a learning aid, not monitoring: the EU AI Act treats AI that monitors workers as high-risk. So the worker sees their own progress on their glasses, and the company sees only anonymous totals. **Owl Studio never shows one person's results.**
+Owl is a learning aid, not monitoring: the EU AI Act treats AI that monitors workers as high-risk. So the worker sees their own progress on their glasses, and the company sees only anonymous totals. **Owl Studio never shows one person's results**, except the end-of-training result below (JUN-96).
 
 `GET /employees/{id}/progress` (the worker's own glasses only):
 
@@ -389,6 +389,51 @@ Owl is a learning aid, not monitoring: the EU AI Act treats AI that monitors wor
 - `faster_than_first`: the latest finished run of a task against the first finished run of the same task, or `null` when there is only one.
 
 `GET /stats` (no names, no ids): `{"runs", "tasks_finished", "workers", "median_seconds_to_first_finished_task", "problems_caught", "problems_fixed"}`. Runs live in memory and reset when owl-api restarts.
+
+### Training period and target level (JUN-96)
+
+The company sets per role how long training lasts and the level to reach: which steps must be verified how many times **without help**. At the end Owl suggests "ready" or "more practice", the worker sees it on the glasses first, and a person confirms it in Studio. Owl gives evidence; a person decides.
+
+- A step counts when Owl verified it (`step_done` from `/check`) in a run where the worker did not ask Owl (`/ask` with that `employee_id`, `process_id` and `step_id`) or call for help (`/help/frames`) during that step. Mistakes the worker fixed do not count against them. Only runs started on or after `starts` count.
+- No camera images, location or timing go into the result: only the counts below.
+
+`GET /training/plans` → `{"plans": [TrainingPlan]}`. `PUT /training/plans/{id}` (Studio) saves one, `DELETE /training/plans/{id}` removes it.
+
+```json
+{"id": "plan-warehouse-picker", "role": "Warehouse picker", "days": 5,
+ "target": [{"process_id": "proc-pick-pack", "step_id": "step-4", "required": 3}]}
+```
+
+`PUT /employees/{id}/training` `{"starts": "2026-11-11", "plan_id": null}` puts a worker on a training period (Studio). `plan_id` null: the plan whose `role` matches the worker's role (422 when none does). `{"starts": null}` ends it.
+
+`GET /employees/{id}/training` (the worker's glasses; 404 when there is no training period):
+
+```json
+{
+  "employee_id": "emp-sami", "plan_id": "plan-warehouse-picker",
+  "starts": "2026-11-11", "ends": "2026-11-15", "day": 5, "days": 5, "days_left": 0, "active": true,
+  "target": [{"process_id": "proc-pick-pack", "step_id": "step-4", "title": "Pack heavy items first", "task": "Pick and pack an order",
+              "required": 3, "done_without_help": 2, "met": false}],
+  "practise": [{"process_id": "proc-pick-pack", "step_id": "step-4", "title": "Pack heavy items first"}],
+  "suggestion": "more_practice",
+  "seen_at": null,
+  "confirmed": null
+}
+```
+
+- `ends` is the last day, inclusive. `title` and `task` are in the worker's language. `done_without_help` stops at `required`.
+- `suggestion`: `"ready"` when every row is met (any day); `"more_practice"` from the last day on when some row is not; otherwise `null`.
+- `confirmed`: `null` or `{"result": "ready" | "more_practice", "by": "Laura", "at": "<time>", "note": null}`.
+
+`POST /employees/{id}/training/seen`: the glasses showed the suggestion to the worker. Sets `seen_at` (only while there is a suggestion) and answers the same object.
+
+`POST /employees/{id}/training/confirm` `{"result": "ready" | "more_practice", "by": "Laura", "note": null, "extend_days": 3}` (Studio) → the same object. `409` before there is a suggestion or before the worker has seen it. `more_practice` is not a fail: training goes on `extend_days` more days from today, `seen_at` resets, and the worker sees the next suggestion first again.
+
+`GET /training` (Studio) → `{"trainees": [...]}`: the same object per worker in training, with `name` and `role`. Until `seen_at` is set, `suggestion` is `null` and `waiting_for_worker` is `true`.
+
+"Forget me" (`DELETE /employees/{id}/progress`) also drops `seen_at` and `confirmed`: the evidence is gone.
+
+Demo mode: Sami is on day 5 of 5 with four earlier runs (`fixtures/training.json`, days counted back from today). Steps 1, 2, 3 and 5 are at 3 of 3, step 4 at 2 of 3, so the suggestion is `more_practice: Pack heavy items first`. One more run without help makes it `ready`.
 
 ### Demo mode (`OWL_DEMO=1`)
 

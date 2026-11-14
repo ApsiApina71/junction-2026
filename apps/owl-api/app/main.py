@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from . import ask as ask_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
-from . import jepa, people, persist, verifier, vision
+from . import jepa, people, persist, training, verifier, vision
 from . import media as media_engine
 from . import progress as progress_engine
 from . import record as record_engine
@@ -81,6 +81,8 @@ progress = progress_engine.Progress()
 if os.getenv("OWL_RESET", "") != "1":
     persist.load(store, progress)
 demo = demo_engine.Demo()
+if DEMO:
+    training.seed_demo(store, progress)  # JUN-96: Sami on the last day of their training week
 
 
 @asynccontextmanager
@@ -206,6 +208,8 @@ def employee(employee_id: str, request: Request):
 
 # Employees (list, add, edit) and the glasses they wear live in people.py.
 app.include_router(people.router(lambda: store, Auth, out))
+# Training period and target level (JUN-96).
+app.include_router(training.router(lambda: store, lambda: progress, Auth))
 
 LanguageQuery = Annotated[str, Query(max_length=10)]
 
@@ -475,6 +479,9 @@ def forget_progress(employee_id: str) -> Response:
     if employee_id not in store.employees:
         raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
     progress.forget(employee_id)
+    with store.lock:
+        if employee_id in store.trainings:  # the evidence is gone, so is the result built on it
+            store.trainings[employee_id].update(seen_at=None, confirmed=None)
     return Response(status_code=204)
 
 
@@ -498,9 +505,11 @@ def stats() -> dict:
 
 @app.post("/ask", response_model=Answer, dependencies=[Auth])
 async def ask(body: AskRequest, request: Request):
+    employee = store.employees.get(body.employee_id or "")
+    if employee is not None:
+        progress.helped(employee.id, body.process_id or "", body.step_id or "")  # JUN-96: not "without help"
     if MOCK_ASK:
         return out(request, Answer.model_validate(load_fixture("answer.json")))
-    employee = store.employees.get(body.employee_id or "")
     language = body.language or (employee.language if employee else "en")
     if employee is not None and employee.access.easy_language:
         language = verifier.easy(language)
@@ -751,6 +760,7 @@ async def help_frame(
     session.process_id = process_id or session.process_id
     session.step_id = step_id or session.step_id
     session.frame_at = session.updated_at = now_iso()
+    progress.helped(session.employee_id or "", session.process_id or "", session.step_id or "")  # JUN-96
     return out(request, session)
 
 

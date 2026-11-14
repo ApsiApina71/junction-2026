@@ -28,6 +28,8 @@ class Run:
     problems_caught: int = 0
     problems_fixed: int = 0
     open_problems: set[str] = field(default_factory=set)  # steps with a spoken warning not yet fixed
+    # Steps where the worker asked Owl or called for help (JUN-96): verified, but not "without help".
+    helped_steps: set[str] = field(default_factory=set)
 
     @property
     def seconds(self) -> int | None:
@@ -51,6 +53,8 @@ class Progress:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.runs: dict[str, Run] = {}
+        # (employee, process) -> steps helped before the run's first /check; the next run of that pair takes them.
+        self._pending_help: dict[tuple[str, str], set[str]] = {}
 
     def record(self, run_id: str, employee_id: str | None, process: Process, step: Step, result: CheckResult, now: datetime | None = None) -> None:
         """Called after every /check answer."""
@@ -60,6 +64,7 @@ class Progress:
             if run is None:
                 last = max(process.steps, key=lambda s: s.index).id if process.steps else step.id
                 run = self.runs[run_id] = Run(run_id, employee_id or None, process.id, process.title, last, now)
+                run.helped_steps |= self._pending_help.pop((employee_id, process.id), set())
             run.employee_id = run.employee_id or employee_id or None
             if result.status == "warning" and result.say and step.id not in run.open_problems:
                 run.problems_caught += 1  # counted once per spoken warning, not per frame
@@ -71,6 +76,30 @@ class Progress:
                 run.steps_done.add(step.id)
                 if step.id == run.last_step_id and run.finished_at is None:
                     run.finished_at = now
+
+    def helped(self, employee_id: str, process_id: str, step_id: str) -> None:
+        """The worker asked Owl or called for help during this step (JUN-96). Marks their open run of the task."""
+        if not (employee_id and process_id and step_id):
+            return
+        with self._lock:
+            runs = [r for r in self.runs.values() if r.employee_id == employee_id and r.process_id == process_id and r.finished_at is None]
+            if runs:
+                max(runs, key=lambda r: r.started_at).helped_steps.add(step_id)
+            else:
+                self._pending_help.setdefault((employee_id, process_id), set()).add(step_id)
+
+    def without_help(self, employee_id: str, process_id: str, step_id: str, since: datetime | None = None) -> int:
+        """In how many runs (started on or after since) Owl verified this step and the worker had no help with it."""
+        with self._lock:
+            return sum(
+                1
+                for r in self.runs.values()
+                if r.employee_id == employee_id
+                and r.process_id == process_id
+                and step_id in r.steps_done
+                and step_id not in r.helped_steps
+                and (since is None or r.started_at >= since)
+            )
 
     def next_step(self, employee_id: str, process: Process) -> str | None:
         """The first step not yet done in this worker's latest run of the process (demo mode's step recognition)."""
@@ -85,6 +114,8 @@ class Progress:
             mine = [k for k, r in self.runs.items() if r.employee_id == employee_id]
             for k in mine:
                 del self.runs[k]
+            for key in [k for k in self._pending_help if k[0] == employee_id]:
+                del self._pending_help[key]
             return len(mine)
 
     def for_employee(self, employee_id: str) -> dict:
