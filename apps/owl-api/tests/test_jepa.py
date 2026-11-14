@@ -320,3 +320,20 @@ def test_one_video_split_into_steps(tmp_path, monkeypatch):
     monkeypatch.setattr(jepa, "_embedder", jepa.BaselineEmbedder())
     r = TestClient(main.app).post("/videos/steps", files={"video": ("day.mp4", buf.getvalue(), "video/mp4")}).json()
     assert r["segments"][0]["start"] == 0.0 and any(abs(c - 6.0) <= 1.5 for c in r["boundaries"])
+
+
+def test_more_takes_of_a_step_teach_the_probe(tmp_path, expert_clips):
+    pytest.importorskip("torch")
+    other = tmp_path / "jepa-other"
+    other.mkdir()
+    (other / "walking.mp4").write_bytes(scene_clip("step-5", seconds=3.0, seed=4))
+    takes = tmp_path / "jepa-steps" / PROCESS.id / "step-1"
+    takes.mkdir(parents=True)
+    (takes / "take-2.mp4").write_bytes(scene_clip("step-1", seconds=3.0, noise=6, shift=9, seed=7))
+    recognizer = jepa.Recognizer(tmp_path / "jepa", TokenEmbedder())
+    clips = {"step-1": expert_clips["step-1"], "step-4": expert_clips["step-4"]}
+    assert recognizer.extra_clips(PROCESS.id, "step-1") == [takes / "take-2.mp4"]
+    _model, classes = recognizer.probe_for(PROCESS, clips)
+    assert classes == ["step-1", "step-4", "other"]
+    result = recognizer.recognize(PROCESS, clips, scene_clip("step-1", seconds=2.0, noise=8, shift=5, seed=3))
+    assert (result.status, result.step_id) == ("ok", "step-1")

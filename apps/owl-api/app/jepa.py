@@ -479,6 +479,10 @@ class Recognizer:
         torch.save([(c, t) for c, t in items], self._learned_path(process_id))
         return True
 
+    def extra_clips(self, process_id: str, step_id: str) -> list[Path]:
+        folder = self.cache_dir.parent / "jepa-steps" / process_id / step_id
+        return sorted(p for p in folder.glob("*") if p.suffix.lower() in (".mp4", ".mov")) if folder.is_dir() else []
+
     def other_clips(self) -> list[Path]:
         return sorted(p for p in self.other_dir.glob("*") if p.suffix.lower() in (".mp4", ".mov")) if self.other_dir.is_dir() else []
 
@@ -487,7 +491,9 @@ class Recognizer:
         again only when a clip changes. None when the embedder gives no tokens or there are fewer than two classes."""
         if not hasattr(self.embed, "tokens"):
             return None
-        by_class = {step.id: [clips[step.id]] for step in process.steps if step.id in clips}
+        # The expert's clip, plus more takes of the same step when the company has them (DATA_DIR/jepa-steps/<task>/<step>/):
+        # more examples is what helps the probe most (JUN-34). They teach recognition only; the glasses play the clip.
+        by_class = {step.id: [clips[step.id], *self.extra_clips(process.id, step.id)] for step in process.steps if step.id in clips}
         if others := self.other_clips():
             by_class["other"] = others
         if len(by_class) < 2:
