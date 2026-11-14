@@ -58,11 +58,23 @@ struct OwlAPI: Sendable {
   static let serverURLKey = "owl.serverURL"
   static let tokenKey = "owl.apiToken"
 
+  private static let bakedURLKey = "owl.bakedURL"
+
   /// The owl-api base URL: set in the app (Server button), else baked in with OWL_API_URL.
+  /// A build with a new baked URL forgets the address saved under the old build, so a
+  /// reinstall pointed at a new tunnel never keeps talking to the old one.
   static var serverURL: String {
     get {
-      UserDefaults.standard.string(forKey: serverURLKey)
-        ?? (Bundle.main.object(forInfoDictionaryKey: "OwlAPIURL") as? String ?? "")
+      let defaults = UserDefaults.standard
+      let baked = Bundle.main.object(forInfoDictionaryKey: "OwlAPIURL") as? String ?? ""
+      if defaults.string(forKey: bakedURLKey) != baked {
+        if let saved = defaults.string(forKey: serverURLKey), saved != baked {
+          NSLog("[Owl] server: new build with \(baked), forgetting the saved \(saved)")
+        }
+        defaults.removeObject(forKey: serverURLKey)
+        defaults.set(baked, forKey: bakedURLKey)
+      }
+      return defaults.string(forKey: serverURLKey) ?? baked
     }
     set { UserDefaults.standard.set(newValue, forKey: serverURLKey) }
   }
