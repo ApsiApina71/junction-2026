@@ -19,7 +19,7 @@ cloudflared tunnel --url http://localhost:8000
 PUBLIC_BASE_URL=https://<name>.trycloudflare.com uv run --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Placeholder step images and clips: `uv run python scripts/make_placeholder_media.py`.
+Placeholder step clips (and a placeholder picture for a step that has none): `uv run python scripts/make_placeholder_media.py`. The step pictures in `fixtures/media/` are sample pictures (JUN-35); the script leaves them alone.
 
 ## Verify
 

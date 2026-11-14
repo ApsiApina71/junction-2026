@@ -1,4 +1,7 @@
-"""Makes the placeholder step images and clips in fixtures/media/ until real recorded media replaces them.
+"""Makes the placeholder step clips in fixtures/media/ until real recorded clips replace them.
+
+The step pictures are sample photos now (made with an image model for the example tasks, JUN-35), so a
+placeholder picture is drawn only for a step that has none.
 
 Run: uv run python scripts/make_placeholder_media.py
 """
@@ -60,7 +63,9 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for step in PROCESS["steps"]:
         name = step["id"]
-        card(IMAGE_SIZE, step["index"], step["title"]).save(OUT / f"{name}.jpg", quality=80)
+        picture = OUT / f"{name}.jpg"
+        if not picture.exists():
+            card(IMAGE_SIZE, step["index"], step["title"]).save(picture, quality=80)
         if step["clip_url"]:
             write_clip(OUT / f"{name}.mp4", step["index"], step["title"])
     print(f"Wrote {len(list(OUT.iterdir()))} files to {OUT}")
