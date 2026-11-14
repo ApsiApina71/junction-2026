@@ -1,6 +1,6 @@
 """HTTP API of Onboarding Owl. The contract is docs/specs/owl-contract.md.
 
-Owl Check runs the real engine (vision + verifier). Ask and Record still answer from fixtures/.
+Owl Check (vision + verifier) and Ask run the real engine. Record still finishes with the sample process.
 """
 
 import io
@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 
+from . import ask as ask_engine
 from . import verifier, vision
 from .models import (
     Answer,
@@ -37,6 +38,7 @@ from .store import Store, load_fixture, now_iso
 
 MODEL_ID = vision.MODEL_ID
 MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
+MOCK_ASK = os.getenv("OWL_MOCK_ASK", "") == "1"
 API_TOKEN = os.getenv("API_TOKEN", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
@@ -229,8 +231,18 @@ async def check(
 
 
 @app.post("/ask", response_model=Answer, dependencies=[Auth])
-def ask(body: AskRequest, request: Request):
-    return out(request, Answer.model_validate(load_fixture("answer.json")))
+async def ask(body: AskRequest, request: Request):
+    if MOCK_ASK:
+        return out(request, Answer.model_validate(load_fixture("answer.json")))
+    employee = store.employees.get(body.employee_id or "")
+    language = body.language or (employee.language if employee else "en")
+    context = None
+    if body.process_id in store.processes:
+        process = store.processes[body.process_id]
+        step = next((s for s in process.steps if s.id == body.step_id), None)
+        context = f"{process.title}" + (f", step {step.index}: {step.title}" if step else "")
+    docs = [(doc.title, text) for doc, text in store.docs.values()]
+    return out(request, await call_model(lambda: ask_engine.answer(body.question, docs, language, context)))
 
 
 @app.get("/docs", dependencies=[Auth])

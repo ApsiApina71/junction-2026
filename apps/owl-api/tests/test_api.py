@@ -14,6 +14,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "API_TOKEN", "")
     monkeypatch.setattr(main, "PUBLIC_BASE_URL", "")
     monkeypatch.setattr(main, "MOCK_CHECK", True)  # the real engine is tested in test_check_engine.py
+    monkeypatch.setattr(main, "MOCK_ASK", True)  # and in test_ask.py
     return TestClient(main.app)
 
 

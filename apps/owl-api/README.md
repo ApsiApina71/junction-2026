@@ -15,7 +15,7 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 |---|---|---|
 | `GET/PUT /processes`, `GET /employees/{id}` | fixtures, in memory | |
 | `POST /check` | **real**: Claude vision → rules → Jev gate → two-frames rule. `mock` form field or `OWL_MOCK_CHECK=1` for fixtures | [JUN-30](https://linear.app/junction-2026-bossit/issue/JUN-30), [JUN-37](https://linear.app/junction-2026-bossit/issue/JUN-37) |
-| `POST /ask` | fixture answer | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |
+| `POST /ask` | **real**: every document in the cached system prompt, sources checked word for word. `OWL_MOCK_ASK=1` for the fixture | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |
 | `GET/POST /docs` | real: stores `.md`, `.txt`, `.pdf` text | |
 | `/record` | real upload, mock finish | [JUN-32](https://linear.app/junction-2026-bossit/issue/JUN-32) |
 | `/help` | real, in memory | |
@@ -29,6 +29,10 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 4. A problem becomes a warning only when the same problem is seen in two frames in a row. The Done pinch (`final=true`) answers at once, and **a step is only done when the rules say ok**: a wrong order is never marked done.
 
 Speech is in English or Finnish (`TEXTS` in `app/verifier.py`); other languages fall back to English.
+
+## Ask
+
+`app/ask.py` puts every company document whole into the system prompt (cached; the handbooks are small, so no retrieval index) and asks Claude for a structured answer in the worker's language. Every source quote is checked word for word against the documents: an answer whose sources cannot be found is replaced with "That's not in our instructions. Ask your shift lead." Company documents never leave this server except in the model call.
 
 ## Data
 
