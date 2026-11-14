@@ -124,7 +124,8 @@ enum OwlScreens {
   static func step(
     process: OwlProcess, step: OwlStep, image: UIImage?, live: OwlLive, log: OwlRunLog?,
     onDone: @escaping OwlAction, onWatch: OwlAction?, onAsk: @escaping OwlAction,
-    onHelp: @escaping OwlAction, caption: String? = nil, cameraOn: Bool? = nil, onCamera: OwlAction? = nil
+    onHelp: @escaping OwlAction, caption: String? = nil, cameraOn: Bool? = nil, onCamera: OwlAction? = nil,
+    unreal: OwlUnrealSource? = nil
   ) -> FlexBox {
     // Display-first workers read what Owl just said, on its own line under what Owl knows.
     let spoken = caption.map { "\u{201C}\($0)\u{201D}" }
@@ -136,7 +137,7 @@ enum OwlScreens {
       progress: OwlArt.Progress(index: step.index, count: process.steps.count, outcomes: process.steps.map { log?.outcome(of: $0) }),
       photoHeight: photoHeight(title: step.title, instruction: step.instruction, live: lines))
     return screen {
-      header(mood(live), meta: OwlStrings.stepOf(step.index, process.steps.count), title: step.title)
+      header(mood(live), meta: marked(OwlStrings.stepOf(step.index, process.steps.count), unreal), title: step.title)
       Image(image: banner, sizePreset: .fill)
       Text(step.instruction, style: .body)
       Text(liveLine(live), style: .meta, color: .secondary)
@@ -170,9 +171,11 @@ enum OwlScreens {
     onCheckAgain: @escaping OwlAction, onBack: @escaping OwlAction
   ) -> FlexBox {
     let picture = evidence(result) ?? notSeen(step: step, result: result, image: image, expert: process.expert)
+    let source = OwlCheckRules.unrealSource(decidedBy: result.decidedBy)
     return screen {
       header(
-        .alert, meta: "\(OwlStrings.stepOf(step.index, process.steps.count)) · \(OwlStrings.checkThis)",
+        .alert,
+        meta: marked("\(OwlStrings.stepOf(step.index, process.steps.count)) · \(OwlStrings.checkThis)", source),
         title: OwlStrings.correctionTitle(result))
       if let picture {
         Image(image: picture, sizePreset: .fill)
@@ -237,7 +240,7 @@ enum OwlScreens {
   /// when every check passed.
   static func done(
     process: OwlProcess, summary: OwlRunSummary, checksWereOff: Bool = false, onHome: @escaping OwlAction,
-    onProgress: OwlAction? = nil
+    onProgress: OwlAction? = nil, unreal: OwlUnrealSource? = nil
   ) -> FlexBox {
     let title =
       summary.allVerified
@@ -250,8 +253,8 @@ enum OwlScreens {
         ? (checksWereOff ? OwlStrings.checksOffBody : OwlStrings.notVerifiedBody) : OwlStrings.noChecksBody)
     return screen {
       header(
-        summary.allVerified ? .done : (summary.unverified > 0 ? .unsure : .listening), meta: process.title,
-        title: title)
+        summary.allVerified ? .done : (summary.unverified > 0 ? .unsure : .listening),
+        meta: marked(process.title, unreal), title: title)
       Image(
         image: OwlArt.summary(
           summary.rows, verified: OwlStrings.verified, notVerified: OwlStrings.notVerified,
@@ -285,6 +288,12 @@ enum OwlScreens {
       choice(allowLabel, onAllow)
       choice(declineLabel, onDecline)
     }
+  }
+
+  /// The small line above a title, with "scripted demo" or "sample answer" added when the
+  /// check answers on this screen are not real looks at the camera.
+  private static func marked(_ meta: String, _ source: OwlUnrealSource?) -> String {
+    source.map { "\(meta) · \(OwlStrings.unreal($0))" } ?? meta
   }
 
   /// One answer to a question, as a row that can be picked with the Neural Band.

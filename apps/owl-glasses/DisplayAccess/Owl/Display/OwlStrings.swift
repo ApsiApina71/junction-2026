@@ -143,6 +143,15 @@ enum OwlStrings {
     }
   }
 
+  /// Shown beside the step count when the check answers are not real looks at the camera,
+  /// so a picture or a film of the display says so by itself.
+  static func unreal(_ source: OwlUnrealSource) -> String {
+    switch source {
+    case .scriptedDemo: t("scripted demo", "käsikirjoitettu demo")
+    case .sampleAnswer: t("sample answer", "esimerkkivastaus")
+    }
+  }
+
   // A correction
   static var checkThis: String { t("Check this", "Tarkista tämä") }
   /// What to do about a problem, as the headline: the action first, taken from the result

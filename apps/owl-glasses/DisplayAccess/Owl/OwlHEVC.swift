@@ -1,7 +1,8 @@
 //
 // OwlHEVC.swift
 //
-// Reads just enough of an HEVC frame to tell whether decoding can start from it.
+// Two small rules of the camera that can be tested without a camera: whether decoding can
+// start from an HEVC frame, and whether a picture is fresh enough to be evidence.
 // Foundation only, so `Tests/run.sh` can test it on the Mac.
 //
 
@@ -30,6 +31,14 @@ enum OwlHEVC {
       units += 1
     }
     return units > 0 ? false : nil
+  }
+
+  /// Whether a picture taken at `taken` may be used as evidence: it exists, it is at most
+  /// `maxAge` seconds old, and when `newerThan` is given (the worker's pinch) it is from after it.
+  static func isFresh(taken: Date?, now: Date, maxAge: TimeInterval, newerThan: Date?) -> Bool {
+    guard let taken, now.timeIntervalSince(taken) <= maxAge else { return false }
+    if let newerThan, taken <= newerThan { return false }
+    return true
   }
 
   static func holdsRandomAccessPicture(_ frame: [UInt8], lengthSize: Int = 4) -> Bool? {

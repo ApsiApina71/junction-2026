@@ -192,5 +192,46 @@ expect(OwlHEVC.holdsRandomAccessPicture(nal(1) + [0, 0]) == nil, "bytes left ove
 expect(OwlHEVC.holdsRandomAccessPicture(nal(19), lengthSize: 0) == nil, "an impossible length size: unknown")
 expect(OwlHEVC.holdsRandomAccessPicture(nal(19), lengthSize: 5) == nil, "a length size over four bytes: unknown")
 
+// Freshness: a picture is evidence only when the picture itself is new. A frame that arrives
+// but is not kept (no key frame for a long time) must not make an older picture look fresh.
+let pinch = Date(timeIntervalSince1970: 1_000)
+expect(OwlHEVC.isFresh(taken: pinch.addingTimeInterval(0.4), now: pinch.addingTimeInterval(0.5), maxAge: 1.5, newerThan: pinch), "a picture from after the pinch is evidence")
+expect(!OwlHEVC.isFresh(taken: pinch.addingTimeInterval(-0.2), now: pinch.addingTimeInterval(0.5), maxAge: 1.5, newerThan: pinch), "a picture from before the pinch is not, however recent")
+expect(!OwlHEVC.isFresh(taken: pinch, now: pinch.addingTimeInterval(0.5), maxAge: 1.5, newerThan: pinch), "a picture from the instant of the pinch is not after it")
+expect(!OwlHEVC.isFresh(taken: pinch.addingTimeInterval(-20), now: pinch, maxAge: 3, newerThan: nil), "a picture kept for 20 seconds is too old for a live check")
+expect(OwlHEVC.isFresh(taken: pinch.addingTimeInterval(-2), now: pinch, maxAge: 3, newerThan: nil), "two seconds old is still a live picture")
+expect(!OwlHEVC.isFresh(taken: nil, now: pinch, maxAge: 3, newerThan: nil), "no picture is never fresh")
+
+// Back while Owl is checking: the worker gets a new attempt, and the old one's answer is dropped
+// even when it says the step is done.
+let packStep = step("step-2", index: 2)
+let checking = OwlCheckTicket(runID: "run-1", stepID: "step-2", attempt: 3)
+let afterBack = OwlCheckTicket(runID: "run-1", stepID: "step-2", attempt: 4)
+let lateYes = result("ok", stepDone: true)
+if case .stale = OwlCheckRules.verdict(result: lateYes, failure: nil, ticket: checking, current: afterBack) {
+  passed += 1
+} else {
+  failures += 1
+  print("FAILED: an answer that arrives after Back must be dropped")
+}
+var backLog = OwlRunLog(runID: "run-1")
+expect(!backLog.verify(packStep, result: lateYes, ticket: checking, current: afterBack), "a late yes after Back does not verify the step")
+expect(backLog.outcome(of: packStep) != OwlStepOutcome.verified, "the step is not shown as verified after Back")
+
+// A pinch right after Owl itself changed the card was aimed at a button that is gone: it is
+// dropped, so "Back" on a correction never becomes "Done" on the step card that replaced it.
+expect(OwlCheckRules.pinchCounts(sinceSwap: nil), "a card the worker opened takes a pinch at once")
+expect(!OwlCheckRules.pinchCounts(sinceSwap: 0.05), "a pinch 50 ms after the card changed is dropped")
+expect(!OwlCheckRules.pinchCounts(sinceSwap: 0.9), "a pinch 0.9 s after the card changed is dropped")
+expect(OwlCheckRules.pinchCounts(sinceSwap: 1.0), "after a second the pinch counts again")
+expect(OwlCheckRules.pinchCounts(sinceSwap: 30), "long after, it counts")
+
+// An answer that was not a real look at the camera is named as such.
+expect(OwlCheckRules.unrealSource(decidedBy: "demo") == .scriptedDemo, "demo mode is a scripted demo")
+expect(OwlCheckRules.unrealSource(decidedBy: "mock") == .sampleAnswer, "a mock answer is a sample answer")
+expect(OwlCheckRules.unrealSource(decidedBy: "jev") == nil, "a decision by Jev is a real check")
+expect(OwlCheckRules.unrealSource(decidedBy: "rules") == nil, "a decision by the rules is a real check")
+expect(OwlCheckRules.unrealSource(decidedBy: nil) == nil, "no decider named: nothing claimed")
+
 print("\(passed) passed, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

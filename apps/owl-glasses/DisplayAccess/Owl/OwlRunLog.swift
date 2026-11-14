@@ -15,6 +15,12 @@
 import Foundation
 
 /// How a step ended.
+/// A check answer that did not come from looking at the camera picture.
+enum OwlUnrealSource: String, Sendable {
+  case scriptedDemo
+  case sampleAnswer
+}
+
 enum OwlStepOutcome: String, Codable, Equatable, Sendable {
   /// Owl's final check passed.
   case verified
@@ -64,6 +70,29 @@ enum OwlFinalVerdict: Equatable, Sendable {
 }
 
 enum OwlCheckRules {
+  /// How long a pinch is ignored after Owl itself changed the card (a correction appeared or
+  /// cleared while the worker was reaching for a button).
+  static let cardSwapGuard: TimeInterval = 1.0
+
+  /// Whether a pinch on the step or correction card counts. `sinceSwap` is how long ago Owl
+  /// changed the card by itself, nil when the worker's own action drew it. Right after such a
+  /// change the focus is on another button than the worker aimed at, so the pinch is dropped
+  /// instead of becoming Done, Watch or Back.
+  static func pinchCounts(sinceSwap: TimeInterval?) -> Bool {
+    guard let sinceSwap else { return true }
+    return sinceSwap >= cardSwapGuard
+  }
+
+  /// The words for who decided a check, when it was not a real look at the camera: demo mode
+  /// scripts what the camera sees, and a mock answer is a fixed sample. Nil for a real check.
+  static func unrealSource(decidedBy: String?) -> OwlUnrealSource? {
+    switch decidedBy {
+    case "demo": .scriptedDemo
+    case "mock": .sampleAnswer
+    default: nil
+    }
+  }
+
   /// What a final check answer means. `result` is nil when no answer came; `failure` says why.
   static func verdict(
     result: OwlCheckResult?, failure: OwlCheckBlock? = nil, ticket: OwlCheckTicket,

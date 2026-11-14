@@ -67,6 +67,11 @@ final class OwlViewModel {
   @ObservationIgnored let invocations: OwlInvocations
   @ObservationIgnored private let listener: OwlListener
   @ObservationIgnored private var camera: OwlCamera?
+  /// When Owl itself last changed the step or correction card under the worker's finger.
+  @ObservationIgnored private var cardSwappedAt: ContinuousClock.Instant?
+  /// Set when the check answers of this run are scripted (demo mode) or samples (mock), so
+  /// the display says so.
+  @ObservationIgnored private var unrealSource: OwlUnrealSource?
   /// The upload of the step that was just recorded, so the expert can give it up (Record).
   @ObservationIgnored private var stepUpload: Task<OwlRecording, Error>?
   /// Step uploads the expert gave up that owl-api has not been told about yet. They are sent
@@ -298,8 +303,7 @@ final class OwlViewModel {
     process = nil
     await drawTasks(readAloud: true)
     guard refresh else { return }
-    let before = myProcesses.map(\.id)
-    let wasOffline = isOffline
+    let before = tasksShown
     let wearer = employee?.id
     await loadTasks()
     guard isCurrent(number) else { return }
@@ -309,10 +313,23 @@ final class OwlViewModel {
     } else if employee?.id != wearer {
       // Someone else wears the glasses now: their consent and their welcome come first.
       await open()
-    } else if myProcesses.map(\.id) != before || isOffline != wasOffline {
-      // New tasks, or the connection went or came back: the list says which it is.
+    } else if tasksShown != before {
+      // Anything the list shows has changed: a task added, removed, renamed or re-recorded,
+      // the worker's language or profile, or the connection. The display has no way to keep
+      // the focus where it was, so the list is redrawn only then.
       await drawTasks(readAloud: false)
     }
+  }
+
+  /// Everything the task list shows, as one value to compare: who it is for, their language
+  /// and profile, each task's title, steps and expert, and whether owl-api answered.
+  private var tasksShown: [String] {
+    let who = [
+      employee?.name, employee?.company, employee?.language, OwlStrings.easy ? "easy" : nil,
+      access.audioFirst ? "audio" : nil, access.displayFirst ? "display" : nil,
+    ].map { $0 ?? "" }
+    let tasks = myProcesses.map { "\($0.id)|\($0.title)|\($0.steps.count)|\($0.expert ?? "")" }
+    return who + tasks + [isOffline ? "offline" : "online"]
   }
 
   private func drawTasks(readAloud: Bool) async {
@@ -510,8 +527,8 @@ final class OwlViewModel {
         // just as the card changes still means what the worker meant: check this step.
         OwlScreens.correction(
           process: process, step: step, result: correction, image: image,
-          onCheckAgain: self.action { await $0.finishStep() },
-          onBack: self.action { await $0.closeCard() })
+          onCheckAgain: self.cardAction { await $0.finishStep() },
+          onBack: self.cardAction { await $0.closeCard() })
       }
     case .step:
       let live = live
@@ -521,14 +538,16 @@ final class OwlViewModel {
       let stage = OwlStageScreen(
         kind: "step", title: place,
         text: [step.instruction, OwlScreens.liveLine(live), caption].compactMap { $0 }.joined(separator: " · "))
+      let unreal = unrealSource
       await showScreen(stage: stage) {
         OwlScreens.step(
           process: process, step: step, image: image, live: live, log: log,
-          onDone: self.action { await $0.finishStep() },
-          onWatch: step.clipUrl == nil ? nil : self.action { await $0.watchHow() },
-          onAsk: self.action { await $0.ask() },
-          onHelp: self.action { await $0.startHelp() },
-          caption: caption, cameraOn: cameraOn, onCamera: self.action { await $0.toggleCamera() })
+          onDone: self.cardAction { await $0.finishStep() },
+          onWatch: step.clipUrl == nil ? nil : self.cardAction { await $0.watchHow() },
+          onAsk: self.cardAction { await $0.ask() },
+          onHelp: self.cardAction { await $0.startHelp() },
+          caption: caption, cameraOn: cameraOn, onCamera: self.cardAction { await $0.toggleCamera() },
+          unreal: unreal)
       }
       onStepCard = true
     }
@@ -639,6 +658,7 @@ final class OwlViewModel {
 
   /// The numbers behind JUN-82: frame size, round trip, when to look again, frames a minute.
   private func logCheck(_ step: OwlStep, frame: OwlFrame, sentAt: ContinuousClock.Instant, result: OwlCheckResult, final: Bool) {
+    unrealSource = OwlCheckRules.unrealSource(decidedBy: result.decidedBy)
     framesSent += 1
     let minutes = max((ContinuousClock.now - framesSince) / .seconds(60), 1.0 / 60)
     NSLog(
@@ -662,6 +682,8 @@ final class OwlViewModel {
       guard shown != signature, card == .step || card == .correction else { return }
       correction = result
       card = .correction
+      // Owl changed the card by itself: a pinch already on its way was aimed at the old one.
+      cardSwappedAt = .now
       statusText = "Check this: \(result.text ?? result.problem ?? "")"
       await render(number)
     case "ok":
@@ -674,7 +696,10 @@ final class OwlViewModel {
         saidLooksRight = true
         speaker.say(OwlStrings.liveFixed)
         live = .looksRight
-        if card == .correction { card = .step }
+        if card == .correction {
+          card = .step
+          cardSwappedAt = .now
+        }
         statusText = "Fixed. Waiting for Done."
         if card == .step { await render(number) }
       } else {
@@ -806,16 +831,36 @@ final class OwlViewModel {
   }
 
   /// One final check, on a picture taken after the pinch. Bounded, so the worker never
-  /// waits on a spinner: it ends with an answer or with the reason there is none.
+  /// waits on a spinner: it ends with an answer or with the reason there is none. The one
+  /// limit covers everything from the pinch on: opening the camera, waiting for a picture,
+  /// every request and every retry. No part gets a limit of its own on top.
   private func finalCheck(after pinch: Date, ticket: OwlCheckTicket) async -> (OwlCheckResult?, OwlCheckBlock?) {
     guard let process, let step else { return (nil, .serverError) }
-    guard let camera = await openCamera() else { return (nil, cameraDenied ? .cameraOff : .cameraFailed) }
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: Self.finalCheckLimit)
+    /// What is left of the limit. Too little to start anything counts as none.
+    func left() -> Duration? {
+      let remaining = deadline - clock.now
+      return remaining > .milliseconds(250) ? remaining : nil
+    }
+    // The camera is normally open already. When it is not, opening it spends the same limit.
+    let camera: OwlCamera
+    do {
+      guard let opened = try await withOwlTimeout(Self.finalCheckLimit, { await self.openCamera() }) else {
+        return (nil, cameraDenied ? .cameraOff : .cameraFailed)
+      }
+      camera = opened
+    } catch {
+      return (nil, .timedOut)
+    }
     var newerThan = pinch
-    while clock.now < deadline {
+    while let remaining = left() {
       guard OwlCheckRules.isCurrent(ticket, self.ticket) else { return (nil, nil) }
-      guard let frame = await camera.frame(after: newerThan) else { return (nil, .cantSee) }
+      guard let frame = await camera.frame(after: newerThan, timeout: min(.milliseconds(2500), remaining)) else {
+        // No picture from after the pinch. With time left that is "cannot see"; without, the limit ran out.
+        return (nil, left() == nil ? .timedOut : .cantSee)
+      }
+      guard let remaining = left() else { break }
       do {
         let api = api
         let runID = runID
@@ -823,7 +868,7 @@ final class OwlViewModel {
         let employeeID = employee?.id
         let mock = mockCheck
         let sentAt = ContinuousClock.now
-        let result = try await withOwlTimeout(Self.finalCheckLimit) {
+        let result = try await withOwlTimeout(remaining) {
           try await api.check(
             frame: frame, processID: process.id, stepID: step.id, runID: runID, final: true,
             language: language, employeeID: employeeID, mock: mock)
@@ -834,11 +879,11 @@ final class OwlViewModel {
         if result.status != "checking" { return (result, nil) }
         // The engine is still busy with the frame before. Ask again with a newer picture.
         newerThan = Date()
-        try? await Task.sleep(for: .milliseconds(600))
+        try? await Task.sleep(for: min(.milliseconds(600), left() ?? .zero))
       } catch {
         NSLog("[Owl] final check failed: \(error)")
         if case .rateLimited = error as? OwlError {
-          try? await Task.sleep(for: .seconds(2))
+          try? await Task.sleep(for: min(.seconds(2), left() ?? .zero))
           continue
         }
         return (nil, block(for: error))
@@ -885,11 +930,13 @@ final class OwlViewModel {
     }
     let rows = summary.rows.map { "\($0.outcome == .verified ? "✓" : ($0.outcome == .unverified ? "○" : "–")) \($0.title)" }
     let hasEmployee = employee != nil
+    let unreal = unrealSource
     await showScreen(stage: .init(kind: "done", title: statusText, text: rows.joined(separator: " · "))) {
       OwlScreens.done(
         process: process, summary: summary, checksWereOff: checksWereOff,
         onHome: self.action { await $0.showTasks() },
-        onProgress: hasEmployee ? self.action { await $0.showProgress(afterTask: true) } : nil)
+        onProgress: hasEmployee ? self.action { await $0.showProgress(afterTask: true) } : nil,
+        unreal: unreal)
     }
   }
 
@@ -1887,6 +1934,25 @@ final class OwlViewModel {
     }
   }
 
+  /// A button of the step or correction card. For a moment after Owl itself changed the card
+  /// (a correction appeared, or cleared because the worker fixed it), a pinch is ignored: it
+  /// was aimed at a button that is no longer in focus, and must not become Done, Watch or Back.
+  private func cardAction(_ body: @escaping @MainActor (OwlViewModel) async -> Void) -> OwlAction {
+    action { model in
+      guard model.pinchCounts() else { return }
+      await body(model)
+    }
+  }
+
+  private func pinchCounts() -> Bool {
+    let sinceSwap = cardSwappedAt.map { (ContinuousClock.now - $0) / .seconds(1) }
+    guard OwlCheckRules.pinchCounts(sinceSwap: sinceSwap) else {
+      NSLog("[Owl] pinch ignored: Owl changed the card \(Int((sinceSwap ?? 0) * 1000)) ms ago")
+      return false
+    }
+    return true
+  }
+
   /// The way out of a waiting screen. A pinch in its first moment is ignored: it is the second
   /// half of a double pinch on the button that led to the wait, not a wish to leave it.
   private func waitAction(_ body: @escaping @MainActor (OwlViewModel) async -> Void) -> OwlAction {
@@ -1982,9 +2048,15 @@ extension OwlViewModel {
     case "run": if let first = myProcesses.first { await startProcess(first.id) }
     case "process": await startProcess(argument)
     // "Done" and "Check again" are one action: the final check of this step.
-    case "done", "again": await finishStep()
+    case "done", "again": if pinchCounts() { await finishStep() }
+    // `afterswap:<step>` waits until Owl itself changes the card, then runs the step at once:
+    // the pinch that was on its way when the card changed.
+    case "afterswap":
+      let before = cardSwappedAt
+      for _ in 0..<200 where cardSwappedAt == before { try? await Task.sleep(for: .milliseconds(50)) }
+      await runTestStep(argument)
     // "Back" on a correction or a cannot-check card.
-    case "back": await closeCard()
+    case "back": if pinchCounts() { await closeCard() }
     // "Back" while a final check is running.
     case "cancel": await cancelFinalCheck()
     // "Continue unverified" exists only on the cannot-check card, and records that card's reason.

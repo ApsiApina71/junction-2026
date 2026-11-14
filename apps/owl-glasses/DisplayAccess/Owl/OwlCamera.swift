@@ -31,7 +31,14 @@ final class OwlCamera: @unchecked Sendable {
   private var recent: [CMSampleBuffer] = []
   /// The newest decoded frame, when the stream delivers decoded frames (the simulator can).
   private var latestPixels: CVPixelBuffer?
+  /// When the stream last delivered anything: the stream is alive.
   private var latestFrameAt: Date?
+  /// When the picture Owl would really use arrived: the decoded frame it holds, or the newest
+  /// frame kept in `gop`. Freshness is judged by this, never by `latestFrameAt`: a frame that
+  /// arrives but is not kept must not make an older picture look new.
+  private var latestPixelsAt: Date?
+  private var gopLastAt: Date?
+  private var saidGopFull = false
   private var recorder: ClipRecorder?
   private var frameCount = 0
   private let decoder = FrameDecoder()
@@ -87,14 +94,28 @@ final class OwlCamera: @unchecked Sendable {
       if frameCount == 1 || frameCount % 300 == 0 {
         NSLog("[Owl] camera frames: \(frameCount) (\(pixels == nil ? "hevc" : "decoded"))")
       }
-      latestFrameAt = Date()
+      let now = Date()
+      latestFrameAt = now
       if let pixels {
         latestPixels = pixels
+        latestPixelsAt = now
       } else {
+        // The stream is compressed now: a decoded frame from before is not the newest picture.
+        latestPixels = nil
+        latestPixelsAt = nil
         if sample.owlIsKeyFrame {
           gop = [sample]
-        } else if !gop.isEmpty, gop.count < 300 {
+          gopLastAt = now
+          saidGopFull = false
+        } else if !gop.isEmpty, gop.count < Self.gopLimit {
           gop.append(sample)
+          gopLastAt = now
+        } else if !gop.isEmpty, !saidGopFull {
+          // No key frame for a long time: the frames kept end here, and so does what Owl can
+          // decode. Pictures count as old from now on, so a check says it cannot see instead
+          // of judging a picture from before.
+          saidGopFull = true
+          NSLog("[Owl] camera: no key frame for \(Self.gopLimit) frames, pictures are stale until the next one")
         }
         recent.append(sample)
         if recent.count > 15 { recent.removeFirst(recent.count - 15) }
@@ -104,28 +125,41 @@ final class OwlCamera: @unchecked Sendable {
     recorder?.append(sample)
   }
 
+  /// How many frames are kept after a key frame. Decoding the newest picture means decoding
+  /// all of them, so the list has an end.
+  private static let gopLimit = 300
+
   /// The newest stream frame for owl-api: a JPEG whose longest side is at most `maxSide`,
   /// or the frames since the last key frame as a short HEVC clip when decoding fails.
-  /// Nil when no frame arrived in the last `maxAge` seconds (stream stalled or glasses off).
-  func latestJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3) -> OwlFrame? {
-    if !Self.forceClip, let jpeg = photoJPEG(maxSide: maxSide, maxAge: maxAge) { return .jpeg(jpeg) }
-    let (gop, recent, at) = lock.withLock { (gop, recent, latestFrameAt) }
+  /// Nil when the picture Owl holds is older than `maxAge` seconds (stream stalled, glasses
+  /// off, or no key frame for too long) or not newer than `newerThan`.
+  func latestJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3, newerThan: Date? = nil) -> OwlFrame? {
+    if !Self.forceClip, let jpeg = photoJPEG(maxSide: maxSide, maxAge: maxAge, newerThan: newerThan) { return .jpeg(jpeg) }
+    let (gop, gopAt, recent, recentAt) = lock.withLock { (gop, gopLastAt, recent, latestFrameAt) }
     // From the earliest key frame among the recent frames, or the whole group of pictures.
     let fromRecent = recent.firstIndex(where: \.owlIsKeyFrame).map { Array(recent[$0...]) } ?? []
-    let frames = fromRecent.count > gop.count ? fromRecent : gop
-    guard let at, Date().timeIntervalSince(at) <= maxAge, frames.count >= 2,
+    let useRecent = fromRecent.count > gop.count
+    let frames = useRecent ? fromRecent : gop
+    // The time of the clip's own last frame, not of the last frame that arrived.
+    guard Self.isFresh(useRecent ? recentAt : gopAt, maxAge: maxAge, newerThan: newerThan), frames.count >= 2,
       let clip = ClipRecorder.writeSync(frames)
     else { return nil }
     NSLog("[Owl] sending a \(frames.count)-frame clip instead of a JPEG")
     return .clip(clip)
   }
 
-  /// The newest stream frame decoded on the phone, as JPEG. Nil when it cannot be decoded.
-  func photoJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3) -> Data? {
-    let (gop, pixels, at) = lock.withLock { (gop, latestPixels, latestFrameAt) }
-    guard let at, Date().timeIntervalSince(at) <= maxAge else { return nil }
+  /// The newest stream frame decoded on the phone, as JPEG. Nil when it cannot be decoded, is
+  /// older than `maxAge` seconds, or is not newer than `newerThan`.
+  func photoJPEG(maxSide: CGFloat = 1024, maxAge: TimeInterval = 3, newerThan: Date? = nil) -> Data? {
+    let (gop, gopAt, pixels, pixelsAt) = lock.withLock { (gop, gopLastAt, latestPixels, latestPixelsAt) }
+    // The age of the picture that will be sent: the decoded frame, or the last frame kept in `gop`.
+    guard Self.isFresh(pixels != nil ? pixelsAt : gopAt, maxAge: maxAge, newerThan: newerThan) else { return nil }
     guard let frame = pixels ?? decoder.decodeLast(of: gop) else { return nil }
     return UIImage.owlImage(from: frame)?.owlScaled(maxSide: maxSide).jpegData(compressionQuality: 0.75)
+  }
+
+  private static func isFresh(_ taken: Date?, maxAge: TimeInterval, newerThan: Date?) -> Bool {
+    OwlHEVC.isFresh(taken: taken, now: Date(), maxAge: maxAge, newerThan: newerThan)
   }
 
   /// Waits up to `timeout` for a fresh frame (the stream needs a moment after opening).
@@ -146,8 +180,8 @@ final class OwlCamera: @unchecked Sendable {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: timeout)
     while clock.now < deadline {
-      let arrived = lock.withLock { latestFrameAt }
-      if let arrived, arrived > date, let frame = latestJPEG(maxAge: 1.5) { return frame }
+      // The picture itself has to be from after `date`: that a frame arrived since is not enough.
+      if let frame = latestJPEG(maxAge: 1.5, newerThan: date) { return frame }
       try? await Task.sleep(for: .milliseconds(100))
     }
     return nil
@@ -188,6 +222,8 @@ final class OwlCamera: @unchecked Sendable {
       gop = []
       recent = []
       latestPixels = nil
+      latestPixelsAt = nil
+      gopLastAt = nil
     }
     tokens.clear()
     camera.stop()
