@@ -107,7 +107,7 @@ class CheckResult(BaseModel):
     lines: list[CheckLine] | None = None
     # Jev's reported probability for its answer; null when the rules decided alone. Never a percentage on screen.
     confidence: float | None = Field(default=None, ge=0, le=1)
-    decided_by: Literal["jev", "rules"]
+    decided_by: Literal["jev", "rules", "demo"]
     step_done: bool = False
 
 

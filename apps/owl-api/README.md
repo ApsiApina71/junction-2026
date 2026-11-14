@@ -16,7 +16,7 @@ The engine of **Onboarding Owl** ([spec](../../docs/specs/onboarding-owl.md)). T
 | `GET/PUT /processes` | fixtures, in memory. `?language=fi` answers with the stored translation (and on `PUT` stores one); `PUT` renumbers the steps | |
 | `GET/POST /employees`, `GET/PUT /employees/{id}`, `GET /glasses/{glasses_id}/employee` | real, in memory, seeded from fixtures (`app/people.py`) | [JUN-41](https://linear.app/junction-2026-bossit/issue/JUN-41) |
 | `POST /check` | **real**: Claude vision → rules → Jev gate → two-frames rule. `mock` form field or `OWL_MOCK_CHECK=1` for fixtures | [JUN-30](https://linear.app/junction-2026-bossit/issue/JUN-30), [JUN-37](https://linear.app/junction-2026-bossit/issue/JUN-37) |
-| `POST /ask` | **real**: every document in the cached system prompt, sources checked word for word. `OWL_MOCK_ASK=1` for the fixture | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |
+| `POST /ask` | **real** (local section search above `ASK_MAX_CHARS`, JUN-71): every document in the cached system prompt, sources checked word for word. `OWL_MOCK_ASK=1` for the fixture | [JUN-31](https://linear.app/junction-2026-bossit/issue/JUN-31) |
 | `GET/POST /docs`, `DELETE /docs/{id}` | real: stores `.md`, `.txt`, `.pdf` text, and deletes it again | |
 | `/record` | **real**: clips converted for the display, faces blurred, Claude writes a draft process. `OWL_MOCK_RECORD=1` writes it from the narration without the model | [JUN-32](https://linear.app/junction-2026-bossit/issue/JUN-32) |
 | `/help` | real, in memory. Frames in a folder with a random name, deleted when the session ends; the expert's `mark` becomes a ring on the frame | [JUN-33](https://linear.app/junction-2026-bossit/issue/JUN-33), [JUN-60](https://linear.app/junction-2026-bossit/issue/JUN-60) |
@@ -44,6 +44,14 @@ Speech is in English or Finnish (`TEXTS` in `app/verifier.py`); other languages 
 `app/record.py` turns a finished recording into a draft process: Claude (medium effort) rewrites each step's narration into a title, instruction, spoken sentence and check criteria, keeping the photo and clip. On a model error it falls back to the narration as it is.
 
 On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-C runtime prints a warning about duplicate `AVF*Receiver` classes at start-up. Those classes are for camera capture, which owl-api does not use.
+
+## Demo mode
+
+`OWL_DEMO=1` plays the demo story without models (JUN-69). `app/demo.py` replaces only the vision call with a scripted observation from `fixtures/demo-script.json`; the rules, the two-frames rule, the Done pinch and speech are the real engine, and every check says `decided_by: "demo"`. Ask answers with the best sentence of the best handbook section from the local index, and Record writes drafts from the narration. Edit the script, not the code, to change the story.
+
+## Search
+
+`app/search.py` splits the documents into sections by heading and ranks them with BM25, all on this server (JUN-71). Ask uses it when the documents are larger than `ASK_MAX_CHARS`, and demo mode answers from it.
 
 ## Data
 

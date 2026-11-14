@@ -58,11 +58,9 @@ def _new_id(store: Store, name: str) -> str:
     return candidate
 
 
-def _company(store: Store) -> str:
-    for known in (*store.employees.values(), *store.processes.values()):
-        if known.company:
-            return known.company
-    return ""
+def _company(store: Store, process_ids: list[str] | None = None) -> str:
+    """The company of the worker's first task; without a task, the company this server runs for."""
+    return next((store.processes[p].company for p in process_ids or [] if p in store.processes and store.processes[p].company), store.company())
 
 
 def _check_processes(store: Store, process_ids: list[str]) -> None:
@@ -98,7 +96,7 @@ def router(get_store: Callable[[], Store], auth: Any, out: Callable[[Request, An
     def add_employee(body: EmployeeCreate, request: Request):
         store = get_store()
         _check_processes(store, body.process_ids)
-        company = _company(store)
+        company = _company(store, body.process_ids)
         with store.lock:
             employee = Employee(
                 id=_new_id(store, body.name),

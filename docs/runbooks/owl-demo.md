@@ -35,7 +35,14 @@ PUBLIC_BASE_URL=https://<name>.trycloudflare.com \
 uv run --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-With a key, leave out the `OWL_MOCK_*` flags so Check, Ask and Record use the models. Set `API_TOKEN=<token>` when the tunnel is public, and give the same token to the glasses app (step 4).
+For the stage demo and the video without a key, use demo mode instead of the mock flags: `OWL_DEMO=1` plays the pick-and-pack story by itself (a wrong 0.5 l carton is caught, then the fixed box passes), Ask quotes the handbooks and Record writes drafts from the narration. Every check says `decided_by: "demo"`.
+
+```sh
+OWL_DEMO=1 PUBLIC_BASE_URL=https://<name>.trycloudflare.com \
+uv run --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+With a key, leave out the `OWL_MOCK_*` and `OWL_DEMO` flags so Check, Ask and Record use the models. Set `API_TOKEN=<token>` when the tunnel is public, and give the same token to the glasses app (step 4).
 
 Run it without `--reload` during the demo: help sessions and recordings live in memory, and a restart drops them.
 

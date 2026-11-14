@@ -1,0 +1,31 @@
+{
+  "about": "Demo mode (OWL_DEMO=1): scripted camera observations instead of the vision model. The real verifier still decides. A phase lasts until_seconds after the step's first frame in a run; the last phase lasts for ever. Steps not listed here see the step done right.",
+  "steps": {
+    "proc-pick-pack:step-2": [
+      {
+        "until_seconds": 12,
+        "observation": {
+          "visibility": "clear",
+          "summary": "An open box with two oat drink cartons, coffee and rye crispbread. One carton is 0.5 l.",
+          "items": [
+            {"line": "OAT-1L", "description": "Oat drink 1 l", "qty": 1},
+            {"line": "other", "description": "Oat drink 0.5 l", "qty": 1},
+            {"line": "COF-500", "description": "Coffee 500 g", "qty": 1},
+            {"line": "RYE-CRISP", "description": "Rye crispbread", "qty": 1}
+          ]
+        }
+      },
+      {
+        "observation": {
+          "visibility": "clear",
+          "summary": "An open box with two 1 l oat drink cartons, coffee and rye crispbread.",
+          "items": [
+            {"line": "OAT-1L", "description": "Oat drink 1 l", "qty": 2},
+            {"line": "COF-500", "description": "Coffee 500 g", "qty": 1},
+            {"line": "RYE-CRISP", "description": "Rye crispbread", "qty": 1}
+          ]
+        }
+      }
+    ]
+  }
+}

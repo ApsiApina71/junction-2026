@@ -34,11 +34,13 @@ def start_help(client) -> dict:
 
 def test_employees_list_has_the_seeded_worker_and_his_glasses(client):
     employees = client.get("/employees").json()["employees"]
-    assert [(e["id"], e["glasses_id"]) for e in employees] == [("emp-sami", "glasses-1")]
+    assert ("emp-sami", "glasses-1") in [(e["id"], e["glasses_id"]) for e in employees]
+    assert len({e["glasses_id"] for e in employees if e["glasses_id"]}) == len([e for e in employees if e["glasses_id"]])  # one worker per pair
     assert client.get("/employees/emp-sami").json()["glasses_id"] == "glasses-1"
 
 
 def test_add_employee_writes_id_company_and_welcome(client):
+    seeded = len(client.get("/employees").json()["employees"])
     r = client.post("/employees", json={"name": " Aino Mäkelä ", "language": "en", "role": "Packer", "process_ids": ["proc-pick-pack"]})
     assert r.status_code == 200
     body = r.json()
@@ -48,7 +50,15 @@ def test_add_employee_writes_id_company_and_welcome(client):
     assert body["glasses_id"] is None
     assert body["welcome"] == "Welcome to Kide Logistics, Aino Mäkelä! Today's task: Pick and pack an order. I'm Owl. I'll show you each step."
     assert client.get("/employees/emp-aino-makela").json() == body
-    assert len(client.get("/employees").json()["employees"]) == 2
+    assert len(client.get("/employees").json()["employees"]) == seeded + 1
+
+
+def test_a_new_worker_belongs_to_the_company_of_their_task(client):
+    baker = client.post("/employees", json={"name": "Eero", "language": "fi", "process_ids": ["proc-bakery-rye"]}).json()
+    assert baker["company"] == "Leipomo Ruis"
+    assert "Leipomo Ruis" in baker["welcome"]
+    # Without a task: the company this server runs for (the demo worker's), never whichever fixture loads first.
+    assert client.post("/employees", json={"name": "Ilona", "language": "en"}).json()["company"] == "Kide Logistics"
 
 
 def test_welcome_is_in_the_employees_language(client):
@@ -149,10 +159,13 @@ def test_process_in_the_workers_language(client):
     assert finnish["steps"][1]["clip_url"] == "http://testserver/media/proc-pick-pack/step-2.mp4"
     assert finnish["steps"][1]["check"]["order_lines"][0] == {"sku": "OAT-1L", "name": "Kaurajuoma 1 l", "qty": 2}
 
-    assert client.get("/processes", params={"language": "fi-FI"}).json()["processes"][0]["title"] == "Kerää ja pakkaa tilaus"
+    listed = {p["id"]: p for p in client.get("/processes", params={"language": "fi-FI"}).json()["processes"]}
+    assert listed["proc-pick-pack"]["title"] == "Kerää ja pakkaa tilaus"
     # No translation: the process as it is. A translation is never listed as a process of its own.
-    assert client.get("/processes", params={"language": "sv"}).json()["processes"] == [original]
-    assert client.get("/processes").json()["processes"] == [original]
+    swedish = client.get("/processes", params={"language": "sv"}).json()["processes"]
+    assert original in swedish
+    assert len(swedish) == len({p["id"] for p in swedish})
+    assert original in client.get("/processes").json()["processes"]
     assert client.get("/processes/proc-pick-pack", params={"language": "en"}).json() == original
 
 
@@ -219,13 +232,14 @@ def test_delete_an_uploaded_document(client, tmp_path):
     assert r.status_code == 204
     assert r.content == b""
     assert not stored.exists()
-    assert [d["id"] for d in client.get("/docs").json()["docs"]] == ["doc-warehouse-handbook"]
+    assert doc["id"] not in [d["id"] for d in client.get("/docs").json()["docs"]]
+    assert "doc-warehouse-handbook" in [d["id"] for d in client.get("/docs").json()["docs"]]
     assert client.delete(f"/docs/{doc['id']}").status_code == 404
 
 
 def test_delete_a_seeded_document_only_forgets_it(client):
     assert client.delete("/docs/doc-warehouse-handbook").status_code == 204
-    assert client.get("/docs").json()["docs"] == []
+    assert "doc-warehouse-handbook" not in [d["id"] for d in client.get("/docs").json()["docs"]]
     assert (FIXTURES / "docs" / "warehouse-handbook.md").is_file()
 
 

@@ -14,6 +14,9 @@ from .models import Doc, Employee, HelpSession, Process, Recording
 APP_DIR = Path(__file__).resolve().parent.parent
 FIXTURES = APP_DIR / "fixtures"
 DATA_DIR = Path(os.getenv("DATA_DIR", APP_DIR / "data"))
+# The company for new workers without a task and for recordings. Defaults to the company of the demo worker.
+COMPANY = os.getenv("OWL_COMPANY", "")
+DEFAULT_EMPLOYEE = "emp-sami"
 TIMEZONE = ZoneInfo(os.getenv("TIMEZONE", "Europe/Helsinki"))
 
 
@@ -68,6 +71,10 @@ class Store:
             for path in sorted(folder.glob("*")) if folder.is_dir() else []:
                 if path.suffix.lower() in {".md", ".txt"}:
                     self._add_doc(path.name, path.read_text(encoding="utf-8"), path.stat().st_mtime)
+
+    def company(self) -> str:
+        """The company this owl-api runs for (one company per server; multi-company is out of scope)."""
+        return COMPANY or next((e.company for e in self.employees.values() if e.id == DEFAULT_EMPLOYEE and e.company), "")
 
     def next_id(self, prefix: str) -> str:
         with self.lock:

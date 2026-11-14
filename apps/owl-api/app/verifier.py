@@ -238,7 +238,16 @@ def _texts(language: str) -> dict:
 
 
 def build_result(
-    step: Step, verdict: Verdict, confidence: float | None, decided_by: str, status: str, final: bool, language: str, hint: str | None, first_ok: bool = True
+    step: Step,
+    verdict: Verdict,
+    confidence: float | None,
+    decided_by: str,
+    status: str,
+    final: bool,
+    language: str,
+    hint: str | None,
+    first_ok: bool = True,
+    new_warning: bool = True,
 ) -> CheckResult:
     t = _texts(language)
     v = verdict.verdict
@@ -260,6 +269,8 @@ def build_result(
         say = None  # stay quiet while the worker is still working; speak the hint only on the Done pinch
     if status == "ok" and not final and not first_ok:
         say = None  # say "all good" once per step, not on every frame
+    if status == "warning" and not new_warning:
+        say = None  # the warning is still on the display; it was spoken when it was confirmed
     return CheckResult(
         status=status,
         problem=v if status in ("warning", "checking") and v in ("wrong_item", "missing", "too_many", "not_matching") else None,
@@ -278,6 +289,8 @@ class RunState:
     problem: str | None = None  # the problem signature seen in the previous frame
     streak: int = 0
     ok_said: bool = False
+    warned: str | None = None  # the problem signature last spoken as a warning
+    new_warning: bool = False  # this frame's warning is new, so it is spoken
     touched: float = field(default_factory=time.monotonic)
 
 
@@ -316,8 +329,9 @@ class Tracker:
             state = self._runs.setdefault((run_id, step_id), RunState())
             state.touched = now
             v = verdict.verdict
+            state.new_warning = False
             if v == "ok":
-                state.problem, state.streak = None, 0
+                state.problem, state.streak, state.warned = None, 0, None
                 return "ok"
             if v == "unsure":
                 return "unsure"  # an unclear frame neither confirms nor clears a problem
@@ -325,7 +339,17 @@ class Tracker:
             state.streak = state.streak + 1 if state.problem == signature else 1
             state.problem = signature
             # The Done pinch is an explicit request: answer it now, never mark a wrong step done.
-            return "warning" if final or state.streak >= CONFIRM_FRAMES else "checking"
+            if final or state.streak >= CONFIRM_FRAMES:
+                # Speak a warning once when it is confirmed (and again on every Done pinch), not on every frame.
+                state.new_warning = final or state.warned != signature
+                state.warned = signature
+                return "warning"
+            return "checking"
+
+    def warning_is_new(self, run_id: str, step_id: str) -> bool:
+        with self._lock:
+            state = self._runs.get((run_id, step_id))
+            return bool(state and state.new_warning)
 
 
 def run_check(
@@ -338,12 +362,15 @@ def run_check(
     tracker: Tracker,
     observe: Callable[[bytes, Step, bytes | None, str], Observation],
     jev: Callable[[Step, Observation], JevAnswer | None] = ask_jev,
+    decided_by: str | None = None,
 ) -> CheckResult:
+    """decided_by overrides who is named as the decider; demo mode sets "demo" (its observations are scripted)."""
     if step.check.kind == "none":
-        return CheckResult(status="ok", text="Pinch Done when you are ready.", confidence=None, decided_by="rules", step_done=final)
+        return CheckResult(status="ok", text="Pinch Done when you are ready.", confidence=None, decided_by=decided_by or "rules", step_done=final)
     obs = observe(frame, step, reference, language)
     rules = compare(step, obs)
-    verdict, confidence, decided_by = decide(rules, jev(step, obs) if rules.verdict != "unsure" else None)
+    verdict, confidence, decider = decide(rules, jev(step, obs) if rules.verdict != "unsure" else None)
     status = tracker.status_for(run_id, step.id, verdict, final)
     first_ok = tracker.first_ok(run_id, step.id) if status == "ok" else False
-    return build_result(step, verdict, confidence, decided_by, status, final, language, obs.hint, first_ok)
+    new_warning = tracker.warning_is_new(run_id, step.id)
+    return build_result(step, verdict, confidence, decided_by or decider, status, final, language, obs.hint, first_ok, new_warning)

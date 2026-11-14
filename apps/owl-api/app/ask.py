@@ -9,10 +9,16 @@ import re
 
 from pydantic import BaseModel, Field
 
+from . import search
 from .models import Answer, Source
 from .vision import MODEL_ID, VisionError, client
 
 ASK_EFFORT = os.getenv("ASK_EFFORT", "low")
+# Above this many characters in all documents together, only the best sections go into the prompt (JUN-71).
+ASK_MAX_CHARS = int(os.getenv("ASK_MAX_CHARS", "60000"))
+# Demo mode: the lowest BM25 score that still counts as an answer.
+DEMO_MIN_SCORE = float(os.getenv("DEMO_MIN_SCORE", "1.0"))
+INDEX = search.Index()
 
 INSTRUCTIONS = """You are Owl, a training assistant on smart glasses. A new worker asks a question out loud during \
 their shift. Answer only from the company documents below. They are the company's own rules, and they override \
@@ -71,11 +77,50 @@ NOT_FOUND = {
 }
 
 
+def not_found(lang: str) -> Answer:
+    text, say = NOT_FOUND.get(lang.split("-")[0], NOT_FOUND["en"])
+    return Answer(found=False, text=text, say=say, language=lang, sources=[])
+
+
+def prompt_docs(question: str, context: str | None, docs: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Every document when they fit the prompt; otherwise only the best sections, found locally (JUN-71)."""
+    if sum(len(text) for _, text in docs) <= ASK_MAX_CHARS:
+        return docs
+    INDEX.update([(title, title, text) for title, text in docs])
+    picked: dict[str, list[str]] = {}
+    used = 0
+    for _, section in INDEX.search(f"{question} {context or ''}", limit=12):
+        rendered = section.render()
+        if used + len(rendered) > ASK_MAX_CHARS:
+            break
+        picked.setdefault(section.doc_title, []).append(rendered)
+        used += len(rendered)
+    return [(title, "\n\n".join(parts)) for title, parts in picked.items()]
+
+
+def demo_answer(question: str, docs: list[tuple[str, str]], language: str) -> Answer:
+    """Demo mode, no model: the best sentence of the best section, quoted as it stands in the document."""
+    lang = language or "en"
+    INDEX.update([(title, title, text) for title, text in docs])
+    hits = INDEX.search(question, limit=1)
+    if not hits or hits[0][0] < DEMO_MIN_SCORE:
+        return not_found(lang)
+    section = hits[0][1]
+    sentence = search.best_sentence(question, section)
+    words = sentence.split()
+    return Answer(
+        found=True,
+        text=sentence if len(sentence) <= 140 else sentence[:139].rstrip() + "…",
+        say=" ".join(words[:25]),
+        language=lang,
+        sources=[Source(doc=section.doc_title, section=section.heading or None, quote=sentence)],
+    )
+
+
 def answer(question: str, docs: list[tuple[str, str]], language: str, context: str | None = None) -> Answer:
     lang = language or "en"
     if not docs:
-        text, say = NOT_FOUND.get(lang.split("-")[0], NOT_FOUND["en"])
-        return Answer(found=False, text=text, say=say, language=lang, sources=[])
+        return not_found(lang)
 
     user = f"Worker's language: {lang}\n"
     if context:
@@ -91,7 +136,7 @@ def answer(question: str, docs: list[tuple[str, str]], language: str, context: s
         system=[
             {"type": "text", "text": INSTRUCTIONS},
             # The documents change only on upload, so this prefix stays cached across questions.
-            {"type": "text", "text": documents_block(docs), "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": documents_block(prompt_docs(question, context, docs)), "cache_control": {"type": "ephemeral"}},
         ],
         messages=[{"role": "user", "content": user}],
         output_format=Draft,
@@ -103,6 +148,5 @@ def answer(question: str, docs: list[tuple[str, str]], language: str, context: s
     sources = grounded_sources(draft, docs) if draft.found else []
     if draft.found and not sources:
         # The model answered but could not point to the text it came from: do not pass it on as company policy.
-        text, say = NOT_FOUND.get(lang.split("-")[0], NOT_FOUND["en"])
-        return Answer(found=False, text=text, say=say, language=lang, sources=[])
+        return not_found(lang)
     return Answer(found=draft.found, text=draft.text.strip()[:140], say=draft.say.strip(), language=lang, sources=sources)

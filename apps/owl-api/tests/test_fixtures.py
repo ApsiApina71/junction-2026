@@ -7,8 +7,11 @@ from app.store import FIXTURES, load_fixture
 
 SHAPES = {
     "employee.json": Employee,
+    "employee-mikko.json": Employee,
     "process-pick-pack.json": Process,
     "process-pick-pack.fi.json": Process,
+    "process-bakery-rye.json": Process,
+    "process-bakery-rye.fi.json": Process,
     "check-ok.json": CheckResult,
     "check-warning.json": CheckResult,
     "check-unsure.json": CheckResult,
@@ -25,10 +28,12 @@ def test_fixture_matches_model(name):
 
 
 def test_every_fixture_is_covered():
-    assert {p.name for p in FIXTURES.glob("*.json")} == set(SHAPES)
+    # demo-script.json is not an API shape; tests/test_demo.py checks it.
+    assert {p.name for p in FIXTURES.glob("*.json")} - {"demo-script.json"} == set(SHAPES)
 
 
-PROCESSES = ["process-pick-pack.json", "process-pick-pack.fi.json"]
+PROCESSES = ["process-pick-pack.json", "process-pick-pack.fi.json", "process-bakery-rye.json", "process-bakery-rye.fi.json"]
+TRANSLATIONS = [("process-pick-pack.json", "process-pick-pack.fi.json"), ("process-bakery-rye.json", "process-bakery-rye.fi.json")]
 
 
 @pytest.mark.parametrize("name", PROCESSES)
@@ -47,10 +52,11 @@ def test_say_fits_the_glasses(name):
         assert len(step.say.split()) <= 25
 
 
-def test_translation_keeps_everything_but_the_words():
+@pytest.mark.parametrize(("original_name", "finnish_name"), TRANSLATIONS)
+def test_translation_keeps_everything_but_the_words(original_name, finnish_name):
     """A translated process is checked by the same engine: same steps, media, check kinds, SKUs and quantities."""
-    original = Process.model_validate(load_fixture("process-pick-pack.json"))
-    finnish = Process.model_validate(load_fixture("process-pick-pack.fi.json"))
+    original = Process.model_validate(load_fixture(original_name))
+    finnish = Process.model_validate(load_fixture(finnish_name))
     assert (finnish.id, finnish.language, finnish.status) == (original.id, "fi", original.status)
     assert len(finnish.steps) == len(original.steps)
     for a, b in zip(original.steps, finnish.steps, strict=True):

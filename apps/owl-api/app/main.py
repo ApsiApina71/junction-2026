@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 
 from . import ask as ask_engine
+from . import demo as demo_engine
 from . import media as media_engine
 from . import people, verifier, vision
 from . import record as record_engine
@@ -45,8 +46,11 @@ log = logging.getLogger("owl.api")
 MODEL_ID = vision.MODEL_ID
 MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
 MOCK_ASK = os.getenv("OWL_MOCK_ASK", "") == "1"
+# 1 = the demo story plays without models (JUN-69): scripted observations for /check, handbook search for /ask,
+# narration drafts for /record. Every check answers decided_by "demo".
+DEMO = os.getenv("OWL_DEMO", "") == "1"
 # 1 = Record writes the draft straight from the narration, without the model.
-MOCK_RECORD = os.getenv("OWL_MOCK_RECORD", "") == "1"
+MOCK_RECORD = os.getenv("OWL_MOCK_RECORD", "") == "1" or DEMO
 API_TOKEN = os.getenv("API_TOKEN", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 
@@ -59,6 +63,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 
 store = Store()
 tracker = verifier.Tracker()
+demo = demo_engine.Demo()
 
 
 @asynccontextmanager
@@ -279,8 +284,14 @@ async def check(
     language = language or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
     if not tracker.try_begin(run_id):
         # One check per run at a time: a frame that arrives while the last one is checked is answered at once.
-        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="rules"))
+        return out(request, CheckResult(status="checking", text="Checking...", confidence=None, decided_by="demo" if DEMO else "rules"))
     try:
+        if DEMO:
+            result = verifier.run_check(
+                step, frame, None, run_id, final, language, tracker,
+                observe=lambda _f, s, _r, _l: demo.observe(process_id, s, run_id), jev=lambda *_: None, decided_by="demo",
+            )  # fmt: skip
+            return out(request, result)
         reference = reference_image(step)
         result = await call_model(lambda: verifier.run_check(step, frame, reference, run_id, final, language, tracker, observe=vision.observe))
     finally:
@@ -297,6 +308,8 @@ async def ask(body: AskRequest, request: Request):
         return out(request, Answer.model_validate(load_fixture("answer.json")))
     employee = store.employees.get(body.employee_id or "")
     language = body.language or (employee.language if employee else "en")
+    if DEMO:
+        return out(request, ask_engine.demo_answer(body.question, [(doc.title, text) for doc, text in store.docs.values()], language))
     context = None
     if body.process_id in store.processes:
         process = store.processes[body.process_id]
@@ -401,7 +414,7 @@ def finish_recording(rec: Recording, process_id: str) -> None:
         for step in rec.steps:
             path = store.media_path(step.photo_url.removeprefix("/media/")) if step.photo_url else None
             photos.append(path.read_bytes() if path else None)
-        company = next((e.company for e in store.employees.values() if e.company), "")
+        company = store.company()
         store.processes[process_id] = record_engine.write_process(process_id, rec, photos, company, use_model=not MOCK_RECORD)
         rec.process_id, rec.status = process_id, "done"
     except Exception:

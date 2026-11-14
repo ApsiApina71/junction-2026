@@ -59,6 +59,7 @@ Meta Ray-Ban Display renders at **600×600**. Owl keeps text short so a step fit
 }
 ```
 
+- `company`: the company of the worker's first task; without a task, the company this owl-api runs for (`OWL_COMPANY`, by default the demo worker's). One company per server: multi-company admin is out of scope.
 - `welcome` is the personal welcome shown and spoken on the first start (JUN-41). Owl writes it from the name, the company and the first task, in the employee's language, and rewrites it when one of those changes. A welcome written by hand in Owl Studio stays as written.
 - `glasses_id` is the pair of glasses the employee wears, or `null`. The employer names the pairs (`glasses-1`; letters, digits, `-` and `_`). A pair has one worker at a time: assigning it to someone takes it from whoever had it.
 
@@ -136,7 +137,7 @@ Answer to one camera frame during a step.
 
 - `status`:
   - `ok`: the step looks right. If the request had `final: true`, `step_done` is `true`.
-  - `warning`: a problem was seen in two frames in a row. Show `text` and speak `say`.
+  - `warning`: a problem was seen in two frames in a row. Show `text` and speak `say`. `say` is set only on the frame where the warning is confirmed or changes, and on every Done pinch; while the same problem stays, later frames repeat `text` with `say: null`.
   - `checking`: a problem was seen once and waits for the next frame. `say` is `null`, so stay quiet.
   - `unsure`: Owl cannot tell (blurry, too far, hand in the way). `hint` says what to do ("Move closer to the box"). Speak it only on a final check.
 - `problem`: `wrong_item | missing | too_many | not_matching | null`. `not_matching` is for visual steps.
@@ -144,7 +145,7 @@ Answer to one camera frame during a step.
   - `lines[].status`: `ok | wrong_item | missing | too_many`.
   - `lines[].note`: what was seen instead, or `null`.
 - `confidence`: Jev's reported probability for its answer (0–1), or `null` when the rules decided alone. It is not a calibrated chance that the step is right: **never show it as a percentage**.
-- `decided_by`: `jev` (Jev agreed with the rules above the server's threshold) or `rules` (the deterministic compare decided alone, for example without a Jev key).
+- `decided_by`: `jev` (Jev agreed with the rules above the server's threshold), `rules` (the deterministic compare decided alone, for example without a Jev key) or `demo` (demo mode: the camera observation is scripted, see below).
 - `step_done`: `true` only when `final` was sent and the step is right. **A step is never done while something is wrong.**
 
 **What a passed check means.** Vision describes one frame; the rules decide from that description. A product vision did not map to an order line counts as something extra in the box, and a criterion that was not answered is not passed (`unsure`). Jev, when on, is a second opinion on the decision from the same description: it cannot catch an item vision missed or misread. The "two frames in a row" rule is consistency over time from the same model, not an independent confirmation. So a passed check covers only what was visible in the frame and reviewed against the step, and the apps say no more than that ("Owl checked the box", not "the order is correct").
@@ -294,6 +295,14 @@ Send one frame at a time and wait for the answer, about one frame every 1–2 s 
 ```
 
 Only `question` is required. The question is the final transcription from the glasses' Speech capability.
+
+When all documents together are larger than `ASK_MAX_CHARS`, only the best sections for the question go to the model, picked by a local BM25 index on this server (JUN-71). Source quotes are still checked against the whole documents.
+
+### Demo mode (`OWL_DEMO=1`)
+
+For the stage demo and the video without models (JUN-69). Only the camera's eyes are scripted: `fixtures/demo-script.json` says what the camera "sees" in each step, by seconds since the step's first frame in a run, and the real engine decides (rules, two frames in a row, the Done pinch, speech). In the pick-and-pack story, step 2 first sees a 0.5 l carton for 1 l (`checking`, then `warning`), then the right box after 12 s; every other step looks done. The story restarts for every `run_id`. Every check answers `decided_by: "demo"`.
+
+Ask answers without a model: the best sentence of the best handbook section, quoted word for word, or "not in our instructions". Record writes the draft from the narration as it is.
 
 ### `POST /record/{id}/steps`
 

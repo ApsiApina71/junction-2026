@@ -58,7 +58,8 @@ def test_process_urls_are_absolute(client):
 
 def test_public_base_url_is_used_for_media(client, monkeypatch):
     monkeypatch.setattr(main, "PUBLIC_BASE_URL", "https://owl.example")
-    step = client.get("/processes").json()["processes"][0]["steps"][0]
+    process = next(p for p in client.get("/processes").json()["processes"] if p["id"] == "proc-pick-pack")
+    step = process["steps"][0]
     assert step["reference_image_url"] == "https://owl.example/media/proc-pick-pack/step-1.jpg"
 
 
@@ -129,12 +130,13 @@ def test_ask(client):
 
 
 def test_docs_list_and_upload(client):
-    assert [d["title"] for d in client.get("/docs").json()["docs"]] == ["Kide Logistics: warehouse handbook"]
+    seeded = len(client.get("/docs").json()["docs"])
+    assert "Kide Logistics: warehouse handbook" in [d["title"] for d in client.get("/docs").json()["docs"]]
     r = client.post("/docs", files={"file": ("Oven rules.md", b"# Oven rules\n\nNever open the oven door during the first 10 minutes.", "text/markdown")})
     assert r.status_code == 200
     assert r.json()["title"] == "Oven rules"
     assert r.json()["filename"] == "oven-rules.md"
-    assert len(client.get("/docs").json()["docs"]) == 2
+    assert len(client.get("/docs").json()["docs"]) == seeded + 1
     assert client.post("/docs", files={"file": ("x.exe", b"MZ", "application/octet-stream")}).status_code == 415
 
 
