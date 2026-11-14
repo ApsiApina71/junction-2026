@@ -299,20 +299,44 @@ enum OwlScreens {
 
   /// The worker's own progress (JUN-76): a few encouraging lines, for the worker only, and
   /// the way to erase them.
+  /// "Forget me" is a row that shows its words. As a button it collapsed to an X when it was
+  /// not in focus, which reads as "close", and one pinch erased the progress.
   static func progress(
     title: String, lines: [String], onHome: @escaping OwlAction, onForget: OwlAction? = nil
   ) -> FlexBox {
-    screen {
-      header(.done, meta: nil, title: title)
-      for line in lines.prefix(4) {
-        Text(line, style: .body)
+    FlexBox(direction: .column, spacing: 10) {
+      card {
+        header(.done, meta: nil, title: title)
+        for line in lines.prefix(4) {
+          Text(line, style: .body)
+        }
       }
-    } buttons: {
-      Button(label: OwlStrings.home, style: .primary, iconName: .house, onClick: onHome)
-        .actionRole(.primary)
       if let onForget {
-        Button(label: OwlStrings.forgetMe, style: .secondary, iconName: .x, onClick: onForget)
+        FlexBox(direction: .column, spacing: 2) {
+          Text(OwlStrings.forgetMe, style: .body)
+          Text(OwlStrings.forgetNote, style: .meta, color: .secondary)
+        }
+        .padding(18)
+        .background(.card)
+        .onTap(onForget)
       }
+      buttonRow {
+        Button(label: OwlStrings.home, style: .primary, iconName: .house, onClick: onHome)
+          .actionRole(.primary)
+      }
+    }
+  }
+
+  /// Before the progress is erased: what goes, that it cannot come back, and two choices in
+  /// words. Keeping is the first one.
+  static func confirmForget(onKeep: @escaping OwlAction, onErase: @escaping OwlAction) -> FlexBox {
+    FlexBox(direction: .column, spacing: 10) {
+      card {
+        header(.unsure, meta: OwlStrings.myProgress, title: OwlStrings.forgetTitle)
+        Text(OwlStrings.forgetBody, style: .body)
+      }
+      choice(OwlStrings.keepProgress, onKeep)
+      choice(OwlStrings.eraseProgress, onErase)
     }
   }
 

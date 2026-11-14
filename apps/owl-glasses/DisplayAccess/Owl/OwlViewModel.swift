@@ -876,7 +876,8 @@ final class OwlViewModel {
       summary.unverified > 0
       ? "Finished \(process.title): \(summary.unverified) of \(summary.checked) checks not verified"
       : "Finished \(process.title): \(summary.verified) checks verified"
-    speaker.say([after, OwlStrings.sayFinished(summary)].compactMap { $0 }.joined(separator: " "))
+    // Only the summary is said: the last step's own "Well done" before it made Owl say it twice.
+    speaker.say(OwlStrings.sayFinished(summary))
     if access.audioFirst {
       // The list on the display, step by step, then what the pinch does.
       speaker.say(summary.rows.map(OwlStrings.sayOutcome).joined(separator: " "), interrupt: false)
@@ -906,32 +907,52 @@ final class OwlViewModel {
   // MARK: - Progress (JUN-76)
 
   /// The worker's own progress on the glasses, shown and spoken. Encouraging, never a score.
-  func showProgress(afterTask: Bool = false) async {
+  /// `erased`: shown and said first, right after the worker erased their progress.
+  func showProgress(afterTask: Bool = false, erased: Bool = false) async {
     guard let employee else { return await showTasks() }
     let number = newScene()
     process = nil
     await showScreen { OwlScreens.status(OwlStrings.myProgress, detail: OwlStrings.takesAMoment, mood: .thinking, onCancel: self.action { await $0.showTasks() }) }
     let progress = try? await api.progress(employeeID: employee.id)
     guard isCurrent(number) else { return }
-    let lines = OwlText.progressLines(progress, afterTask: afterTask, language: employee.language)
+    let lines =
+      (erased ? [OwlStrings.progressErased] : [])
+      + OwlText.progressLines(progress, afterTask: afterTask, language: employee.language)
     let title = t(afterTask ? "Task done!" : "Your progress")
+    statusText = title
     speaker.say(lines.joined(separator: " "))
+    // Nothing to erase right after erasing, and nothing when Owl could not read the progress.
+    let canForget = progress != nil && !erased
+    if canForget { sayChoices(OwlStrings.sayPinchForHome) }
     await showScreen(stage: .init(kind: "progress", title: title, text: lines.joined(separator: " "))) {
       OwlScreens.progress(
         title: title, lines: lines, onHome: self.action { await $0.showTasks() },
-        onForget: progress == nil ? nil : self.action { await $0.forgetMe() })
+        onForget: canForget ? self.action { await $0.confirmForget() } : nil)
     }
   }
 
-  /// "Forget me": the worker erases their own learning data on owl-api.
+  /// "Forget me" asks once more: erasing cannot be undone, and keeping is the first choice.
+  private func confirmForget() async {
+    guard employee != nil else { return }
+    newScene()
+    statusText = "Asking before erasing progress"
+    speaker.say("\(OwlStrings.forgetTitle) \(OwlStrings.forgetBody)")
+    sayChoices(OwlStrings.sayTwoChoices(OwlStrings.keepProgress, OwlStrings.eraseProgress))
+    await showScreen(stage: .init(kind: "progress", title: OwlStrings.forgetTitle, text: OwlStrings.forgetBody)) {
+      OwlScreens.confirmForget(
+        onKeep: self.action { await $0.showProgress() },
+        onErase: self.action { await $0.forgetMe() })
+    }
+  }
+
+  /// The worker erases their own learning data on owl-api.
   private func forgetMe() async {
     guard let employee else { return }
     let number = newScene()
     do {
       try await api.forgetProgress(employeeID: employee.id)
       guard isCurrent(number) else { return }
-      speaker.say("Your progress is forgotten.")
-      await showProgress()
+      await showProgress(erased: true)
     } catch {
       guard isCurrent(number) else { return }
       await showProblem(kind(of: error), detail: (error as? LocalizedError)?.errorDescription, retry: { await $0.forgetMe() })
@@ -1989,7 +2010,10 @@ extension OwlViewModel {
       await saveConsent(cameraChecks: consent?.cameraChecks ?? false, recording: true)
       await startRecording()
     case "camera": await toggleCamera()
-    case "forget": await forgetMe()
+    // "Forget me" asks first; `forgetyes` and `forgetno` are its two choices.
+    case "forget": await confirmForget()
+    case "forgetyes": await forgetMe()
+    case "forgetno": await showProgress()
     case "resetconsent":
       if let id = employee?.id { UserDefaults.standard.removeObject(forKey: Self.consentKey(id)) }
       consent = nil

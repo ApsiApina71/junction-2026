@@ -256,6 +256,18 @@ enum OwlStrings {
       easy: "The camera was off. Owl did not check these steps.", "Kamera oli pois. Owl ei tarkistanut näitä vaiheita.")
   }
   static var myProgress: String { t("My progress", "Edistymiseni") }
+  // Erasing the worker's own progress: asked once more, with both choices in words.
+  static var forgetNote: String { t("Owl erases your progress.", "Owl poistaa edistymisesi.") }
+  static var forgetTitle: String { t("Erase your progress?", "Poistetaanko edistymisesi?") }
+  static var forgetBody: String {
+    t(
+      "Owl forgets the tasks you finished and the problems you fixed. It cannot be brought back.",
+      "Owl unohtaa tekemäsi tehtävät ja korjaamasi ongelmat. Niitä ei saa takaisin.",
+      easy: "Owl forgets what you did. You cannot get it back.", "Owl unohtaa, mitä olet tehnyt. Et saa sitä takaisin.")
+  }
+  static var keepProgress: String { t("Keep my progress", "Säilytä edistymiseni") }
+  static var eraseProgress: String { t("Erase my progress", "Poista edistymiseni") }
+  static var progressErased: String { t("Your progress is erased.", "Edistymisesi on poistettu.") }
   static var forgetMe: String { t("Forget me", "Unohda minut", easy: "Erase my progress", "Poista edistymiseni") }
   static var pauseCamera: String { t("Pause camera", "Keskeytä kamera", easy: "Stop camera", "Sammuta kamera") }
   static var cameraOn: String { t("Camera on", "Kamera päälle", easy: "Start camera", "Käynnistä kamera") }
