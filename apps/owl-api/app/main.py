@@ -61,6 +61,14 @@ from .models import (
 from .store import Store, lang_key, load_fixture, now_iso
 
 log = logging.getLogger("owl.api")
+# Owl's own lines (step recognition answers, Nemotron timings) next to uvicorn's, for the demo and the stage.
+_owl_log = logging.getLogger("owl")
+if not _owl_log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s %(message)s"))
+    _owl_log.addHandler(_handler)
+    _owl_log.setLevel(logging.INFO)
+    _owl_log.propagate = False
 MODEL_ID = vision.MODEL_ID
 MOCK_CHECK = os.getenv("OWL_MOCK_CHECK", "") == "1"
 MOCK_ASK = os.getenv("OWL_MOCK_ASK", "") == "1"
@@ -478,6 +486,16 @@ async def recognize_step(
         result = await run_in_threadpool(lambda: recognizer.recognize(process, clips, data, run_id=run_id or None))
     except jepa.ClipError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    log.info(
+        "recognize %s run %s: %s %s, margin %.3f (%s) %s",
+        process_id,
+        run_id or "-",
+        result.status,
+        result.step_id or "-",
+        result.margin,
+        result.backend,
+        result.action or "",
+    )
     return result.to_dict()
 
 

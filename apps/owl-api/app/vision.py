@@ -13,6 +13,7 @@ Two backends behind `observe`, chosen with VISION_BACKEND:
 import base64
 import logging
 import os
+import time
 from typing import Literal
 
 import anthropic
@@ -146,15 +147,19 @@ def observe_nemotron(content: list[dict]) -> Observation:
         # The answer is a short report of what is seen; thinking would only add latency.
         "chat_template_kwargs": {"enable_thinking": False},
     }
+    start = time.monotonic()
     try:
         response = httpx.post(f"{NEMOTRON_URL}/chat/completions", json=body, headers={"Authorization": f"Bearer {key}"}, timeout=NEMOTRON_TIMEOUT_S)
         response.raise_for_status()
         choice = response.json()["choices"][0]
         if choice.get("finish_reason") != "stop":
             raise VisionError(f"No usable observation (finish_reason={choice.get('finish_reason')})")
-        return Observation.model_validate_json(choice["message"]["content"] or "")
+        obs = Observation.model_validate_json(choice["message"]["content"] or "")
     except (httpx.HTTPError, KeyError, IndexError, ValueError, ValidationError) as e:
+        log.warning("Nemotron failed after %.1f s: %s", time.monotonic() - start, type(e).__name__)
         raise VisionError(f"Nemotron gave no usable observation ({type(e).__name__})") from e
+    log.info("Nemotron %.1f s: %s; %s", time.monotonic() - start, obs.visibility, obs.summary)
+    return obs
 
 
 def observe(frame: bytes, step: Step, reference: bytes | None, language: str = "en") -> Observation:
