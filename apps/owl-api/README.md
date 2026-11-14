@@ -53,6 +53,10 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 `app/translate.py` (JUN-72): `POST /processes/{id}/translate` has Claude write the process in the worker's language and stores it as the process's translation (the same store as `PUT /processes/{id}?language=`). Step ids, media, checks and order line names are kept; a translation that does not keep the steps is refused. Needs the model.
 
+## Stage view
+
+`GET /stage` (JUN-79) is a full-screen page for the projector, the peer-review table and the video: the glasses screen as the wearer sees it, the live camera view, and a timeline of Owl's checks, answers and spoken lines with who decided (`demo`, `rules`, `jev`). The glasses post their state to `POST /stage` when "Stage mirroring" is on; owl-api adds its own decisions. Everything is in memory; frames expire after 30 s and never touch the disk. Open `https://<tunnel>/stage?token=<API_TOKEN>` on any laptop.
+
 ## Demo mode
 
 `OWL_DEMO=1` plays the demo story without models (JUN-69). `app/demo.py` replaces only the vision call with a scripted observation from `fixtures/demo-script.json`; the rules, the two-frames rule, the Done pinch and speech are the real engine, and every check says `decided_by: "demo"`. Ask answers with the best sentence of the best handbook section from the local index, and Record writes drafts from the narration. Edit the script, not the code, to change the story.

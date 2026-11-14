@@ -3,19 +3,22 @@
 Owl Check (vision + verifier), Ask and Record run the real engine; OWL_MOCK_* switch each one to fixtures.
 """
 
+import asyncio
 import io
+import json
 import logging
 import os
 import secrets
 from collections.abc import Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, Any
 
 import anthropic
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 
@@ -26,6 +29,7 @@ from . import media as media_engine
 from . import people, persist, verifier, vision
 from . import progress as progress_engine
 from . import record as record_engine
+from . import stage as stage_engine
 from . import translate as translate_engine
 from .models import (
     Answer,
@@ -69,6 +73,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 
 store = Store()
 tracker = verifier.Tracker()
+stage = stage_engine.Stage()
 progress = progress_engine.Progress()
 # JUN-78: state survives restarts. OWL_RESET=1 starts clean from the fixtures (rehearsals).
 if os.getenv("OWL_RESET", "") != "1":
@@ -334,6 +339,7 @@ async def check(
     if mock or MOCK_CHECK:
         result = with_pace(step, mock_check(step, final, mock))
         progress.record(run_id, employee_id, process, step, result)
+        stage_check(worker, step, result)
         return out(request, result)
     language = language or (worker.language if worker else None) or next((e.language for e in store.employees.values() if process_id in e.process_ids), "en")
     if worker is not None and worker.access.easy_language:
@@ -357,7 +363,18 @@ async def check(
         tracker.end(run_id)
     result = with_pace(step, result)
     progress.record(run_id, employee_id, process, step, result)
+    stage_check(worker, step, result)
     return out(request, result)
+
+
+def stage_check(worker: Employee | None, step: Step, result: CheckResult) -> None:
+    """Owl's decision on the stage timeline (JUN-79), when the worker wears a pair of glasses."""
+    if worker is None or not worker.glasses_id:
+        return
+    stage.event(
+        worker.glasses_id, "check", employee_id=worker.id, status=result.status, problem=result.problem, text=result.say or result.text,
+        decided_by=result.decided_by, step=step.index, step_done=result.step_done, spoken=bool(result.say),
+    )  # fmt: skip
 
 
 def with_pace(step: Step, result: CheckResult) -> CheckResult:
@@ -387,6 +404,16 @@ def set_consent(employee_id: str, body: Consent):
     with store.lock:
         store.consents[employee_id] = consent.model_dump()
     return consent
+
+
+@app.delete("/employees/{employee_id}/consent", status_code=204, dependencies=[Auth])
+def reset_consent(employee_id: str) -> Response:
+    """Back to "not asked yet" (at null), so the glasses ask again. For a new worker on used glasses, and rehearsals."""
+    if employee_id not in store.employees:
+        raise HTTPException(status_code=404, detail=f"No employee {employee_id}.")
+    with store.lock:
+        store.consents.pop(employee_id, None)
+    return Response(status_code=204)
 
 
 @app.delete("/employees/{employee_id}/progress", status_code=204, dependencies=[Auth])
@@ -425,14 +452,29 @@ async def ask(body: AskRequest, request: Request):
     if employee is not None and employee.access.easy_language:
         language = verifier.easy(language)
     if DEMO:
-        return out(request, ask_engine.demo_answer(body.question, [(doc.title, text) for doc, text in store.docs.values()], language))
+        return out(
+            request,
+            stage_answer(employee, body.question, ask_engine.demo_answer(body.question, [(doc.title, text) for doc, text in store.docs.values()], language)),
+        )
     context = None
     if body.process_id in store.processes:
         process = store.processes[body.process_id]
         step = next((s for s in process.steps if s.id == body.step_id), None)
         context = f"{process.title}" + (f", step {step.index}: {step.title}" if step else "")
     docs = [(doc.title, text) for doc, text in store.docs.values()]
-    return out(request, await call_model(lambda: ask_engine.answer(body.question, docs, language, context)))
+    return out(request, stage_answer(employee, body.question, await call_model(lambda: ask_engine.answer(body.question, docs, language, context))))
+
+
+def stage_answer(employee: Employee | None, question: str, answer: Answer) -> Answer:
+    """The question and Owl's answer on the stage timeline (JUN-79)."""
+    if employee is not None and employee.glasses_id:
+        source = (
+            f"{answer.sources[0].doc} · {answer.sources[0].section}"
+            if answer.sources and answer.sources[0].section
+            else (answer.sources[0].doc if answer.sources else "")
+        )
+        stage.event(employee.glasses_id, "ask", employee_id=employee.id, question=question, answer=answer.text, source=source)
+    return answer
 
 
 @app.post("/processes/from-docs", response_model=Process, dependencies=[Auth])
@@ -689,6 +731,84 @@ def help_end(help_id: str, request: Request):
     for message in session.messages:
         message.image_url = None
     return out(request, session)
+
+
+# Stage view (JUN-79): the audience sees what the worker sees. In memory only; nothing is stored.
+
+
+def check_token_or_query(x_api_token: Annotated[str, Header()] = "", token: Annotated[str, Query()] = "") -> None:
+    """The stage page runs in a browser: EventSource and <img> cannot send headers, so ?token= works too."""
+    given = x_api_token or token
+    if API_TOKEN and not secrets.compare_digest(given.encode(), API_TOKEN.encode()):
+        raise HTTPException(status_code=401, detail="Missing or wrong API token.")
+
+
+StageAuth = Depends(check_token_or_query)
+
+
+def stage_employee(employee_id: str | None) -> dict | None:
+    e = store.employees.get(employee_id or "")
+    if e is None:
+        return None
+    consent = bool(store.consents.get(e.id, {}).get("camera_checks"))
+    return {"name": e.name, "role": e.role, "language": e.language, "access": e.access.model_dump(), "consent": consent}
+
+
+@app.post("/stage", status_code=204, dependencies=[Auth])
+def stage_update(body: stage_engine.StageUpdate) -> Response:
+    stage.update(body, stage_employee(body.employee_id))
+    return Response(status_code=204)
+
+
+@app.post("/stage/frame", status_code=204, dependencies=[Auth])
+async def stage_frame(image: Annotated[UploadFile, File()], glasses_id: Annotated[str, Form(min_length=1, max_length=40)]) -> Response:
+    stage.frame(glasses_id, await read_image(image, 640))
+    return Response(status_code=204)
+
+
+@app.get("/stage", include_in_schema=False)
+def stage_page() -> FileResponse:
+    return FileResponse(Path(__file__).parent / "static" / "stage.html", media_type="text/html")
+
+
+@app.get("/stage/frame", dependencies=[StageAuth])
+def stage_latest_frame(glasses: str = "") -> Response:
+    snap = stage.snapshot(glasses or None)
+    frame = stage.latest_frame(snap["glasses"]["glasses_id"]) if snap["glasses"] else None
+    if frame is None:
+        raise HTTPException(status_code=404, detail="No live frame.")
+    return Response(frame, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+def stage_state(glasses: str) -> dict:
+    snap = stage.snapshot(glasses or None)
+    if snap["glasses"]:
+        snap["glasses"]["employee"] = stage_employee(snap["glasses"].get("employee_id")) or snap["glasses"].get("employee")
+    return snap
+
+
+@app.get("/stage/state", dependencies=[StageAuth])
+def stage_state_json(glasses: str = "") -> dict:
+    return stage_state(glasses)
+
+
+@app.get("/stage/events", dependencies=[StageAuth])
+async def stage_events(request: Request, glasses: str = "") -> StreamingResponse:
+    async def stream():
+        seen, idle = -1, 0.0
+        while not await request.is_disconnected():
+            if stage.version != seen:
+                state = stage_state(glasses)
+                seen = state["version"]
+                yield f"data: {json.dumps(state, ensure_ascii=False)}\n\n"
+                idle = 0.0
+            elif idle >= 15:
+                yield ": keep-alive\n\n"
+                idle = 0.0
+            await asyncio.sleep(0.3)
+            idle += 0.3
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 # Media

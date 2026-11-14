@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owl Stage View</title>
+<style>
+  :root {
+    --bg: #0b0f17; --panel: #131a26; --line: #243049; --text: #eef2f8; --muted: #8a97ad;
+    --gold: #ffc440; --ok: #3ddc84; --warn: #ffb020; --unsure: #6aa8ff; --checking: #8a97ad; --bad: #ff5a5f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .brand { font-weight: 700; font-size: 22px; letter-spacing: .2px; }
+  .brand span { color: var(--gold); }
+  .live { background: var(--bad); color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px; letter-spacing: 1px; }
+  .note { color: var(--muted); font-size: 13px; }
+  .who { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .badge { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; color: var(--muted); }
+  .badge.on { color: var(--text); border-color: var(--gold); }
+  select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  main { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr) minmax(320px, 1.1fr); gap: 20px; padding: 20px 24px; height: calc(100% - 64px); }
+  h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; }
+  section { display: flex; flex-direction: column; min-height: 0; }
+  .display { aspect-ratio: 1; width: 100%; max-width: 560px; border-radius: 28px; background: radial-gradient(circle at 30% 20%, #1c2638, #06080d 70%); border: 1px solid var(--line); padding: 36px; display: flex; flex-direction: column; justify-content: center; gap: 14px; box-shadow: 0 0 60px rgba(255,196,64,.07) inset; }
+  .display .kind { color: var(--gold); font-size: 14px; letter-spacing: 1px; text-transform: uppercase; }
+  .display .title { font-size: 34px; font-weight: 700; line-height: 1.15; }
+  .display .text { font-size: 22px; color: #d7deea; }
+  .display .empty { color: var(--muted); font-size: 18px; text-align: center; }
+  .caption { margin-top: 16px; padding: 12px 16px; background: var(--panel); border-radius: 12px; border-left: 4px solid var(--gold); font-size: 20px; min-height: 52px; }
+  .caption small { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .camera { width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 16px; border: 1px solid var(--line); object-fit: cover; }
+  .cam-empty { width: 100%; aspect-ratio: 4 / 3; border-radius: 16px; border: 1px dashed var(--line); display: flex; align-items: center; justify-content: center; color: var(--muted); text-align: center; padding: 20px; }
+  .step { margin-top: 12px; font-size: 18px; color: var(--muted); }
+  .step b { color: var(--text); }
+  .timeline { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 6px; }
+  .ev { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .ev .top { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+  .ev .body { margin-top: 4px; font-size: 17px; }
+  .ev .src { margin-top: 4px; font-size: 13px; color: var(--muted); font-style: italic; }
+  .chip { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 4px; color: #0b0f17; text-transform: uppercase; letter-spacing: .5px; }
+  .chip.ok { background: var(--ok); } .chip.warning { background: var(--warn); } .chip.unsure { background: var(--unsure); }
+  .chip.checking { background: var(--checking); } .chip.said { background: var(--gold); } .chip.ask { background: #c49bff; }
+  .chip.done { background: var(--ok); }
+  .by { margin-left: auto; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+  .idle { color: var(--muted); padding: 40px 0; text-align: center; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } .timeline { max-height: 60vh; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🦉 Onboarding <span>Owl</span></div>
+  <div class="live">LIVE DEMO</div>
+  <div class="note">Mirrored from the worker's Meta Ray-Ban Display glasses. Camera frames are shown live and never stored.</div>
+  <div class="who" id="who"></div>
+</header>
+<main>
+  <section>
+    <h2>On the glasses display</h2>
+    <div class="display" id="display"><div class="empty">Waiting for the glasses…</div></div>
+    <div class="caption" id="caption"><small>Owl said</small><span id="said">–</span></div>
+  </section>
+  <section>
+    <h2>What the worker sees</h2>
+    <div id="camwrap"><div class="cam-empty">No camera view. Turn on “Stage mirroring” in the Owl app.</div></div>
+    <div class="step" id="step"></div>
+  </section>
+  <section>
+    <h2>What Owl decided</h2>
+    <div class="timeline" id="timeline"><div class="idle">Owl's checks, answers and spoken lines appear here.</div></div>
+  </section>
+</main>
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get("token");
+  let chosen = params.get("glasses") || "";
+  const q = (extra = {}) => {
+    const p = new URLSearchParams();
+    if (chosen) p.set("glasses", chosen);
+    if (token) p.set("token", token);
+    for (const [k, v] of Object.entries(extra)) p.set(k, v);
+    return "?" + p.toString();
+  };
+  const el = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  function renderWho(state) {
+    const g = state.glasses, e = g && g.employee;
+    const parts = [];
+    if (state.available.length > 1) {
+      parts.push(`<select id="pick">${state.available.map((a) => `<option ${a === g.glasses_id ? "selected" : ""}>${esc(a)}</option>`).join("")}</select>`);
+    } else if (g) parts.push(`<span class="badge">${esc(g.glasses_id)}</span>`);
+    if (e) {
+      parts.push(`<span class="badge on">${esc(e.name)} · ${esc(e.role || "")}</span>`);
+      parts.push(`<span class="badge">${esc(g.language || e.language)}</span>`);
+      const a = e.access || {};
+      if (a.audio_first) parts.push(`<span class="badge on">Audio first</span>`);
+      if (a.display_first) parts.push(`<span class="badge on">Display first</span>`);
+      if (a.easy_language) parts.push(`<span class="badge on">Easy language</span>`);
+      parts.push(`<span class="badge ${e.consent ? "on" : ""}">${e.consent ? "Camera checks agreed" : "No camera consent yet"}</span>`);
+    }
+    el("who").innerHTML = parts.join("");
+    const pick = el("pick");
+    if (pick) pick.onchange = () => { chosen = pick.value; connect(); };
+  }
+
+  function renderDisplay(g) {
+    const s = g && g.screen;
+    el("display").innerHTML = s && (s.title || s.text)
+      ? `<div class="kind">${esc(s.kind)}</div><div class="title">${esc(s.title)}</div><div class="text">${esc(s.text)}</div>`
+      : `<div class="empty">Waiting for the glasses…</div>`;
+    const said = g && g.events.find((ev) => ev.kind === "said");
+    el("said").textContent = said ? said.text : "–";
+    const st = g && g.step;
+    el("step").innerHTML = st ? `Task step <b>${st.index}</b> of <b>${st.total}</b>` : "";
+  }
+
+  let lastFrame = 0;
+  function renderCamera(g, version) {
+    if (!g || !g.has_frame) {
+      el("camwrap").innerHTML = `<div class="cam-empty">No camera view. Turn on “Stage mirroring” in the Owl app.</div>`;
+      return;
+    }
+    if (g.frame_at === lastFrame && el("cam")) return;
+    lastFrame = g.frame_at;
+    const img = new Image();
+    img.className = "camera"; img.id = "cam"; img.alt = "The worker's camera view";
+    img.onload = () => { const w = el("camwrap"); w.innerHTML = ""; w.appendChild(img); };
+    img.src = "/stage/frame" + q({ v: version });
+  }
+
+  function renderTimeline(g) {
+    if (!g || !g.events.length) { el("timeline").innerHTML = `<div class="idle">Owl's checks, answers and spoken lines appear here.</div>`; return; }
+    el("timeline").innerHTML = g.events.map((ev) => {
+      if (ev.kind === "check") {
+        const chip = ev.step_done ? "done" : ev.status;
+        const label = ev.step_done ? "step done" : ev.status;
+        return `<div class="ev"><div class="top"><span class="chip ${esc(chip)}">${esc(label)}</span>${esc(ev.at)} · step ${esc(ev.step)}${ev.problem ? " · " + esc(ev.problem.replace("_", " ")) : ""}<span class="by">${esc(ev.decided_by)}</span></div><div class="body">${esc(ev.text)}</div></div>`;
+      }
+      if (ev.kind === "ask") {
+        return `<div class="ev"><div class="top"><span class="chip ask">ask</span>${esc(ev.at)}</div><div class="body">“${esc(ev.question)}”<br>→ ${esc(ev.answer)}</div>${ev.source ? `<div class="src">${esc(ev.source)}</div>` : ""}</div>`;
+      }
+      return `<div class="ev"><div class="top"><span class="chip said">said</span>${esc(ev.at)}</div><div class="body">${esc(ev.text)}</div></div>`;
+    }).join("");
+  }
+
+  let source;
+  function connect() {
+    if (source) source.close();
+    source = new EventSource("/stage/events" + q());
+    source.onmessage = (msg) => {
+      const state = JSON.parse(msg.data);
+      renderWho(state);
+      renderDisplay(state.glasses);
+      renderCamera(state.glasses, state.version);
+      renderTimeline(state.glasses);
+    };
+  }
+  connect();
+</script>
+</body>
+</html>
