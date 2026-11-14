@@ -67,7 +67,7 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 ## Data
 
-- State lives in memory, seeded from `fixtures/`. Uploads (documents, recorded photos and clips, help frames) go to `data/` (gitignored).
+- State is seeded from `fixtures/` and saved to `data/state.json` after every change, so a restart keeps workers, processes, translations, recordings, consents and learning runs (JUN-78). `OWL_RESET=1` starts clean from the fixtures. Help sessions stay in memory on purpose: their frames are deleted when the session ends. Uploads (documents, recorded photos and clips) go to `data/` (gitignored).
 - The API key stays on the server. `API_TOKEN` keeps others on the venue Wi-Fi out.
 - Check frames are not stored. Help frames are deleted when the session ends, and leftovers when the server starts. Company documents stay on this server until someone deletes them.
 

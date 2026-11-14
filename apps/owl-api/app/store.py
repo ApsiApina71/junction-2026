@@ -1,4 +1,4 @@
-"""In-memory state, seeded from fixtures/. Uploaded files go under DATA_DIR; everything else resets on restart."""
+"""State, seeded from fixtures/. Uploaded files go under DATA_DIR, and app/persist.py saves the rest there (JUN-78)."""
 
 import json
 import os
@@ -56,6 +56,8 @@ class Store:
         self.recordings: dict[str, Recording] = {}
         # Employees whose welcome someone wrote by hand. Every other welcome is rewritten when the employee changes.
         self.custom_welcomes: set[str] = set()
+        # employee id -> what they agreed to and when (JUN-80)
+        self.consents: dict[str, dict] = {}
         self._counter = 0
 
         for path in sorted(FIXTURES.glob("employee*.json")):

@@ -23,7 +23,7 @@ from . import ask as ask_engine
 from . import demo as demo_engine
 from . import docs_process as docs_engine
 from . import media as media_engine
-from . import people, verifier, vision
+from . import people, persist, verifier, vision
 from . import progress as progress_engine
 from . import record as record_engine
 from . import translate as translate_engine
@@ -69,6 +69,9 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 store = Store()
 tracker = verifier.Tracker()
 progress = progress_engine.Progress()
+# JUN-78: state survives restarts. OWL_RESET=1 starts clean from the fixtures (rehearsals).
+if os.getenv("OWL_RESET", "") != "1":
+    persist.load(store, progress)
 demo = demo_engine.Demo()
 
 
@@ -81,6 +84,16 @@ async def lifespan(_: FastAPI):
 
 # /docs is the company-documents endpoint, so the Swagger UI moves to /swagger.
 app = FastAPI(title="owl-api", docs_url="/swagger", redoc_url=None, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def save_state(request: Request, call_next):
+    """Saves the state after every change (JUN-78). Reads never write."""
+    response = await call_next(request)
+    if request.method in {"POST", "PUT", "DELETE"} and response.status_code < 500 and not request.url.path.startswith("/stage"):
+        await run_in_threadpool(persist.save, store, progress)
+    return response
+
 
 # Owl Studio runs in a browser on another port.
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
@@ -488,6 +501,7 @@ def finish_recording(rec: Recording, process_id: str) -> None:
         # Each recorded step also gets the handbook rule that backs it, when one matches (JUN-70).
         store.processes[process_id] = docs_engine.attach_rules(process, [(doc.title, text) for doc, text in store.docs.values()])
         rec.process_id, rec.status = process_id, "done"
+        persist.save(store, progress)
     except Exception:
         log.exception("Record: could not write the process for %s", rec.id)
         rec.status = "failed"
