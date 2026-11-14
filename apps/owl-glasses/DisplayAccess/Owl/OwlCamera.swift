@@ -245,7 +245,12 @@ final class FrameDecoder: @unchecked Sendable {
 }
 
 extension CMSampleBuffer {
-  /// True for HEVC key frames (no `NotSync` attachment).
+  /// True for an HEVC key frame, a frame decoding can start from.
+  ///
+  /// The video data itself decides: a key frame holds a random access picture. The `NotSync`
+  /// attachment is only the fallback, because the mock glasses of the simulator attach nothing
+  /// to their frames. Every frame then counted as a key frame, Owl decoded a lone in-between
+  /// frame, and each check, Help and stage picture was flat grey.
   var owlIsKeyFrame: Bool {
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(self, createIfNecessary: false)
       as? [[CFString: Any]], let first = attachments.first
@@ -270,11 +275,32 @@ final class ClipRecorder: @unchecked Sendable {
   init(url: URL) {
     self.url = url
   }
+    if let fromData = owlHoldsRandomAccessPicture { return fromData }
 
   func append(_ sample: CMSampleBuffer) {
     let time = CMSampleBufferGetPresentationTimeStamp(sample)
     let pixels = CMSampleBufferGetImageBuffer(sample)
     lock.withLock {
+
+  /// Whether the frame holds an HEVC random access picture. Nil when the data is not HEVC or
+  /// cannot be read.
+  private var owlHoldsRandomAccessPicture: Bool? {
+    guard let format = CMSampleBufferGetFormatDescription(self), let block = CMSampleBufferGetDataBuffer(self)
+    else { return nil }
+    let codec = CMFormatDescriptionGetMediaSubType(format)
+    guard codec == kCMVideoCodecType_HEVC || codec == 0x6865_7631 /* hev1 */ else { return nil }
+    var lengthSize: Int32 = 4
+    CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(
+      format, parameterSetIndex: 0, parameterSetPointerOut: nil, parameterSetSizeOut: nil,
+      parameterSetCountOut: nil, nalUnitHeaderLengthOut: &lengthSize)
+    return OwlHEVC.holdsRandomAccessPicture(
+      total: CMBlockBufferGetDataLength(block), lengthSize: Int(lengthSize)
+    ) { offset, count in
+      var bytes = [UInt8](repeating: 0, count: count)
+      let status = CMBlockBufferCopyDataBytes(block, atOffset: offset, dataLength: count, destination: &bytes)
+      return status == kCMBlockBufferNoErr ? bytes : nil
+    }
+  }
       guard !failed else { return }
       if writer == nil {
         // A compressed clip has to start at a key frame to be playable, and passthrough needs a

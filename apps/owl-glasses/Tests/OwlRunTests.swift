@@ -1,9 +1,9 @@
 //
 // OwlRunTests.swift
 //
-// Tests for the rule in `DisplayAccess/Owl/OwlCheckRules.swift`: a step is verified only by a final
-// check answer for this run, this step and this attempt. Run on the Mac with `Tests/run.sh`
-// (the Xcode project has no test target).
+// Tests for the rule in `DisplayAccess/Owl/OwlRunLog.swift`: a step is verified only by a final
+// check answer for this run, this step and this attempt. Also the key-frame rule of
+// `OwlHEVC.swift`. Run on the Mac with `Tests/run.sh` (the Xcode project has no test target).
 //
 
 import Foundation
@@ -165,6 +165,32 @@ expect(OwlCheckRules.difference(expected: "Oat drink", seen: "Oat drink 1 l") ==
 expect(OwlCheckRules.signature(wrongSize) == OwlCheckRules.signature(wrongSize), "the same problem has the same signature")
 let otherProblem = result("warning", problem: "missing", lines: [line("Coffee 500 g", "missing", seen: 0)])
 expect(OwlCheckRules.signature(wrongSize) != OwlCheckRules.signature(otherProblem), "a different problem has a different signature")
+
+// Key frames: only a frame with a random access picture can start a decode. A frame taken
+// for a key frame by mistake decodes to flat grey, which is what every picture was in the simulator.
+/// One NAL unit of `type` with `payload` bytes after its two-byte header, behind a length of `lengthSize` bytes.
+func nal(_ type: UInt8, payload: Int = 6, lengthSize: Int = 4) -> [UInt8] {
+  let length = payload + 2
+  let prefix = (0..<lengthSize).map { UInt8((length >> (8 * (lengthSize - 1 - $0))) & 0xFF) }
+  return prefix + [type << 1, 0x01] + [UInt8](repeating: 0xAB, count: payload)
+}
+expect(OwlHEVC.holdsRandomAccessPicture(nal(32) + nal(33) + nal(34) + nal(19, payload: 400)) == true, "parameter sets and an IDR picture: a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(19)) == true, "an IDR picture alone: a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(20)) == true, "IDR without leading pictures: a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(21)) == true, "a CRA picture: a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(16)) == true, "a BLA picture: a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(1, payload: 60)) == false, "a trailing picture is not a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(0, payload: 40)) == false, "a non-reference trailing picture is not a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(39) + nal(1)) == false, "extra information and a trailing picture: not a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(35) + nal(1) + nal(19)) == true, "a key frame is found after other units")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(19, lengthSize: 2), lengthSize: 2) == true, "two-byte lengths are read")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(1, lengthSize: 2), lengthSize: 2) == false, "two-byte lengths, not a key frame")
+expect(OwlHEVC.holdsRandomAccessPicture([]) == nil, "no data: unknown")
+expect(OwlHEVC.holdsRandomAccessPicture([0, 0, 0, 1, 0x26, 0x01, 0xAB, 0xAB]) == nil, "start codes instead of lengths: unknown")
+expect(OwlHEVC.holdsRandomAccessPicture(Array(nal(1, payload: 60).dropLast(5))) == nil, "a cut frame: unknown")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(1) + [0, 0]) == nil, "bytes left over after the last unit: unknown")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(19), lengthSize: 0) == nil, "an impossible length size: unknown")
+expect(OwlHEVC.holdsRandomAccessPicture(nal(19), lengthSize: 5) == nil, "a length size over four bytes: unknown")
 
 print("\(passed) passed, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

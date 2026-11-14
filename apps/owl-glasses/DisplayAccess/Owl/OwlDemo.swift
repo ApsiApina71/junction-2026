@@ -9,13 +9,26 @@ import AVFoundation
 import UIKit
 
 enum OwlDemoAssets {
-  /// A few seconds of HEVC video of the demo picture, written once to the temp folder.
+  /// A few seconds of HEVC video of the demo picture, written once per picture to the temp folder.
   static func cameraFeedURL() -> URL? {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("owl-demo-feed.mp4")
-    if FileManager.default.fileExists(atPath: url.path) { return url }
+    let files = FileManager.default
+    let folder = files.temporaryDirectory
     let name = UIImage(named: "owlDemoFeed") != nil ? "owlDemoFeed" : "demoMeal"
+    // The picture is in the file name, so a feed an older build wrote from another picture is
+    // never streamed again.
+    let url = folder.appendingPathComponent("owl-demo-feed-\(name).mp4")
+    if files.fileExists(atPath: url.path) { return url }
+    for old in (try? files.contentsOfDirectory(atPath: folder.path)) ?? [] where old.hasPrefix("owl-demo-feed") {
+      try? files.removeItem(at: folder.appendingPathComponent(old))
+    }
     guard let image = UIImage(named: name)?.owlScaled(maxSide: 720).cgImage else { return nil }
-    return writeStillVideo(image, to: url) ? url : nil
+    // Written beside the final name first: a half-written feed is never picked up later.
+    let draft = folder.appendingPathComponent("owl-demo-feed-writing.mp4")
+    guard writeStillVideo(image, to: draft), (try? files.moveItem(at: draft, to: url)) != nil else {
+      try? files.removeItem(at: draft)
+      return nil
+    }
+    return url
   }
 
   private static func writeStillVideo(_ image: CGImage, to url: URL) -> Bool {
