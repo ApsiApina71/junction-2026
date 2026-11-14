@@ -173,6 +173,12 @@ struct SampleAppsView: View {
 
           developerPreviewStage
           developerPreviewContentControl
+          if phonePreview.isEnabled {
+            simulatorControls
+            Text(owlViewModel.statusText)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
         .frame(maxWidth: 560)
         .padding(20)
@@ -567,9 +573,6 @@ struct SampleAppsView: View {
         }
       }
       .font(.subheadline)
-      if phonePreview.isEnabled {
-        simulatorControls
-      }
       if let testNote {
         Text(testNote)
           .font(.caption)
