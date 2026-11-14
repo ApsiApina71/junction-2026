@@ -42,6 +42,11 @@ final class OwlViewModel {
   @ObservationIgnored private let listener: OwlListener
   @ObservationIgnored private var camera: OwlCamera?
   @ObservationIgnored private var cameraDenied = false
+  /// What the worker agreed to (JUN-80). Without camera checks Owl is a guide without checks.
+  private(set) var consent: OwlConsent?
+  /// The worker paused the camera with one pinch; checks stay off until they turn it on.
+  private(set) var cameraPaused = false
+  private var checksAllowed: Bool { consent?.cameraChecks == true && !cameraPaused }
   @ObservationIgnored private var images: [String: UIImage] = [:]
   @ObservationIgnored private var welcomed = false
   @ObservationIgnored private var deviceStateToken: AnyListenerToken?
@@ -122,6 +127,10 @@ final class OwlViewModel {
     await loadTasks()
     if glassesNotAssigned {
       await showProblem(OwlError.glassesNotAssigned, retry: { await $0.open() })
+      return displayViewModel.isConnected
+    }
+    if let employee, await needsConsent(employee) {
+      await askConsent(then: { await $0.open() })
       return displayViewModel.isConnected
     }
     if !welcomed, let employee {
@@ -227,7 +236,9 @@ final class OwlViewModel {
         onDone: self.action { await $0.finishStep() },
         onWatch: step.clipUrl == nil ? nil : self.action { await $0.watchHow() },
         onAsk: self.action { await $0.ask() },
-        onHelp: self.action { await $0.startHelp() })
+        onHelp: self.action { await $0.startHelp() },
+        cameraOn: step.check.usesCamera && self.consent?.cameraChecks == true ? !self.cameraPaused : nil,
+        onCamera: self.action { await $0.toggleCamera() })
     }
   }
 
@@ -241,6 +252,12 @@ final class OwlViewModel {
 
   private func startCheckLoop() async {
     checkTask?.cancel()
+    guard checksAllowed else {
+      // No consent, or paused: the camera stays off and the worker confirms with Done.
+      closeCamera()
+      setStepStatus(cameraPaused ? "Camera paused. Pinch Done when ready." : "Camera checks are off. Pinch Done when ready.")
+      return
+    }
     guard let camera = await openCamera() else {
       setStepStatus(cameraDenied ? "Camera is off. Pinch Done when ready." : "Owl can't see now. Pinch Done when ready.")
       return
@@ -279,6 +296,17 @@ final class OwlViewModel {
       if !final { await showLive(result, for: step) }
       return result
     } catch {
+      if case .consentRequired = error as? OwlError {
+        // The server has no consent on record: stop checking, keep guiding.
+        NSLog("[Owl] check refused: consent required")
+        if let employee {
+          consent = OwlConsent(employeeId: employee.id, cameraChecks: false, recording: consent?.recording ?? false, at: consent?.at)
+        }
+        stopCheckLoop()
+        closeCamera()
+        setStepStatus("Camera checks are off. Pinch Done when ready.")
+        return nil
+      }
       checkFailures += 1
       NSLog("[Owl] check failed (\(checkFailures)): \(error)")
       if case .rateLimited = error as? OwlError { return nil }
@@ -421,7 +449,101 @@ final class OwlViewModel {
       speaker.say(lines.joined(separator: " "), interrupt: !afterTask)
     }
     await showScreen {
-      OwlBasicScreens.progress(title: title, lines: lines, onHome: self.action { await $0.showTasks() })
+      OwlBasicScreens.progress(
+        title: title, lines: lines, onHome: self.action { await $0.showTasks() },
+        onForget: progress == nil ? nil : self.action { await $0.forgetMe() })
+    }
+  }
+
+  /// "Forget me": the worker erases their own learning data on owl-api.
+  private func forgetMe() async {
+    guard let employee else { return }
+    do {
+      try await api.forgetProgress(employeeID: employee.id)
+      speaker.say("Your progress is forgotten.")
+      await showProgress()
+    } catch {
+      await showProblem(error, retry: { await $0.forgetMe() })
+    }
+  }
+
+  // MARK: - Consent (JUN-80)
+
+  private static func consentKey(_ employeeID: String) -> String { "owl.consent.\(employeeID)" }
+
+  /// True when the worker has not answered yet. owl-api is asked first; the phone keeps the
+  /// answer too, so Owl still knows it offline or with an older server.
+  private func needsConsent(_ employee: OwlEmployee) async -> Bool {
+    if let fromServer = try? await api.consent(employeeID: employee.id), fromServer.at != nil {
+      consent = fromServer
+      return false
+    }
+    if let data = UserDefaults.standard.data(forKey: Self.consentKey(employee.id)),
+      let saved = try? JSONDecoder().decode(OwlConsent.self, from: data)
+    {
+      consent = saved
+      // Tell owl-api what the worker already chose, so /check accepts the frames.
+      _ = try? await api.setConsent(employeeID: employee.id, cameraChecks: saved.cameraChecks, recording: saved.recording)
+      return false
+    }
+    return true
+  }
+
+  /// Explains on the display and aloud what the camera does, and lets the worker choose.
+  private func askConsent(then next: @escaping @MainActor (OwlViewModel) async -> Void) async {
+    guard let employee else { return }
+    let lang = employee.language
+    let lines = [
+      "Owl looks only during a step, to check your work.", "Pictures are not saved.",
+      "Nothing goes to Meta. Your data stays with your company.", "You can pause the camera any time.",
+    ].map { OwlText.localize($0, to: lang) }
+    statusText = "Asking for camera consent"
+    speaker.say(lines.joined(separator: " "))
+    await showScreen {
+      OwlBasicScreens.consent(
+        title: OwlText.localize("Owl's camera", to: lang), lines: lines,
+        allowLabel: OwlText.localize("Allow checks", to: lang),
+        declineLabel: OwlText.localize("No checks", to: lang),
+        onAllow: self.action {
+          await $0.saveConsent(cameraChecks: true, recording: $0.consent?.recording ?? false)
+          $0.speaker.say("Thank you. Owl will check your work.")
+          await next($0)
+        },
+        onDecline: self.action {
+          await $0.saveConsent(cameraChecks: false, recording: $0.consent?.recording ?? false)
+          $0.speaker.say("Okay. Owl will guide you without checks.")
+          await next($0)
+        })
+    }
+  }
+
+  private func saveConsent(cameraChecks: Bool, recording: Bool) async {
+    guard let employee else { return }
+    let now = ISO8601DateFormatter().string(from: Date())
+    var saved = OwlConsent(employeeId: employee.id, cameraChecks: cameraChecks, recording: recording, at: now)
+    do {
+      saved = try await api.setConsent(employeeID: employee.id, cameraChecks: cameraChecks, recording: recording)
+    } catch {
+      NSLog("[Owl] consent not stored on owl-api: \(error)")
+    }
+    consent = saved
+    if let data = try? JSONEncoder().encode(saved) {
+      UserDefaults.standard.set(data, forKey: Self.consentKey(employee.id))
+    }
+    NSLog("[Owl] consent: camera checks \(cameraChecks), recording \(recording)")
+  }
+
+  /// "Pause camera" / "Camera on" with one pinch.
+  private func toggleCamera() async {
+    cameraPaused.toggle()
+    if cameraPaused {
+      stopCheckLoop()
+      closeCamera()
+      speaker.say("Camera paused. Checks are off.")
+      setStepStatus("Camera paused. Pinch Done when ready.")
+    } else {
+      speaker.say("Camera on. Owl is watching again.")
+      await startCheckLoop()
     }
   }
 
@@ -569,6 +691,26 @@ final class OwlViewModel {
 
   func startRecording() async {
     stopEverything()
+    // The expert agrees that their clips are stored, and to warn people nearby (JUN-80).
+    if consent?.recording != true, let employee {
+      let lang = employee.language
+      let lines = [
+        "Your clips and voice are stored to teach new workers.", "Faces are blurred before anything is stored.",
+        "Tell people nearby that you are filming.",
+      ].map { OwlText.localize($0, to: lang) }
+      speaker.say(lines.joined(separator: " "))
+      await showScreen {
+        OwlBasicScreens.consent(
+          title: OwlText.localize("Recording", to: lang), lines: lines,
+          allowLabel: OwlText.localize("I agree", to: lang), declineLabel: OwlText.localize("Cancel", to: lang),
+          onAllow: self.action {
+            await $0.saveConsent(cameraChecks: $0.consent?.cameraChecks ?? false, recording: true)
+            await $0.startRecording()
+          },
+          onDecline: self.action { await $0.showTasks() })
+      }
+      return
+    }
     await show(OwlBasicScreens.status("Record", detail: "Starting…"))
     do {
       recording = try await api.startRecording(
@@ -890,6 +1032,14 @@ extension OwlViewModel {
     case "endstep": await endRecordedStep()
     case "finish": await finishRecording()
     case "progress": await showProgress()
+    case "allow": await saveConsent(cameraChecks: true, recording: consent?.recording ?? false); await open()
+    case "decline": await saveConsent(cameraChecks: false, recording: consent?.recording ?? false); await open()
+    case "agreerecord": await saveConsent(cameraChecks: consent?.cameraChecks ?? false, recording: true)
+    case "camera": await toggleCamera()
+    case "forget": await forgetMe()
+    case "resetconsent":
+      if let id = employee?.id { UserDefaults.standard.removeObject(forKey: Self.consentKey(id)) }
+      consent = nil
     case "mock": mockCheck = argument.isEmpty ? nil : argument
     case "wait": try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
     default: NSLog("[Owl] test: unknown step \(name)")

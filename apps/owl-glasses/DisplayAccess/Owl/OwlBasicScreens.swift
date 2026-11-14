@@ -58,7 +58,7 @@ enum OwlBasicScreens {
   static func step(
     process: OwlProcess, step: OwlStep, image: UIImage?, status: String?,
     onDone: @escaping OwlAction, onWatch: OwlAction?, onAsk: @escaping OwlAction,
-    onHelp: @escaping OwlAction
+    onHelp: @escaping OwlAction, cameraOn: Bool? = nil, onCamera: OwlAction? = nil
   ) -> FlexBox {
     FlexBox(direction: .column, spacing: 10) {
       card {
@@ -79,6 +79,33 @@ enum OwlBasicScreens {
         }
         Button(label: "Ask", style: .secondary, iconName: .speechBubble, onClick: onAsk)
         Button(label: "Help", style: .secondary, iconName: .person, onClick: onHelp)
+        // Pause or resume the camera with one pinch (JUN-80). Shown on steps with a check.
+        if let onCamera, let cameraOn {
+          Button(
+            label: cameraOn ? "Pause camera" : "Camera on", style: .secondary,
+            iconName: cameraOn ? .videoCameraOff : .videoCamera, onClick: onCamera)
+        }
+      }
+    }
+  }
+
+  /// Consent, asked once (JUN-80): what the camera does, then a choice with a pinch.
+  /// Texts come translated; no choice is preselected as "the right one".
+  static func consent(
+    title: String, lines: [String], allowLabel: String, declineLabel: String,
+    onAllow: @escaping OwlAction, onDecline: @escaping OwlAction
+  ) -> FlexBox {
+    FlexBox(direction: .column, spacing: 10) {
+      card {
+        Text(title, style: .heading)
+        for line in lines.prefix(4) {
+          Text(line, style: .meta, color: .primary)
+        }
+      }
+      buttons {
+        Button(label: allowLabel, style: .primary, iconName: .checkmark, onClick: onAllow)
+          .actionRole(.primary)
+        Button(label: declineLabel, style: .secondary, iconName: .x, onClick: onDecline)
       }
     }
   }
@@ -124,7 +151,9 @@ enum OwlBasicScreens {
   }
 
   /// The worker's own progress: a few encouraging lines, only for the worker.
-  static func progress(title: String, lines: [String], onHome: @escaping OwlAction) -> FlexBox {
+  static func progress(
+    title: String, lines: [String], onHome: @escaping OwlAction, onForget: OwlAction? = nil
+  ) -> FlexBox {
     FlexBox(direction: .column, spacing: 12) {
       card {
         Text(title, style: .heading)
@@ -135,6 +164,10 @@ enum OwlBasicScreens {
       buttons {
         Button(label: "Home", style: .primary, iconName: .house, onClick: onHome)
           .actionRole(.primary)
+        // "Forget me": the worker erases their own learning data (JUN-80).
+        if let onForget {
+          Button(label: "Forget me", style: .secondary, iconName: .x, onClick: onForget)
+        }
       }
     }
   }

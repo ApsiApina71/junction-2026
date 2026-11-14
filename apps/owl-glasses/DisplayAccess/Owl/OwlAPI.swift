@@ -11,6 +11,7 @@ import UIKit
 enum OwlError: LocalizedError, Equatable {
   case noGlasses
   case glassesNotAssigned
+  case consentRequired
   case noCamera
   case cameraPermissionDenied
   case microphonePermissionDenied
@@ -28,6 +29,7 @@ enum OwlError: LocalizedError, Equatable {
     switch self {
     case .noGlasses: "Glasses are not connected."
     case .glassesNotAssigned: "These glasses are not assigned to anyone yet. Ask your supervisor."
+    case .consentRequired: "Camera checks are off."
     case .noCamera: "Couldn't open the glasses camera."
     case .cameraPermissionDenied: "Camera is not allowed for Owl. Ask your supervisor."
     case .microphonePermissionDenied: "Microphone is not allowed for Owl. Ask your supervisor."
@@ -94,6 +96,29 @@ struct OwlAPI: Sendable {
 
   func employee(_ id: String) async throws -> OwlEmployee {
     try await send(try request("employees/\(id)"))
+  }
+
+  // Consent (JUN-80)
+
+  func consent(employeeID: String) async throws -> OwlConsent {
+    try await send(try request("employees/\(employeeID)/consent"))
+  }
+
+  func setConsent(employeeID: String, cameraChecks: Bool, recording: Bool) async throws -> OwlConsent {
+    struct Body: Encodable { let cameraChecks: Bool; let recording: Bool }
+    return try await send(
+      try request("employees/\(employeeID)/consent", json: Body(cameraChecks: cameraChecks, recording: recording)))
+  }
+
+  /// "Forget me": erases the worker's own learning data.
+  func forgetProgress(employeeID: String) async throws {
+    var forget = try request("employees/\(employeeID)/progress")
+    forget.httpMethod = "DELETE"
+    let (data, response) = try await load(forget)
+    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    guard (200..<300).contains(status) else {
+      throw OwlError.server(status, (try? JSONDecoder().decode(ErrorDetail.self, from: data))?.detail ?? "")
+    }
   }
 
   /// The worker's own progress, for the glasses only.
@@ -296,6 +321,9 @@ struct OwlAPI: Sendable {
     case 200..<300:
       break
     case 401: throw OwlError.unauthorized
+    case 403:
+      let detail = (try? JSONDecoder().decode(ErrorDetail.self, from: data))?.detail ?? ""
+      throw detail == "consent_required" ? OwlError.consentRequired : OwlError.server(403, detail)
     case 404: throw OwlError.notFound
     case 429: throw OwlError.rateLimited
     default:

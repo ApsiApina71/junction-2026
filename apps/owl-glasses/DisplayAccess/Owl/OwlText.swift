@@ -42,12 +42,17 @@ enum OwlText {
     } else {
       let n = progress.tasksDone
       lines.append(
-        fi
-          ? (n == 1 ? "Olet tehnyt yhden tehtävän." : "Olet tehnyt \(n) tehtävää.")
-          : (n == 1 ? "You have finished 1 task." : "You have finished \(n) tasks."))
+        n == 0
+          ? (fi ? "Ensimmäinen tehtäväsi odottaa. Aloitetaan!" : "Your first task is waiting. Let's start!")
+          : fi
+            ? (n == 1 ? "Olet tehnyt yhden tehtävän." : "Olet tehnyt \(n) tehtävää.")
+            : (n == 1 ? "You have finished 1 task." : "You have finished \(n) tasks."))
     }
     let fixed = run?.problemsFixed ?? progress.problemsFixed
     let caught = run?.problemsCaught ?? progress.problemsCaught
+    if !afterTask && progress.tasksDone == 0 && fixed == 0 {
+      return lines
+    }
     if fixed > 0 {
       lines.append(
         fi
@@ -75,6 +80,29 @@ enum OwlText {
     // Spoken
     "Yes?": "Niin?",
     "Task done!": "Tehtävä tehty!",
+    // Consent (JUN-80)
+    "Owl's camera": "Owlin kamera",
+    "Owl looks only during a step, to check your work.": "Owl katsoo vain vaiheen aikana ja tarkistaa työsi.",
+    "Pictures are not saved.": "Kuvia ei tallenneta.",
+    "Nothing goes to Meta. Your data stays with your company.":
+      "Mitään ei lähetetä Metalle. Tietosi pysyvät yrityksellä.",
+    "You can pause the camera any time.": "Voit keskeyttää kameran milloin tahansa.",
+    "Allow checks": "Salli tarkistukset",
+    "No checks": "Ei tarkistuksia",
+    "Thank you. Owl will check your work.": "Kiitos. Owl tarkistaa työsi.",
+    "Okay. Owl will guide you without checks.": "Selvä. Owl opastaa sinua ilman tarkistuksia.",
+    "Camera paused. Checks are off.": "Kamera keskeytetty. Tarkistukset ovat pois.",
+    "Camera on. Owl is watching again.": "Kamera päällä. Owl seuraa taas.",
+    "Camera paused. Pinch Done when ready.": "Kamera keskeytetty. Nipistä Done, kun olet valmis.",
+    "Camera checks are off. Pinch Done when ready.": "Kameratarkistukset ovat pois. Nipistä Done, kun olet valmis.",
+    "Camera checks are off.": "Kameratarkistukset ovat pois.",
+    "Recording": "Nauhoitus",
+    "Your clips and voice are stored to teach new workers.": "Klippisi ja puheesi tallennetaan uusien työntekijöiden opetukseen.",
+    "Faces are blurred before anything is stored.": "Kasvot sumennetaan ennen tallennusta.",
+    "Tell people nearby that you are filming.": "Kerro lähellä oleville, että kuvaat.",
+    "I agree": "Hyväksyn",
+    "Cancel": "Peruuta",
+    "Your progress is forgotten.": "Edistymisesi on unohdettu.",
     "Your progress": "Edistymisesi",
     "Well done! You finished the task.": "Hienoa! Teit tehtävän loppuun.",
     "The video isn't available right now.": "Video ei ole nyt saatavilla.",
