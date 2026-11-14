@@ -630,6 +630,24 @@ struct SampleAppsView: View {
         try? await Task.sleep(for: .seconds(2))
         phonePreview.simulateSpeech(question)
       }
+      #if DEBUG
+      // OWL_AUTO_SCRIPT="run;mock:warning;wait:4;again;..." drives the whole flow; `speak:<text>`,
+      // `takeoff` and `puton` act on the mock glasses.
+      if let script = env["OWL_AUTO_SCRIPT"] {
+        for step in script.split(separator: ";").map(String.init) {
+          if step.hasPrefix("speak:") {
+            phonePreview.simulateSpeech(String(step.dropFirst(6)))
+          } else if step == "takeoff" || step == "puton" {
+            phonePreview.setWorn(step == "puton")
+          } else if step == "heymeta" {
+            testNote = phonePreview.sendLaunchApp() ?? "Sent Hey Meta"
+          } else {
+            await owlViewModel.runTestStep(step)
+          }
+        }
+        NSLog("[Owl] test: script finished")
+      }
+      #endif
       if env["OWL_AUTO_RECORD"] == "1" {
         // One narrated 4 s step, then finish.
         await owlViewModel.startRecording()

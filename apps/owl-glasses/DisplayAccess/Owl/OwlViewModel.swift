@@ -327,6 +327,9 @@ final class OwlViewModel {
   }
 
   private func backToStep() async {
+    if let process, let step {
+      statusText = "Step \(step.index)/\(process.steps.count): \(step.title)"
+    }
     await sendStep()
     if step?.check.usesCamera == true, checkTask == nil, camera != nil {
       await startCheckLoop()
@@ -821,3 +824,40 @@ enum OwlCache {
     return (saved.employee, saved.processes)
   }
 }
+
+#if DEBUG
+// MARK: - Simulator test script (OWL_AUTO_SCRIPT)
+
+/// Drives the flow like the Neural Band would, for end-to-end runs in the simulator.
+/// Steps are separated by `;` (see apps/owl-glasses/CLAUDE.md).
+extension OwlViewModel {
+  func runTestStep(_ step: String) async {
+    let parts = step.split(separator: ":", maxSplits: 1).map(String.init)
+    let name = parts.first?.trimmingCharacters(in: .whitespaces) ?? ""
+    let argument = parts.count > 1 ? parts[1] : ""
+    NSLog("[Owl] test: \(step)")
+    switch name {
+    case "open": await open()
+    case "start": await showTasks()
+    case "run": if let first = processes.first(where: \.isPublished) { await startProcess(first.id) }
+    case "process": await startProcess(argument)
+    case "done": await finishStep()
+    case "again": await checkAgain()
+    case "back": await backToStep()
+    case "watch": await watchHow()
+    case "ask": await ask()
+    case "answer": await answer(argument)
+    case "help": await startHelp()
+    case "endhelp": await endHelp()
+    case "record": await startRecording()
+    case "recordstep": await startRecordedStep()
+    case "endstep": await endRecordedStep()
+    case "finish": await finishRecording()
+    case "mock": mockCheck = argument.isEmpty ? nil : argument
+    case "wait": try? await Task.sleep(for: .seconds(Double(argument) ?? 1))
+    default: NSLog("[Owl] test: unknown step \(name)")
+    }
+    NSLog("[Owl] test: now \(statusText)")
+  }
+}
+#endif
