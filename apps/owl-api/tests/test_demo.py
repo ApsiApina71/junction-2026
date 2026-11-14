@@ -111,14 +111,17 @@ def test_a_confirmed_warning_is_spoken_once_and_again_when_it_changes():
         ("Where does the label go?", "The label always goes on the top side, never over the tape."),
         ("What do I do with a dented can?", "A dented can or a leaking carton never goes to a customer."),
         ("When does the truck leave?", "The truck leaves at 15:00."),
+        ("Which oven do I use for rye bread?", "Oven 2 is for rye bread only."),
+        ("How long do I mix the dough?", "Rye dough is always mixed on 1 (slow) for 8 minutes."),
+        ("Where is the mixer lever?", "The mixer has a lever with three positions: 0 = stop, 1 = slow, 2 = fast."),
     ],
 )
 def test_demo_answers_quote_the_handbook(question, expected):
     answer = ask.demo_answer(question, [HANDBOOK, BAKERY], "en")
     assert answer.found is True
     assert answer.text == expected
-    assert answer.sources[0].doc == HANDBOOK[0]
-    assert answer.sources[0].quote in HANDBOOK[1]
+    doc = dict([HANDBOOK, BAKERY])[answer.sources[0].doc]
+    assert answer.sources[0].quote in doc
     assert len(answer.say.split()) <= 25
 
 

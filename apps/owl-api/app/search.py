@@ -12,14 +12,26 @@ from dataclasses import dataclass
 
 K1, B = 1.5, 0.75
 STEM = 5  # crude stemming that also helps inflection: "leaves" -> "leave", "laatikkoon" -> "laati"
-_STOP = "a an and are as at be by do does for from how i if in is it its me my of on or should the this to what when where which who why will with you your can ja on ei se että kun mitä miten mikä mihin jos tai kuin olla minä mä"
+_STOP = "a an and are as at be by do does for from how i if in is it its me my of on or should the this to use what when where which who why will with you your can ja on ei se että kun mitä miten mikä mihin jos tai kuin olla minä mä"
 STOPWORDS = frozenset(_STOP.split())
 _WORD = re.compile(r"[^\W_]+", re.UNICODE)
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
 
+def _stem(word: str) -> str:
+    """Light English suffix stripping, then a prefix cut that also catches Finnish inflection."""
+    if len(word) > 4:
+        for suffix in ("ing", "ed", "es", "s"):
+            if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+                word = word[: -len(suffix)]
+                break
+    if len(word) > 3 and word.endswith("e"):
+        word = word[:-1]
+    return word[:STEM]
+
+
 def tokens(text: str) -> list[str]:
-    return [w[:STEM] for w in _WORD.findall(text.lower()) if w not in STOPWORDS and (len(w) > 1 or w.isdigit())]
+    return [_stem(w) for w in _WORD.findall(text.lower()) if w not in STOPWORDS and (len(w) > 1 or w.isdigit())]
 
 
 @dataclass(frozen=True)
@@ -116,5 +128,6 @@ def best_sentence(query: str, section: Section) -> str:
     q = set(tokens(query))
     # Two-letter words ("go", "on") say little about the rule the worker asks for.
     weight = {t: (0.25 if len(t) <= 2 and not t.isdigit() else 1.0) / max(1, sum(t in w for w in words)) for t in q}
-    best = max(range(len(parts)), key=lambda i: (sum(weight[t] for t in q & words[i]), -len(parts[i])))
+    # Rare words weigh most; among equals, the sentence that covers more of the question wins.
+    best = max(range(len(parts)), key=lambda i: (sum(weight[t] for t in q & words[i]) + 0.3 * len(q & words[i]), -len(parts[i])))
     return parts[best]
