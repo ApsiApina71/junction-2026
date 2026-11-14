@@ -1233,17 +1233,17 @@ final class OwlViewModel {
       try? await Task.sleep(for: .seconds(3))
       while !Task.isCancelled {
         guard let self, self.isCurrent(number), self.step?.id == stepID, self.checksAllowed, self.glassesOn else { return }
-        // About 2 s of the stream, HEVC as it comes from the glasses.
-        try? camera.startClip()
+        // About the last 2 s of the stream. On real glasses it is made from decoded frames,
+        // because a 2 s window of the stream seldom holds a key frame. The clip file never
+        // stays on the phone.
         try? await Task.sleep(for: .seconds(2))
-        // The clip leaves the phone's temp folder whether or not it could be read or is still wanted.
-        let url = await camera.finishClip()
-        let clip = url.flatMap { try? Data(contentsOf: $0) }
-        if let url { try? FileManager.default.removeItem(at: url) }
-        guard !Task.isCancelled, let clip else {
+        guard !Task.isCancelled else { return }
+        guard let clip = await camera.recentClip() else {
+          NSLog("[Owl] recognize: no clip this round (no fresh frames)")
           try? await Task.sleep(for: .seconds(4))
           continue
         }
+        NSLog("[Owl] recognize: sending a \(clip.count / 1024) KB clip")
         do {
           let result = try await self.api.recognizeStep(
             clip: clip, processID: process.id, runID: self.runID, employeeID: self.employee?.id)

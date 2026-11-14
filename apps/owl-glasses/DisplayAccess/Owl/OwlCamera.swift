@@ -196,6 +196,36 @@ final class OwlCamera: @unchecked Sendable {
     takeRecorder(replacingWith: newRecorder)?.discard()
   }
 
+  /// About the last `seconds` of the stream as an MP4, for step recognition (JUN-34). Real
+  /// glasses send key frames seldom, so a clip of the compressed stream would often have
+  /// none and could not be written. Instead the frames since the last key frame are decoded
+  /// on the phone and the last `seconds` of them written as H.264, at about `fps`. The
+  /// simulator delivers decoded frames: there the stream is recorded for `seconds`.
+  func recentClip(seconds: Double = 2, fps: Double = 8) async -> Data? {
+    let (gop, gopAt) = lock.withLock { (gop, gopLastAt) }
+    guard !gop.isEmpty else {
+      try? startClip()
+      try? await Task.sleep(for: .seconds(seconds))
+      let url = await finishClip()
+      defer { if let url { try? FileManager.default.removeItem(at: url) } }
+      return url.flatMap { try? Data(contentsOf: $0) }
+    }
+    guard Self.isFresh(gopAt, maxAge: 3, newerThan: nil), let last = gop.last else { return nil }
+    let end = CMSampleBufferGetPresentationTimeStamp(last)
+    let pictures = decoder.decodeTail(of: gop, from: end - CMTime(seconds: seconds, preferredTimescale: 600))
+    guard !pictures.isEmpty else { return nil }
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(Self.clipPrefix)\(UUID().uuidString).mp4")
+    let recorder = ClipRecorder(url: url)
+    var nextAt = CMTime.negativeInfinity
+    for (pixels, time) in pictures where time >= nextAt {
+      recorder.append(pixels: pixels, at: time)
+      nextAt = time + CMTime(seconds: 1 / fps, preferredTimescale: 600)
+    }
+    guard let written = await recorder.finish() else { return nil }
+    defer { try? FileManager.default.removeItem(at: written) }
+    return try? Data(contentsOf: written)
+  }
+
   /// Stops the clip and returns the MP4 file, or nil if no frames were written. Whoever asks
   /// for the file deletes it once it has been sent.
   func finishClip() async -> URL? {
@@ -249,6 +279,32 @@ final class FrameDecoder: @unchecked Sendable {
   private let lock = NSLock()
   private var session: VTDecompressionSession?
   private var format: CMFormatDescription?
+
+  /// Decodes `samples` (a key frame and the frames after it) and returns the pictures shown
+  /// at or after `from`, with their times. One pass, as for `decodeLast`.
+  func decodeTail(of samples: [CMSampleBuffer], from: CMTime) -> [(CVPixelBuffer, CMTime)] {
+    guard let first = samples.first, let format = CMSampleBufferGetFormatDescription(first) else {
+      return []
+    }
+    return lock.withLock {
+      guard let session = session(for: format) else { return [] }
+      var pictures: [(CVPixelBuffer, CMTime)] = []
+      for sample in samples {
+        let time = CMSampleBufferGetPresentationTimeStamp(sample)
+        let status = VTDecompressionSessionDecodeFrame(
+          session, sampleBuffer: sample, flags: [], infoFlagsOut: nil
+        ) { status, _, image, _, _ in
+          if status == noErr, let image, time >= from { pictures.append((image, time)) }
+        }
+        if status != noErr {
+          NSLog("[Owl] decode failed: \(status)")
+          invalidate()
+          return []
+        }
+      }
+      return pictures
+    }
+  }
 
   /// Decodes `samples` (a key frame and the frames after it) and returns the last picture.
   func decodeLast(of samples: [CMSampleBuffer]) -> CVPixelBuffer? {
@@ -368,7 +424,7 @@ final class ClipRecorder: @unchecked Sendable {
         // format hint (AVAssetWriter throws an Objective-C exception without one).
         guard pixels != nil || (sample.owlIsKeyFrame && CMSampleBufferGetFormatDescription(sample) != nil)
         else { return }
-        setUp(sample: sample, pixels: pixels, at: time)
+        setUp(format: CMSampleBufferGetFormatDescription(sample), pixels: pixels, at: time)
       }
       guard let input, input.isReadyForMoreMediaData else { return }
       if let pixels, let adaptor {
@@ -380,7 +436,21 @@ final class ClipRecorder: @unchecked Sendable {
     }
   }
 
-  private func setUp(sample: CMSampleBuffer, pixels: CVPixelBuffer?, at time: CMTime) {
+  /// One decoded picture (JUN-34 on real glasses): written as H.264, so the clip needs no
+  /// key frame of the glasses stream.
+  func append(pixels: CVPixelBuffer, at time: CMTime) {
+    lock.withLock {
+      guard !failed, !closed else { return }
+      if writer == nil { setUp(format: nil, pixels: pixels, at: time) }
+      guard let input, input.isReadyForMoreMediaData, let adaptor else { return }
+      if adaptor.append(pixels, withPresentationTime: time) {
+        frames += 1
+        lastTime = time
+      }
+    }
+  }
+
+  private func setUp(format: CMFormatDescription?, pixels: CVPixelBuffer?, at time: CMTime) {
     do {
       try? FileManager.default.removeItem(at: url)
       let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
@@ -398,8 +468,7 @@ final class ClipRecorder: @unchecked Sendable {
         adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
       } else {
         input = AVAssetWriterInput(
-          mediaType: .video, outputSettings: nil,
-          sourceFormatHint: CMSampleBufferGetFormatDescription(sample))
+          mediaType: .video, outputSettings: nil, sourceFormatHint: format)
       }
       input.expectsMediaDataInRealTime = true
       writer.add(input)
