@@ -1018,7 +1018,8 @@ async def help_frame(
     # JUN-100: "manager" calls the manager on shift on their own glasses; "studio" (the default) the console.
     to: Annotated[Literal["manager", "studio"], Form()] = "studio",
 ):
-    frame = await read_frame(image, clip, REFERENCE_SIDE)
+    # A call without a picture is allowed: the worker talks to the helper with the camera off (no view is shared).
+    frame = await read_frame(image, clip, REFERENCE_SIDE) if (image is not None or clip is not None) else None
     if help_id:
         session = get_help(help_id)
         if session.status == "ended":
@@ -1033,7 +1034,8 @@ async def help_frame(
                 session.fallback = "no_manager"
         store.help[session.id] = session
     # The frame is the worker's live view and /media needs no token, so its folder name cannot be guessed.
-    session.latest_frame_url = store.save_media(f"{store.help_dir(session.id)}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
+    if frame is not None:
+        session.latest_frame_url = store.save_media(f"{store.help_dir(session.id)}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
     session.employee_id = employee_id or session.employee_id
     session.process_id = process_id or session.process_id
     session.step_id = step_id or session.step_id
