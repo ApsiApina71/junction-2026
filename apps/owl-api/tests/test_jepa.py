@@ -127,3 +127,33 @@ def test_recognize_needs_consent(client):
     clip = (FIXTURES / "media/proc-pick-pack/step-4.mp4").read_bytes()
     r = client.post("/steps/recognize", data={"process_id": "proc-pick-pack", "employee_id": "emp-sami"}, files={"clip": ("c.mp4", clip, "video/mp4")})
     assert r.status_code == 403
+
+
+def test_demo_mode_says_the_next_step_of_the_run(client, monkeypatch):
+    monkeypatch.setattr(main, "DEMO", True)
+    monkeypatch.setattr(main, "MOCK_CHECK", True)
+    client.post("/employees/emp-sami/consent", json={"camera_checks": True})
+    clip = (FIXTURES / "media/proc-pick-pack/step-4.mp4").read_bytes()
+
+    def recognize():
+        return client.post(
+            "/steps/recognize", data={"process_id": "proc-pick-pack", "employee_id": "emp-sami"}, files={"clip": ("c.mp4", clip, "video/mp4")}
+        ).json()
+
+    assert recognize()["step_id"] == "step-1"
+    for step in ("step-1", "step-2"):
+        client.post(
+            "/check",
+            data={"process_id": "proc-pick-pack", "step_id": step, "run_id": "demo-run", "employee_id": "emp-sami", "final": "true"},
+            files={"image": ("f.jpg", clip[:0] or _jpeg(), "image/jpeg")},
+        )
+    body = recognize()
+    assert (body["status"], body["step_id"], body["backend"]) == ("ok", "step-3", "demo")
+
+
+def _jpeg() -> bytes:
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48)).save(buf, format="JPEG")
+    return buf.getvalue()

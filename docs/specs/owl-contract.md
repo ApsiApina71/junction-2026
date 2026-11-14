@@ -336,6 +336,7 @@ The third knowledge level: a written instruction becomes a guided process in one
 
 - `status: "unsure"` and `step_id: null` when the best step does not beat the second by `JEPA_MIN_MARGIN`, or when no step has an expert clip.
 - The glasses show "Looks like step N" and move on only after a confirming pinch, never by themselves. Steps without an expert clip are not candidates.
+- In demo mode (`OWL_DEMO=1`) the mock camera shows the same picture in every step, so the answer is scripted: the first step not yet done in the worker's current run, with `backend: "demo"`.
 - Same consent rule as `/check` (`403 consent_required`). The clip is not stored. It guides; it never scores how well someone worked.
 
 ### Stage view (JUN-79)

@@ -72,6 +72,13 @@ class Progress:
                 if step.id == run.last_step_id and run.finished_at is None:
                     run.finished_at = now
 
+    def next_step(self, employee_id: str, process: Process) -> str | None:
+        """The first step not yet done in this worker's latest run of the process (demo mode's step recognition)."""
+        with self._lock:
+            runs = [r for r in self.runs.values() if r.employee_id == employee_id and r.process_id == process.id and r.finished_at is None]
+            done = max(runs, key=lambda r: r.started_at).steps_done if runs else set()
+        return next((s.id for s in sorted(process.steps, key=lambda s: s.index) if s.id not in done), None)
+
     def forget(self, employee_id: str) -> int:
         """Erases every run of this worker. Returns how many were erased."""
         with self._lock:

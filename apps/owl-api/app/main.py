@@ -403,6 +403,11 @@ async def recognize_step(
     data = await clip.read(MAX_FRAME_BYTES * 3 + 1)
     if not data or len(data) > MAX_FRAME_BYTES * 3:
         raise HTTPException(status_code=413, detail="The clip is empty or larger than 18 MB.")
+    if DEMO:
+        # Demo mode: the mock camera shows the same picture in every step, so the story says where the worker is:
+        # the first step not yet done in their run. Honest about it: backend "demo".
+        step_id = progress.next_step(worker.id, process) if worker else None
+        return {"status": "ok" if step_id else "unsure", "step_id": step_id, "similarities": {}, "margin": 0.0, "backend": "demo"}
     clips = {}
     for step in process.steps:
         url = step.clip_url or ""
