@@ -260,8 +260,10 @@ final class ClipRecorder: @unchecked Sendable {
     lock.withLock {
       guard !failed else { return }
       if writer == nil {
-        // A compressed clip has to start at a key frame to be playable.
-        guard pixels != nil || sample.owlIsKeyFrame else { return }
+        // A compressed clip has to start at a key frame to be playable, and passthrough needs a
+        // format hint (AVAssetWriter throws an Objective-C exception without one).
+        guard pixels != nil || (sample.owlIsKeyFrame && CMSampleBufferGetFormatDescription(sample) != nil)
+        else { return }
         setUp(sample: sample, pixels: pixels, at: time)
       }
       guard let input, input.isReadyForMoreMediaData else { return }
