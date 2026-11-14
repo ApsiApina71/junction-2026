@@ -17,6 +17,12 @@ final class OwlSpeaker {
   /// The worker's language (BCP 47, e.g. "fi" or "en-US"), from `Employee.language`. The voice
   /// and the app's own sentences (`OwlText`) follow it.
   var language = "en"
+  /// Easy-language versions of the app's own sentences (JUN-81).
+  var easy = false
+  /// Slower speech for audio-first workers (JUN-81).
+  var slow = false
+  /// Every spoken line, already translated: display-first workers see it as a caption.
+  var onSpoken: ((String) -> Void)?
 
   /// True when audio goes to a Bluetooth device (the glasses), not the phone speaker.
   var isOnGlasses: Bool {
@@ -38,8 +44,10 @@ final class OwlSpeaker {
       NSLog("[Owl] audio session: \(error)")
     }
     if interrupt { synthesizer.stopSpeaking(at: .immediate) }
-    let utterance = AVSpeechUtterance(string: OwlText.localize(trimmed, to: language))
+    let utterance = AVSpeechUtterance(string: OwlText.localize(trimmed, to: language, easy: easy))
     utterance.voice = Self.voice(for: language)
+    if slow { utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.8 }
+    onSpoken?(utterance.speechString)
     NSLog("[Owl] say (\(utterance.voice?.language ?? "?")): \(utterance.speechString)")
     synthesizer.speak(utterance)
   }

@@ -47,6 +47,12 @@ final class OwlViewModel {
   /// The worker paused the camera with one pinch; checks stay off until they turn it on.
   private(set) var cameraPaused = false
   private var checksAllowed: Bool { consent?.cameraChecks == true && !cameraPaused }
+  /// The worker's inclusive profile (JUN-81).
+  private var access: OwlAccess { employee?.access ?? OwlAccess() }
+  /// True while the step card is on the display, so display-first captions can go on it.
+  @ObservationIgnored private var onStepCard = false
+  /// Display-first: the last spoken line, shown on the step card under the status.
+  @ObservationIgnored private var lastCaption: String?
   @ObservationIgnored private var images: [String: UIImage] = [:]
   @ObservationIgnored private var welcomed = false
   @ObservationIgnored private var deviceStateToken: AnyListenerToken?
@@ -88,6 +94,7 @@ final class OwlViewModel {
     // The glasses recognise speech in their own language setting (DAT Speech `locale`); the
     // app cannot choose it. The voice follows the worker's language instead.
     listener.onLocale = { locale in NSLog("[Owl] glasses speech locale: \(locale)") }
+    speaker.onSpoken = { [weak self] text in self?.caption(text) }
     displayViewModel.onSessionStateChange = { [weak self] state in
       self?.sessionStateChanged(state)
     }
@@ -157,6 +164,9 @@ final class OwlViewModel {
     stopEverything()
     let published = myProcesses
     statusText = isOffline ? "Offline: saved tasks" : "\(published.count) tasks"
+    if access.audioFirst, !published.isEmpty {
+      speaker.say(t("Your tasks:") + " " + published.map(\.title).joined(separator: ". ") + ".", interrupt: false)
+    }
     let select: @Sendable (String) -> Void = { [weak self] id in
       Task { @MainActor in await self?.startProcess(id) }
     }
@@ -177,13 +187,16 @@ final class OwlViewModel {
         employeeID.isEmpty
         ? try await api.employee(forGlasses: glassesID) : try await api.employee(employeeID)
       if employee.id != self.employee?.id { welcomed = false }
-      // Steps in the worker's own language when the process has a translation.
-      let processes = try await api.processes(language: employee.language)
+      // Steps in the worker's own language when the process has a translation; easy-language
+      // workers ask for the `-x-easy` version, and get the original when there is none.
+      let processes = try await api.processes(
+        language: employee.access?.easyLanguage == true ? "\(employee.language)-x-easy" : employee.language)
       self.employee = employee
       self.processes = processes
       isOffline = false
       OwlCache.save(employee: employee, processes: processes)
       speaker.language = employee.language
+      applyProfile(employee)
     } catch OwlError.glassesNotAssigned {
       NSLog("[Owl] glasses \(Self.glassesID) are not assigned")
       glassesNotAssigned = true
@@ -197,6 +210,7 @@ final class OwlViewModel {
         employee = cached.employee
         processes = cached.processes
         speaker.language = cached.employee.language
+        applyProfile(cached.employee)
       }
     }
   }
@@ -217,8 +231,10 @@ final class OwlViewModel {
     guard let process, let step else { return }
     checkFailures = 0
     stepStatus = nil
+    lastCaption = nil
     statusText = "Step \(step.index)/\(process.steps.count): \(step.title)"
     if let say = step.say { speaker.say(say) }
+    if access.audioFirst { speaker.say(readAloud(step), interrupt: false) }
     await sendStep()
     if step.check.usesCamera {
       await startCheckLoop()
@@ -232,7 +248,7 @@ final class OwlViewModel {
     let image = await image(step.referenceImageUrl)
     await showScreen {
       OwlBasicScreens.step(
-        process: process, step: step, image: image, status: self.stepStatus,
+        process: process, step: step, image: image, status: self.stepStatusWithCaption,
         onDone: self.action { await $0.finishStep() },
         onWatch: step.clipUrl == nil ? nil : self.action { await $0.watchHow() },
         onAsk: self.action { await $0.ask() },
@@ -240,11 +256,12 @@ final class OwlViewModel {
         cameraOn: step.check.usesCamera && self.consent?.cameraChecks == true ? !self.cameraPaused : nil,
         onCamera: self.action { await $0.toggleCamera() })
     }
+    onStepCard = true
   }
 
   /// Updates the status line on the step card; re-sends only when it changes.
   private func setStepStatus(_ english: String?) {
-    let text = english.map { OwlText.localize($0, to: language) }
+    let text = english.map { t($0) }
     guard text != stepStatus else { return }
     stepStatus = text
     Task { await sendStep() }
@@ -340,6 +357,11 @@ final class OwlViewModel {
   private func showCheckProblem(_ result: OwlCheckResult) async {
     guard let step else { return }
     statusText = result.text ?? "Check this"
+    if access.audioFirst, let lines = result.lines, !lines.isEmpty {
+      // Read the ✓ / ✗ rows too, so nothing is only on the display.
+      let rows = lines.map { "\($0.name): \($0.seen) / \($0.expected)\($0.note.map { ", \($0)" } ?? "")." }
+      speaker.say(rows.joined(separator: " "), interrupt: false)
+    }
     await showScreen {
       OwlBasicScreens.checkResult(
         step: step, result: result,
@@ -443,7 +465,7 @@ final class OwlViewModel {
     guard let employee else { return await showTasks() }
     let progress = try? await api.progress(employeeID: employee.id)
     let lines = OwlText.progressLines(progress, afterTask: afterTask, language: employee.language)
-    let title = OwlText.localize(afterTask ? "Task done!" : "Your progress", to: employee.language)
+    let title = t(afterTask ? "Task done!" : "Your progress")
     if !afterTask || progress != nil {
       // After a task "Well done!" is already playing; queue the progress after it.
       speaker.say(lines.joined(separator: " "), interrupt: !afterTask)
@@ -465,6 +487,45 @@ final class OwlViewModel {
     } catch {
       await showProblem(error, retry: { await $0.forgetMe() })
     }
+  }
+
+  // MARK: - Inclusive profiles (JUN-81)
+
+  /// The app's own sentence in the worker's language, in easy language when the profile asks.
+  private func t(_ english: String) -> String {
+    OwlText.localize(english, to: language, easy: access.easyLanguage)
+  }
+
+  private func applyProfile(_ employee: OwlEmployee) {
+    let access = employee.access ?? OwlAccess()
+    speaker.easy = access.easyLanguage
+    speaker.slow = access.audioFirst
+    NSLog("[Owl] profile: audio first \(access.audioFirst), display first \(access.displayFirst), easy \(access.easyLanguage)")
+  }
+
+  /// Audio-first: the instruction and what Owl checks, read aloud after the step's own line.
+  private func readAloud(_ step: OwlStep) -> String {
+    var parts = [step.instruction]
+    if let criteria = step.check.criteria, !criteria.isEmpty, step.check.usesCamera {
+      parts.append(t("Owl checks:") + " " + criteria.joined(separator: ". ") + ".")
+    }
+    return parts.joined(separator: " ")
+  }
+
+  /// Display-first: every spoken line also goes on the step card as a caption, on its own
+  /// line under Owl's status, so a check update never hides what was said.
+  private func caption(_ text: String) {
+    guard access.displayFirst, step != nil, text != lastCaption else { return }
+    lastCaption = text
+    // When the step card is not up yet (openStep speaks first), it shows the caption when sent.
+    if onStepCard { Task { await sendStep() } }
+  }
+
+  private var stepStatusWithCaption: String? {
+    guard access.displayFirst, let lastCaption else { return stepStatus }
+    // Skip the caption when the status already says the same thing ("✓ Looks right…").
+    if let stepStatus, stepStatus.contains(lastCaption) { return stepStatus }
+    return [stepStatus, "“\(lastCaption)”"].compactMap { $0 }.joined(separator: " ")
   }
 
   // MARK: - Consent (JUN-80)
@@ -496,14 +557,14 @@ final class OwlViewModel {
     let lines = [
       "Owl looks only during a step, to check your work.", "Pictures are not saved.",
       "Nothing goes to Meta. Your data stays with your company.", "You can pause the camera any time.",
-    ].map { OwlText.localize($0, to: lang) }
+    ].map { self.t($0) }
     statusText = "Asking for camera consent"
     speaker.say(lines.joined(separator: " "))
     await showScreen {
       OwlBasicScreens.consent(
-        title: OwlText.localize("Owl's camera", to: lang), lines: lines,
-        allowLabel: OwlText.localize("Allow checks", to: lang),
-        declineLabel: OwlText.localize("No checks", to: lang),
+        title: self.t("Owl's camera"), lines: lines,
+        allowLabel: self.t("Allow checks"),
+        declineLabel: self.t("No checks"),
         onAllow: self.action {
           await $0.saveConsent(cameraChecks: true, recording: $0.consent?.recording ?? false)
           $0.speaker.say("Thank you. Owl will check your work.")
@@ -612,6 +673,9 @@ final class OwlViewModel {
         question, employeeID: employee?.id, processID: process?.id, stepID: step?.id,
         language: language)
       speaker.say(answer.say ?? answer.text)
+      if access.audioFirst, let source = answer.sources.first {
+        speaker.say("\(t("Source:")) \(source.doc)\(source.section.map { ", \($0)" } ?? "").", interrupt: false)
+      }
       await showScreen {
         OwlBasicScreens.answer(
           question: question, answer: answer,
@@ -697,12 +761,12 @@ final class OwlViewModel {
       let lines = [
         "Your clips and voice are stored to teach new workers.", "Faces are blurred before anything is stored.",
         "Tell people nearby that you are filming.",
-      ].map { OwlText.localize($0, to: lang) }
+      ].map { self.t($0) }
       speaker.say(lines.joined(separator: " "))
       await showScreen {
         OwlBasicScreens.consent(
-          title: OwlText.localize("Recording", to: lang), lines: lines,
-          allowLabel: OwlText.localize("I agree", to: lang), declineLabel: OwlText.localize("Cancel", to: lang),
+          title: self.t("Recording"), lines: lines,
+          allowLabel: self.t("I agree"), declineLabel: self.t("Cancel"),
           onAllow: self.action {
             await $0.saveConsent(cameraChecks: $0.consent?.cameraChecks ?? false, recording: true)
             await $0.startRecording()
@@ -925,6 +989,7 @@ final class OwlViewModel {
 
   /// Sends a screen and remembers it, so it can be sent again later.
   private func showScreen(_ make: @escaping @MainActor () -> FlexBox) async {
+    onStepCard = false
     currentScreen = { [weak self] in await self?.show(make()) }
     await show(make())
   }

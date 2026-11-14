@@ -15,10 +15,60 @@ import Foundation
 enum OwlText {
   /// `text` in `language` (BCP 47, e.g. "fi" or "fi-FI"), or `text` itself when there is no
   /// translation, such as for server texts that already come in the worker's language.
-  static func localize(_ text: String, to language: String?) -> String {
+  static func localize(_ text: String, to language: String?, easy: Bool = false) -> String {
+    if easy, let simple = easyTable(for: language)[text] { return simple }
     guard let table = table(for: language) else { return text }
     return table[text] ?? text
   }
+
+  /// Easy-language versions (JUN-81): short sentences, common words, one idea each.
+  private static func easyTable(for language: String?) -> [String: String] {
+    languageCode(language) == "fi" ? easyFinnish : easyEnglish
+  }
+
+  private static let easyEnglish: [String: String] = [
+    "Owl looks only during a step, to check your work.": "Owl looks at your work only during a step.",
+    "Pictures are not saved.": "Owl does not keep pictures.",
+    "Nothing goes to Meta. Your data stays with your company.": "Nothing goes to Meta.",
+    "You can pause the camera any time.": "You can stop the camera.",
+    "Allow checks": "Yes, check",
+    "No checks": "No",
+    "Thank you. Owl will check your work.": "Thank you.",
+    "Okay. Owl will guide you without checks.": "Okay. No camera.",
+    "Owl is watching.": "Owl looks.",
+    "Owl is checking…": "Owl looks…",
+    "✓ Looks right. Pinch Done.": "✓ Good. Pinch Done.",
+    "Pinch Done when ready.": "Pinch Done when you are ready.",
+    "Camera checks are off. Pinch Done when ready.": "No camera. Pinch Done when you are ready.",
+    "Camera paused. Checks are off.": "The camera is off.",
+    "Camera on. Owl is watching again.": "The camera is on.",
+    "Calling an expert. They will see what you see.": "Owl calls a helper. The helper sees what you see.",
+    "Well done! You finished the task.": "Good job! The task is done.",
+    "Owl can't help right now.": "Owl cannot help now.",
+    "Owl checks:": "Look for:",
+  ]
+
+  private static let easyFinnish: [String: String] = [
+    "Owl looks only during a step, to check your work.": "Owl katsoo työtäsi vain vaiheen aikana.",
+    "Pictures are not saved.": "Owl ei säilytä kuvia.",
+    "Nothing goes to Meta. Your data stays with your company.": "Mitään ei mene Metalle.",
+    "You can pause the camera any time.": "Voit sammuttaa kameran.",
+    "Allow checks": "Kyllä",
+    "No checks": "Ei",
+    "Thank you. Owl will check your work.": "Kiitos.",
+    "Okay. Owl will guide you without checks.": "Selvä. Ei kameraa.",
+    "Owl is watching.": "Owl katsoo.",
+    "Owl is checking…": "Owl katsoo…",
+    "✓ Looks right. Pinch Done.": "✓ Hyvä. Nipistä Done.",
+    "Pinch Done when ready.": "Nipistä Done, kun olet valmis.",
+    "Camera checks are off. Pinch Done when ready.": "Kamera ei ole päällä. Nipistä Done, kun olet valmis.",
+    "Camera paused. Checks are off.": "Kamera on pois.",
+    "Camera on. Owl is watching again.": "Kamera on päällä.",
+    "Calling an expert. They will see what you see.": "Owl soittaa auttajalle. Auttaja näkee saman kuin sinä.",
+    "Well done! You finished the task.": "Hyvä! Tehtävä on valmis.",
+    "Owl can't help right now.": "Owl ei voi auttaa nyt.",
+    "Owl checks:": "Katso:",
+  ]
 
   /// The language part of a BCP 47 tag: "fi-FI" → "fi".
   static func languageCode(_ language: String?) -> String {
@@ -80,6 +130,10 @@ enum OwlText {
     // Spoken
     "Yes?": "Niin?",
     "Task done!": "Tehtävä tehty!",
+    // Audio-first reading (JUN-81)
+    "Owl checks:": "Owl tarkistaa:",
+    "Your tasks:": "Tehtäväsi:",
+    "Source:": "Lähde:",
     // Consent (JUN-80)
     "Owl's camera": "Owlin kamera",
     "Owl looks only during a step, to check your work.": "Owl katsoo vain vaiheen aikana ja tarkistaa työsi.",

@@ -19,6 +19,31 @@ struct OwlEmployee: Codable, Equatable, Sendable {
   let processIds: [String]
   /// The pair of glasses this employee wears, or nil.
   let glassesId: String?
+  /// How Owl talks to this worker (JUN-81). Nil means every option off.
+  let access: OwlAccess?
+}
+
+/// Inclusive profiles (JUN-81), set in Owl Studio. All off by default.
+struct OwlAccess: Codable, Equatable, Sendable {
+  /// Low vision or eyes busy: everything on the display is also spoken, slower.
+  var audioFirst = false
+  /// Deaf, hard of hearing or a loud workplace: every spoken line is also a caption.
+  var displayFirst = false
+  /// Short, plain sentences.
+  var easyLanguage = false
+
+  init(audioFirst: Bool = false, displayFirst: Bool = false, easyLanguage: Bool = false) {
+    self.audioFirst = audioFirst
+    self.displayFirst = displayFirst
+    self.easyLanguage = easyLanguage
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    audioFirst = try values.decodeIfPresent(Bool.self, forKey: .audioFirst) ?? false
+    displayFirst = try values.decodeIfPresent(Bool.self, forKey: .displayFirst) ?? false
+    easyLanguage = try values.decodeIfPresent(Bool.self, forKey: .easyLanguage) ?? false
+  }
 }
 
 struct OwlProcess: Codable, Equatable, Sendable, Identifiable {
