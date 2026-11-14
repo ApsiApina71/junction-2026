@@ -1,0 +1,9 @@
+{
+  "found": true,
+  "text": "Mark the line as missing on the order and tell the shift lead. Never swap in another product.",
+  "say": "Mark it missing and tell the shift lead. Don't swap in another product.",
+  "language": "en",
+  "sources": [
+    {"doc": "Warehouse handbook", "section": "Out of stock", "quote": "If an item is out of stock, mark the line as missing on the order and tell the shift lead."}
+  ]
+}

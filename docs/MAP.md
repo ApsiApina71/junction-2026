@@ -45,6 +45,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [architecture/adr-003-glasses-app-dat-ios.md](architecture/adr-003-glasses-app-dat-ios.md) | Glasses app on Meta DAT iOS + copilot-api |
 | [specs/_template.md](specs/_template.md) | Lean PRD template |
 | [specs/onboarding-owl.md](specs/onboarding-owl.md) | Onboarding Owl: what we build for the Meta challenge |
+| [specs/owl-contract.md](specs/owl-contract.md) | Owl data model, API contract and mock data (owl-api, glasses app, Owl Studio) |
 | [security/security-rules.md](security/security-rules.md) | Security rules for code, agents and reviews |
 | [runbooks/agent-onboarding.md](runbooks/agent-onboarding.md) | How agents and humans get productive |
 | [runbooks/local-dev.md](runbooks/local-dev.md) | Local tooling and running apps |
@@ -58,6 +59,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | Spec | Ticket |
 |---|---|
 | [Onboarding Owl](specs/onboarding-owl.md) | [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) |
+| [Owl contract](specs/owl-contract.md) | [JUN-27](https://linear.app/junction-2026-bossit/issue/JUN-27) |
 
 ## Decisions (ADRs)
 

@@ -1,0 +1,13 @@
+{
+  "id": "rec-1",
+  "title": "Pick and pack an order",
+  "expert": "Laura",
+  "status": "done",
+  "steps": [
+    {"index": 1, "narration": "First I take a medium box, that's enough for up to five items, and put the order sheet on top.", "photo_url": "/media/proc-pick-pack/step-1.jpg", "clip_url": "/media/proc-pick-pack/step-1.mp4"},
+    {"index": 2, "narration": "Then I pick the items. Always check the litre size, the 0.5 and 1 litre cartons look the same.", "photo_url": "/media/proc-pick-pack/step-2.jpg", "clip_url": "/media/proc-pick-pack/step-2.mp4"},
+    {"index": 3, "narration": "Heavy stuff goes to the bottom, crispbread on top, and paper in the gaps so nothing moves.", "photo_url": "/media/proc-pick-pack/step-4.jpg", "clip_url": "/media/proc-pick-pack/step-4.mp4"},
+    {"index": 4, "narration": "Tape it shut and the label goes on top, never over the tape.", "photo_url": "/media/proc-pick-pack/step-5.jpg", "clip_url": "/media/proc-pick-pack/step-5.mp4"}
+  ],
+  "process_id": "proc-pick-pack"
+}

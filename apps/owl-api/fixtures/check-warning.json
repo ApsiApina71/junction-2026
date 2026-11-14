@@ -1,0 +1,15 @@
+{
+  "status": "warning",
+  "problem": "wrong_item",
+  "text": "Wrong size: 0.5 l. The order says 1 l.",
+  "say": "Wrong item: 0.5 l, the order says 1 l.",
+  "hint": null,
+  "lines": [
+    {"name": "Oat drink 1 l", "expected": 2, "seen": 1, "status": "wrong_item", "note": "1 × Oat drink 0.5 l"},
+    {"name": "Coffee 500 g", "expected": 1, "seen": 1, "status": "ok", "note": null},
+    {"name": "Rye crispbread", "expected": 1, "seen": 1, "status": "ok", "note": null}
+  ],
+  "confidence": 0.91,
+  "decided_by": "jev",
+  "step_done": false
+}

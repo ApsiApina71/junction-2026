@@ -1,0 +1,13 @@
+{
+  "id": "help-1",
+  "status": "connected",
+  "employee_id": "emp-sami",
+  "process_id": "proc-pick-pack",
+  "step_id": "step-2",
+  "latest_frame_url": "/media/proc-pick-pack/step-2.jpg",
+  "updated_at": "2026-11-14T10:12:20+02:00",
+  "messages": [
+    {"id": 1, "from": "worker", "text": "Which oat drink is it?", "at": "2026-11-14T10:12:00+02:00"},
+    {"id": 2, "from": "expert", "text": "The blue one-litre carton, top shelf.", "at": "2026-11-14T10:12:20+02:00"}
+  ]
+}

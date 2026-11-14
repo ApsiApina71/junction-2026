@@ -1,0 +1,11 @@
+{
+  "status": "unsure",
+  "problem": null,
+  "text": "I can't see the box well.",
+  "say": "I can't see the box well. Move a bit closer.",
+  "hint": "Move closer to the box",
+  "lines": null,
+  "confidence": 0.32,
+  "decided_by": "rules",
+  "step_done": false
+}

@@ -8,7 +8,7 @@ last-updated: 2026-11-14
 
 Onboarding for all physical work, on Meta Ray-Ban Display glasses. Working title; the owl is the mascot, a wise teacher.
 
-- **Ticket(s):** [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) (this spec). Build tickets JUN-27…JUN-42 and JUN-56 in the Software and Prototyping projects.
+- **Ticket(s):** [JUN-43](https://linear.app/junction-2026-bossit/issue/JUN-43) (this spec). Data model and API: [owl-contract.md](owl-contract.md) ([JUN-27](https://linear.app/junction-2026-bossit/issue/JUN-27)). Build tickets JUN-27…JUN-42 and JUN-56 in the Software and Prototyping projects.
 - **Design:** Owl brand and screens, [JUN-35](https://linear.app/junction-2026-bossit/issue/JUN-35)
 - **Challenge:** Meta, "AI Glasses for Everyone, Everyday" (`docs/context/challenge.md`)
 

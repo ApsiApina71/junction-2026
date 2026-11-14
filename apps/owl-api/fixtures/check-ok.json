@@ -1,0 +1,15 @@
+{
+  "status": "ok",
+  "problem": null,
+  "text": "All 3 order lines are in the box.",
+  "say": "All good. Everything on the order is in the box.",
+  "hint": null,
+  "lines": [
+    {"name": "Oat drink 1 l", "expected": 2, "seen": 2, "status": "ok", "note": null},
+    {"name": "Coffee 500 g", "expected": 1, "seen": 1, "status": "ok", "note": null},
+    {"name": "Rye crispbread", "expected": 1, "seen": 1, "status": "ok", "note": null}
+  ],
+  "confidence": 0.94,
+  "decided_by": "jev",
+  "step_done": true
+}

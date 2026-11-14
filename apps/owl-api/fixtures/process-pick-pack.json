@@ -1,0 +1,95 @@
+{
+  "id": "proc-pick-pack",
+  "title": "Pick and pack an order",
+  "summary": "Take a box, pick the items on the order, check them, pack and seal.",
+  "company": "Kide Logistics",
+  "language": "en",
+  "status": "published",
+  "source": "record",
+  "expert": "Laura",
+  "steps": [
+    {
+      "id": "step-1",
+      "index": 1,
+      "title": "Take a medium box",
+      "instruction": "Take a medium box (M) and put the order sheet on top of it.",
+      "say": "Take a medium box and put the order sheet on top.",
+      "reference_image_url": "/media/proc-pick-pack/step-1.jpg",
+      "clip_url": "/media/proc-pick-pack/step-1.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": ["An open cardboard box is on the table", "The order sheet is visible"],
+        "order_lines": null
+      },
+      "source": {"doc": "Laura's recording", "quote": "Medium box for up to five items, the big ones only for bulky stuff."}
+    },
+    {
+      "id": "step-2",
+      "index": 2,
+      "title": "Pick the items",
+      "instruction": "Pick every item on the order from the shelf into the box.",
+      "say": "Pick the three items on the order into the box.",
+      "reference_image_url": "/media/proc-pick-pack/step-2.jpg",
+      "clip_url": "/media/proc-pick-pack/step-2.mp4",
+      "check": {
+        "kind": "order",
+        "criteria": ["Every order line is in the box", "No extra items"],
+        "order_lines": [
+          {"sku": "OAT-1L", "name": "Oat drink 1 l", "qty": 2},
+          {"sku": "COF-500", "name": "Coffee 500 g", "qty": 1},
+          {"sku": "RYE-CRISP", "name": "Rye crispbread", "qty": 1}
+        ]
+      },
+      "source": {"doc": "Laura's recording", "quote": "Always check the litre size, the 0.5 l and 1 l cartons look the same."}
+    },
+    {
+      "id": "step-3",
+      "index": 3,
+      "title": "Check the order",
+      "instruction": "Hold the open box in view. Owl checks the items against the order.",
+      "say": "Hold the open box in front of you. I'll check it.",
+      "reference_image_url": "/media/proc-pick-pack/step-3.jpg",
+      "clip_url": null,
+      "check": {
+        "kind": "order",
+        "criteria": ["Every order line is in the box", "No extra items"],
+        "order_lines": [
+          {"sku": "OAT-1L", "name": "Oat drink 1 l", "qty": 2},
+          {"sku": "COF-500", "name": "Coffee 500 g", "qty": 1},
+          {"sku": "RYE-CRISP", "name": "Rye crispbread", "qty": 1}
+        ]
+      },
+      "source": {"doc": "Warehouse handbook", "quote": "Check every order against the order sheet before you pack it."}
+    },
+    {
+      "id": "step-4",
+      "index": 4,
+      "title": "Pack heavy items first",
+      "instruction": "Heavy items at the bottom, light on top. Fill gaps with paper.",
+      "say": "Heavy items at the bottom, light ones on top. Fill the gaps with paper.",
+      "reference_image_url": "/media/proc-pick-pack/step-4.jpg",
+      "clip_url": "/media/proc-pick-pack/step-4.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": ["Cartons lie at the bottom of the box", "Crispbread is on top", "Gaps are filled with paper"],
+        "order_lines": null
+      },
+      "source": {"doc": "Warehouse handbook", "quote": "Pack heavy items at the bottom and fill empty space with paper so nothing moves."}
+    },
+    {
+      "id": "step-5",
+      "index": 5,
+      "title": "Seal and label",
+      "instruction": "Tape the box shut and put the shipping label on top.",
+      "say": "Tape the box shut and put the label on top. Then pinch Done.",
+      "reference_image_url": "/media/proc-pick-pack/step-5.jpg",
+      "clip_url": "/media/proc-pick-pack/step-5.mp4",
+      "check": {
+        "kind": "visual",
+        "criteria": ["The box is taped shut", "The shipping label is on the top side"],
+        "order_lines": null
+      },
+      "source": {"doc": "Warehouse handbook", "quote": "The label always goes on the top side, never over the tape."}
+    }
+  ]
+}

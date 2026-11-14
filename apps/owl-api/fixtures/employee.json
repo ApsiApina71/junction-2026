@@ -1,0 +1,9 @@
+{
+  "id": "emp-sami",
+  "name": "Sami",
+  "language": "en",
+  "role": "Warehouse picker",
+  "company": "Kide Logistics",
+  "welcome": "Welcome to Kide, Sami! Today you learn to pick and pack an order. I'm Owl. I'll show you each step.",
+  "process_ids": ["proc-pick-pack"]
+}
