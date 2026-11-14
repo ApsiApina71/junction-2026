@@ -90,3 +90,35 @@ def test_vision_model_names_the_backend(monkeypatch):
     assert vision.vision_model() == vision.NEMOTRON_MODEL
     monkeypatch.setattr(vision, "VISION_BACKEND", "claude")
     assert vision.vision_model() == vision.MODEL_ID
+
+
+HANDBOOK = ("Junction 2026: volunteer handbook", "# Junction 2026: volunteer handbook\n\n## Lounges\n\nHackers have their own sauna on the 7th floor.\n")
+
+
+def test_hint_on_nemotron_is_grounded(monkeypatch):
+    from app import assist
+
+    monkeypatch.setattr(assist, "ASSIST_BACKEND", "nemotron")
+    quote = "Hackers have their own sauna on the 7th floor."
+    good = assist.Draft(found=True, bullets=["The sauna is on the 7th floor."], sources=[{"doc": HANDBOOK[0], "quote": quote, "section": "Lounges"}])
+    monkeypatch.setattr(assist, "nemotron_parse", lambda *a, **k: good)
+    answer = assist.answer("Is there a sauna?", [HANDBOOK], "en")
+    assert not answer.unsure and answer.bullets == ["The sauna is on the 7th floor."]
+    made_up = assist.Draft(
+        found=True, bullets=["The sauna is open 24/7."], sources=[{"doc": HANDBOOK[0], "quote": "The sauna is open 24/7.", "section": "Lounges"}]
+    )
+    monkeypatch.setattr(assist, "nemotron_parse", lambda *a, **k: made_up)
+    assert assist.answer("Is there a sauna?", [HANDBOOK], "en").unsure
+
+
+def test_hint_falls_back_to_the_local_search_when_nemotron_fails(monkeypatch):
+    from app import assist
+
+    monkeypatch.setattr(assist, "ASSIST_BACKEND", "nemotron")
+
+    def fail(*a, **k):
+        raise vision.VisionError("down")
+
+    monkeypatch.setattr(assist, "nemotron_parse", fail)
+    monkeypatch.setattr(assist, "local_answer", lambda t, d, lang: assist.unsure(lang).model_copy(update={"bullets": ["local"]}))
+    assert assist.answer("Is there a sauna on the 7th floor?", [HANDBOOK], "en").bullets == ["local"]

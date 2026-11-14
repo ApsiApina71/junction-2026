@@ -65,11 +65,16 @@ def documents_block(docs: list[tuple[str, str]]) -> str:
 def grounded_sources(draft: Draft, docs: list[tuple[str, str]]) -> list[Source]:
     """Keeps only sources whose quote really is in a document."""
     by_title = {title: _norm(text) for title, text in docs}
+
+    def found(quote: str, text: str) -> bool:
+        # Word for word, sentence by sentence: a quote may join two sentences of one section that have a line between.
+        parts = [_norm(p) for p in re.split(r"(?<=[.!?])\s+", quote) if _norm(p)]
+        return bool(parts) and all(p in text for p in parts)
+
     kept = []
     for s in draft.sources:
-        quote = _norm(s.quote)
-        title = s.doc if s.doc in by_title else next((t for t, text in by_title.items() if quote and quote in text), None)
-        if title and quote and quote in by_title[title]:
+        title = s.doc if s.doc in by_title else next((t for t, text in by_title.items() if found(s.quote, text)), None)
+        if title and found(s.quote, by_title[title]):
             kept.append(Source(doc=title, section=s.section, quote=s.quote.strip()))
     return kept
 

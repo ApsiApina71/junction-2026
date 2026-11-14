@@ -101,3 +101,13 @@ def test_ask_endpoint_uses_the_employee_language_and_all_documents(tmp_path, mon
     system_docs = calls.calls[0]["system"][1]["text"]
     assert "Ovens" in system_docs and "warehouse handbook" in system_docs
     assert "Worker's language: en" in calls.calls[0]["messages"][0]["content"]
+
+
+def test_quote_may_join_sentences_of_one_section():
+    doc = ("Guide", "## Transport\n\nThe metro station is Kivenlahti.\nBuses stop nearby.\nThe metro stops at midnight.")
+    joined = draft(quote="The metro station is Kivenlahti. The metro stops at midnight.")
+    joined.sources[0].doc = "Guide"
+    assert len(grounded_sources(joined, [doc])) == 1
+    half_made_up = draft(quote="The metro station is Kivenlahti. The metro runs all night.")
+    half_made_up.sources[0].doc = "Guide"
+    assert grounded_sources(half_made_up, [doc]) == []

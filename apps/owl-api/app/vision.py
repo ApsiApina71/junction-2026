@@ -133,18 +133,20 @@ def _openai_content(content: list[dict]) -> list[dict]:
     ]
 
 
-def observe_nemotron(content: list[dict]) -> Observation:
-    """Nemotron 3.5 Super VL on Verda. vLLM's structured output keeps the answer to the Observation schema."""
+def nemotron_parse[T: BaseModel](system: str, user: str | list[dict], schema: type[T], what: str, max_tokens: int = 1500) -> T:
+    """One call to Nemotron 3.5 Super VL on Verda. vLLM's structured output keeps the answer to the schema.
+
+    Only the time and the kind of failure are logged, never the content: callers decide what may be logged."""
     key = os.getenv("VERDA_INFERENCE_KEY")
     if not key:
-        raise VisionError("VISION_BACKEND=nemotron needs VERDA_INFERENCE_KEY.")
+        raise VisionError("Nemotron needs VERDA_INFERENCE_KEY.")
     body = {
         "model": NEMOTRON_MODEL,
-        "max_tokens": 1500,
+        "max_tokens": max_tokens,
         "temperature": 0,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": _openai_content(content)}],
-        "response_format": {"type": "json_schema", "json_schema": {"name": "Observation", "schema": Observation.model_json_schema()}},
-        # The answer is a short report of what is seen; thinking would only add latency.
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "response_format": {"type": "json_schema", "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema()}},
+        # Short structured answers; thinking would only add latency.
         "chat_template_kwargs": {"enable_thinking": False},
     }
     start = time.monotonic()
@@ -153,14 +155,20 @@ def observe_nemotron(content: list[dict]) -> Observation:
         response.raise_for_status()
         choice = response.json()["choices"][0]
         if choice.get("finish_reason") != "stop":
-            raise VisionError(f"No usable observation (finish_reason={choice.get('finish_reason')})")
-        obs = Observation.model_validate_json(choice["message"]["content"] or "")
-    except (httpx.HTTPError, KeyError, IndexError, ValueError, ValidationError) as e:
-        log.warning("Nemotron failed after %.1f s: %s", time.monotonic() - start, type(e).__name__)
-        raise VisionError(f"Nemotron gave no usable observation ({type(e).__name__})") from e
+            raise VisionError(f"No usable answer (finish_reason={choice.get('finish_reason')})")
+        parsed = schema.model_validate_json(choice["message"]["content"] or "")
+    except (httpx.HTTPError, KeyError, IndexError, ValueError, ValidationError, VisionError) as e:
+        log.warning("Nemotron %s failed after %.1f s: %s", what, time.monotonic() - start, type(e).__name__)
+        raise VisionError(f"Nemotron gave no usable answer ({type(e).__name__})") from e
+    log.info("Nemotron %s %.1f s", what, time.monotonic() - start)
+    return parsed
+
+
+def observe_nemotron(content: list[dict]) -> Observation:
+    obs = nemotron_parse(SYSTEM_PROMPT, _openai_content(content), Observation, "check")
     # What the camera saw stays out of the log (no record of a worker's view), unless OWL_DEBUG_LOG=1 for a rehearsal.
-    seen = f"; {obs.summary}" if os.getenv("OWL_DEBUG_LOG") == "1" else ""
-    log.info("Nemotron %.1f s: %s%s", time.monotonic() - start, obs.visibility, seen)
+    if os.getenv("OWL_DEBUG_LOG") == "1":
+        log.info("Nemotron saw: %s; %s", obs.visibility, obs.summary)
     return obs
 
 

@@ -27,7 +27,7 @@ OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
   uv run --extra jepa --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-- Without `ANTHROPIC_API_KEY`, Hint answers 503. Then add `OWL_MOCK_ASSIST=1`: Hint answers from the handbook with the local search (BM25). It is a real answer from the handbook, not a scripted one.
+- Without `ANTHROPIC_API_KEY`, set `ASSIST_BACKEND=nemotron`: Nemotron writes the Hint bullets from the handbook, and each one must quote it word for word (0.5–1.5 s; 10 of 11 info-desk questions right in the test, including both script lines). If Nemotron fails, the local search (BM25) answers. `OWL_MOCK_ASSIST=1` uses only the local search.
 - `OWL_RESET=1` only for the first start. Without it, a restart keeps what Studio changed (Laura's recording, the place photo).
 - `DATA_DIR=data/junction` keeps the story apart from the usual demo state.
 - `--extra jepa` and `JEPA_BACKEND=vjepa2` are needed for V-JEPA 2. Without them, the VO line about V-JEPA 2 is cut.

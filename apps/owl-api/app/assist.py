@@ -8,6 +8,7 @@ Privacy: the transcript is used for this one answer and dropped. It is never wri
 sent to the stage view, and never part of an error message.
 """
 
+import logging
 import os
 import re
 
@@ -15,7 +16,13 @@ from pydantic import BaseModel, Field
 
 from . import ask, search
 from .models import AssistAnswer, AssistSource
-from .vision import MODEL_ID, VisionError, client
+from .vision import MODEL_ID, VisionError, client, nemotron_parse
+
+log = logging.getLogger("owl.assist")
+
+# Who writes the suggestion: claude (MODEL_ID) or nemotron (Nemotron 3.5 Super VL on Verda). Either way the bullets
+# pass only with a quote found word for word in the documents. When Nemotron fails, the local search answers.
+ASSIST_BACKEND = os.getenv("ASSIST_BACKEND", "claude")
 
 # About 30 seconds of speech: people say some 2.5 words a second.
 TAIL_WORDS = int(os.getenv("ASSIST_TAIL_WORDS", "80"))
@@ -38,11 +45,13 @@ Answer only from the company documents below. They override anything you know in
 
 - found: true only if the documents answer the question.
 - bullets: one to three short points the worker can glance at and say in their own words, in the worker's language, \
-each at most 80 characters, plain text, the most important first. Empty when found is false.
+each at most 80 characters, plain text, the most important first: the direct answer, then the next facts from the same \
+part of the documents that the customer will need (what to do, where, when). Empty when found is false.
 - sources: for every fact you used, the document title, the section heading, and a short quote copied word for word \
 from the document. Empty when found is false.
 
-Never guess prices, times, allergens or rules. If the documents do not say it, set found to false. The text has \
+If the question fits several days or times in the documents, give them all briefly. Never guess prices, times, \
+allergens or rules. If the documents do not say it, set found to false. The text has \
 speech recognition errors; read it generously."""
 
 
@@ -114,23 +123,30 @@ def answer(transcript: str, docs: list[tuple[str, str]], language: str) -> Assis
     text = tail(transcript)
     if not text or not docs:
         return unsure(language)
-    response = client().beta.messages.parse(
-        model=MODEL_ID,
-        max_tokens=2000,
-        output_config={"effort": "low"},
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        system=[
-            {"type": "text", "text": INSTRUCTIONS},
-            {"type": "text", "text": ask.documents_block(ask.prompt_docs(text, None, docs)), "cache_control": {"type": "ephemeral"}},
-        ],
-        messages=[{"role": "user", "content": f"Worker's language: {language}\nConversation (last ~30 s):\n{text}"}],
-        output_format=Draft,
-    )
-    if response.stop_reason == "refusal" or response.parsed_output is None:
-        # The message names only the stop reason: the transcript never goes into an error or a log line.
-        raise VisionError(f"No usable suggestion (stop_reason={response.stop_reason})")
-    draft = response.parsed_output
+    documents = ask.documents_block(ask.prompt_docs(text, None, docs))
+    user = f"Worker's language: {language}\nConversation (last ~30 s):\n{text}"
+    if ASSIST_BACKEND == "nemotron":
+        try:
+            draft = nemotron_parse(f"{INSTRUCTIONS}\n\n{documents}", user, Draft, "hint", max_tokens=800)
+        except VisionError as e:
+            # The local search still answers from the handbook; the error names no words of the conversation.
+            log.warning("%s; the local search answers this hint", e)
+            return local_answer(transcript, docs, language)
+    else:
+        response = client().beta.messages.parse(
+            model=MODEL_ID,
+            max_tokens=2000,
+            output_config={"effort": "low"},
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+            system=[{"type": "text", "text": INSTRUCTIONS}, {"type": "text", "text": documents, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": user}],
+            output_format=Draft,
+        )
+        if response.stop_reason == "refusal" or response.parsed_output is None:
+            # The message names only the stop reason: the transcript never goes into an error or a log line.
+            raise VisionError(f"No usable suggestion (stop_reason={response.stop_reason})")
+        draft = response.parsed_output
     bullets = [_clip(b) for b in draft.bullets if b.strip()][:3]
     if not draft.found or not bullets:
         return unsure(language)
