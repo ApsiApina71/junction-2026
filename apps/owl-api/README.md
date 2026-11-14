@@ -58,6 +58,8 @@ On macOS, PyAV and OpenCV each bundle FFmpeg's `libavdevice`, and the Objective-
 
 ## Owl Check on Nemotron (NVIDIA, Verda)
 
+**`LLM_BACKEND=nemotron` runs every model call on Nemotron, with no Anthropic key:** Owl Check, Hint, Ask, Record (the expert's narration and photos become steps, criteria, the warning line and `done_when`), translations and tasks from documents. Ask and Hint still pass only with a quote found word for word in the documents. Record leaves out a criterion that only restates the step's done moment, so it cannot warn while the worker walks up. Tested end to end on the venue footage: Sami's two-step recording became "Put cans in CANS opening" with the warning line and `done_when` in 0.7 s, and the can scene ran on that recorded task (warning over PLASTIC, done by itself over CANS). `VISION_BACKEND` and `ASSIST_BACKEND` follow `LLM_BACKEND` unless set. `/health` names the model in `model_id`.
+
 `VISION_BACKEND=nemotron` sends check pictures to **NVIDIA Nemotron 3.5 Super VL** (open weights, 120B with 12B active, NVFP4), served by vLLM on a Verda B300 GPU, instead of Claude. Same prompt, same `Observation` schema (vLLM's structured output keeps the answer to it), thinking off. Measured on the sample pictures: 0.6-1.6 s per check, and a picture of the wrong step comes back `unclear` with a hint. When Nemotron fails and `ANTHROPIC_API_KEY` is set, Claude answers that check. `GET /health` says which model looks at checks (`vision_model`) and what step recognition runs on (`step_recognition`).
 
 ```sh

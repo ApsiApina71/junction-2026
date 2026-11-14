@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from . import search
+from . import search, vision
 from .models import Check, Process, Source, Step
 from .vision import MODEL_ID, VisionError, client
 
@@ -111,6 +111,11 @@ def model_draft(doc_title: str, text: str, title: str | None) -> DocDraft:
     user = f'<document title="{doc_title}">\n{text.strip()}\n</document>'
     if title:
         user += f"\n\nCall the process: {title}"
+    if vision.LLM_BACKEND == "nemotron":
+        draft = vision.write_with_nemotron(INSTRUCTIONS, user, DocDraft, "document")
+        if not draft.steps:
+            raise VisionError("No usable process (no steps)")
+        return draft
     response = client().beta.messages.parse(
         model=MODEL_ID,
         max_tokens=16000,

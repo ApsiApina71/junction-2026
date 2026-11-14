@@ -27,10 +27,15 @@ log = logging.getLogger("owl.vision")
 MODEL_ID = os.getenv("MODEL_ID", "claude-opus-5-5")
 # Low effort keeps a check under the 4 s target; raise it if observations get sloppy.
 VISION_EFFORT = os.getenv("VISION_EFFORT", "low")
-VISION_BACKEND = os.getenv("VISION_BACKEND", "claude")
+# One switch for every model call: LLM_BACKEND=nemotron runs Record, Ask, Hint, translations, tasks from documents and
+# Owl Check on Nemotron, with no Anthropic key. VISION_BACKEND and ASSIST_BACKEND can still set one part on its own.
+LLM_BACKEND = os.getenv("LLM_BACKEND", "claude")
+VISION_BACKEND = os.getenv("VISION_BACKEND", LLM_BACKEND)
 NEMOTRON_URL = os.getenv("NEMOTRON_URL", "https://containers.datacrunch.io/nemotron-3-5-super-vl-b300/v1")
 NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "nemotron-3.5-super-vl")
 NEMOTRON_TIMEOUT_S = float(os.getenv("NEMOTRON_TIMEOUT_S", "8"))
+# Record, translations and tasks from documents write whole processes: a longer answer than a check.
+NEMOTRON_LONG_TIMEOUT_S = float(os.getenv("NEMOTRON_LONG_TIMEOUT_S", "60"))
 OTHER = "other"
 
 SYSTEM_PROMPT = """You are the eyes of Owl, a training assistant on smart glasses. A new worker is doing one step of a \
@@ -115,6 +120,17 @@ def vision_model() -> str:
     return NEMOTRON_MODEL if VISION_BACKEND == "nemotron" else MODEL_ID
 
 
+def llm_model() -> str:
+    """The model that writes Record drafts, answers and translations, for /health."""
+    return NEMOTRON_MODEL if LLM_BACKEND == "nemotron" else MODEL_ID
+
+
+def write_with_nemotron[T: BaseModel](system: str, content: list[dict] | str, schema: type[T], what: str, max_tokens: int = 6000) -> T:
+    """Record, translations and tasks from documents on Nemotron: Anthropic-style content in, the schema out."""
+    user = _openai_content(content) if isinstance(content, list) else content
+    return nemotron_parse(system, user, schema, what, max_tokens=max_tokens, timeout=NEMOTRON_LONG_TIMEOUT_S)
+
+
 def _content(frame: bytes, step: Step, reference: bytes | None, language: str) -> list[dict]:
     """The user message in Anthropic's form; _openai_content converts it for Nemotron."""
     content: list[dict] = []
@@ -134,7 +150,7 @@ def _openai_content(content: list[dict]) -> list[dict]:
     ]
 
 
-def nemotron_parse[T: BaseModel](system: str, user: str | list[dict], schema: type[T], what: str, max_tokens: int = 1500) -> T:
+def nemotron_parse[T: BaseModel](system: str, user: str | list[dict], schema: type[T], what: str, max_tokens: int = 1500, timeout: float | None = None) -> T:
     """One call to Nemotron 3.5 Super VL on Verda. vLLM's structured output keeps the answer to the schema.
 
     Only the time and the kind of failure are logged, never the content: callers decide what may be logged."""
@@ -152,7 +168,7 @@ def nemotron_parse[T: BaseModel](system: str, user: str | list[dict], schema: ty
     }
     start = time.monotonic()
     try:
-        response = httpx.post(f"{NEMOTRON_URL}/chat/completions", json=body, headers={"Authorization": f"Bearer {key}"}, timeout=NEMOTRON_TIMEOUT_S)
+        response = httpx.post(f"{NEMOTRON_URL}/chat/completions", json=body, headers={"Authorization": f"Bearer {key}"}, timeout=timeout or NEMOTRON_TIMEOUT_S)
         response.raise_for_status()
         choice = response.json()["choices"][0]
         if choice.get("finish_reason") != "stop":

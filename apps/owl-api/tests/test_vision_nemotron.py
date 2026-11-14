@@ -122,3 +122,59 @@ def test_hint_falls_back_to_the_local_search_when_nemotron_fails(monkeypatch):
     monkeypatch.setattr(assist, "nemotron_parse", fail)
     monkeypatch.setattr(assist, "local_answer", lambda t, d, lang: assist.unsure(lang).model_copy(update={"bullets": ["local"]}))
     assert assist.answer("Is there a sauna on the 7th floor?", [HANDBOOK], "en").bullets == ["local"]
+
+
+def test_every_llm_call_runs_on_nemotron(monkeypatch):
+    """LLM_BACKEND=nemotron: Record, Ask, translations and tasks from documents, with no Anthropic key."""
+    from app import ask, docs_process, record, translate
+    from app.models import RecordedStep, Recording
+
+    monkeypatch.setattr(vision, "LLM_BACKEND", "nemotron")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(vision, "client", lambda: (_ for _ in ()).throw(AssertionError("Claude was called")))
+    asked = []
+
+    def fake(system, user, schema, what, max_tokens=1500, timeout=None):
+        asked.append(what)
+        if schema is record.ProcessDraft:
+            step = record.StepDraft(
+                title="Sort the cans",
+                instruction="Deposit cans go in the round CANS opening.",
+                say="Cans in the round opening.",
+                check="visual",
+                criteria=["A can is going into the round CANS opening", "No can is in the square PLASTIC opening"],
+                warning="That's a deposit can. It goes in the CANS hole.",
+                done_when="A hand is putting a can into the round CANS opening",
+            )
+            return record.ProcessDraft(title="Recycling round", summary="Sort the cans.", language="en", steps=[step])
+        if schema is ask.Draft:
+            return ask.Draft(
+                found=True,
+                text="Sunday 10:00.",
+                say="Sunday at ten.",
+                sources=[{"doc": "H", "quote": "The deadline is Sunday at 10:00.", "section": "Deadline"}],
+            )
+        if schema is translate.TranslatedProcess:
+            raise vision.VisionError("not needed here")
+        return docs_process.DocDraft(title="T", summary="S", language="en", steps=[])
+
+    monkeypatch.setattr(vision, "nemotron_parse", fake)
+    rec = Recording(
+        id="rec-1",
+        title="Recycling round",
+        expert="Sami",
+        status="processing",
+        steps=[RecordedStep(index=1, narration="Cans go in the round one.", photo_url="/media/x.jpg")],
+    )
+    process = record.write_process("proc-r", rec, [b"photo"], "Junction 2026")
+    check = process.steps[0].check
+    assert check.warning == "That's a deposit can. It goes in the CANS hole."
+    assert check.done_when == "A hand is putting a can into the round CANS opening"
+    assert check.criteria == ["No can is in the square PLASTIC opening"]  # the done moment never warns
+    answer = ask.answer("When is the deadline?", [("H", "## Deadline\n\nThe deadline is Sunday at 10:00.")], "en")
+    assert answer.found and answer.sources[0].quote == "The deadline is Sunday at 10:00."
+    with pytest.raises(vision.VisionError):
+        docs_process.model_draft("H", "Some text", None)
+    assert asked == ["record", "ask", "document"]
+    monkeypatch.setattr(vision, "MODEL_ID", "claude-x")
+    assert vision.llm_model() == vision.NEMOTRON_MODEL

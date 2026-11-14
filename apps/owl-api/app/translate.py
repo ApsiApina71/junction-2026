@@ -9,6 +9,7 @@ import re
 
 from pydantic import BaseModel
 
+from . import vision
 from .models import Process
 from .vision import MODEL_ID, VisionError, client
 
@@ -82,6 +83,9 @@ def apply(process: Process, translated: TranslatedProcess, language: str) -> Pro
 def translate(process: Process, language: str) -> Process:
     import json
 
+    user = f"Translate into: {language}\n\n{json.dumps(_source(process), ensure_ascii=False, indent=1)}"
+    if vision.LLM_BACKEND == "nemotron":
+        return apply(process, vision.write_with_nemotron(INSTRUCTIONS, user, TranslatedProcess, "translate"), language)
     response = client().beta.messages.parse(
         model=MODEL_ID,
         max_tokens=16000,
@@ -89,7 +93,7 @@ def translate(process: Process, language: str) -> Process:
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
         system=INSTRUCTIONS,
-        messages=[{"role": "user", "content": f"Translate into: {language}\n\n{json.dumps(_source(process), ensure_ascii=False, indent=1)}"}],
+        messages=[{"role": "user", "content": user}],
         output_format=TranslatedProcess,
     )
     if response.stop_reason == "refusal" or response.parsed_output is None:

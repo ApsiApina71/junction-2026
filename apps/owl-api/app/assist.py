@@ -22,7 +22,7 @@ log = logging.getLogger("owl.assist")
 
 # Who writes the suggestion: claude (MODEL_ID) or nemotron (Nemotron 3.5 Super VL on Verda). Either way the bullets
 # pass only with a quote found word for word in the documents. When Nemotron fails, the local search answers.
-ASSIST_BACKEND = os.getenv("ASSIST_BACKEND", "claude")
+ASSIST_BACKEND = os.getenv("ASSIST_BACKEND", os.getenv("LLM_BACKEND", "claude"))
 
 # About 30 seconds of speech: people say some 2.5 words a second.
 TAIL_WORDS = int(os.getenv("ASSIST_TAIL_WORDS", "80"))

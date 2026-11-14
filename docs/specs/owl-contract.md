@@ -231,7 +231,7 @@ Answer to one camera frame during a step.
 
 | Method and path | Body | Answer | Used by |
 |---|---|---|---|
-| `GET /health` | none | `{"status": "ok", "model_id": "...", "vision_model": "...", "step_recognition": "..."}`: `vision_model` looks at check pictures (`model_id`, or `nemotron-3.5-super-vl` with `VISION_BACKEND=nemotron`); `step_recognition` is `vjepa2 (<model>)` or `baseline` | all |
+| `GET /health` | none | `{"status": "ok", "model_id": "...", "vision_model": "...", "step_recognition": "..."}`: `model_id` writes Record drafts, answers and translations (`nemotron-3.5-super-vl` with `LLM_BACKEND=nemotron`), `vision_model` looks at check pictures (`model_id`, or `nemotron-3.5-super-vl` with `VISION_BACKEND=nemotron`); `step_recognition` is `vjepa2 (<model>)` or `baseline` | all |
 | `GET /employees` | none | `{"employees": [Employee]}` | Studio |
 | `POST /employees` | JSON (below) | `Employee` | Studio |
 | `GET /employees/{id}` | none | `Employee` | glasses, Studio |

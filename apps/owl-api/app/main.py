@@ -243,7 +243,7 @@ def get_step(process: Process, step_id: str) -> Step:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "model_id": MODEL_ID, "vision_model": vision.vision_model(), "step_recognition": jepa.backend_name()}
+    return {"status": "ok", "model_id": vision.llm_model(), "vision_model": vision.vision_model(), "step_recognition": jepa.backend_name()}
 
 
 @app.get("/employees/{employee_id}", response_model=Employee, dependencies=[Auth])

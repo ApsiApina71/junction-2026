@@ -9,7 +9,7 @@ import re
 
 from pydantic import BaseModel, Field
 
-from . import search
+from . import search, vision
 from .models import Answer, Source
 from .vision import MODEL_ID, VisionError, client
 
@@ -142,23 +142,28 @@ def answer(question: str, docs: list[tuple[str, str]], language: str, context: s
         user += f"What they are doing now: {context}\n"
     user += f"Question: {question.strip()}"
 
-    response = client().beta.messages.parse(
-        model=MODEL_ID,
-        max_tokens=4000,
-        output_config={"effort": ASK_EFFORT},
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        system=[
-            {"type": "text", "text": INSTRUCTIONS},
-            # The documents change only on upload, so this prefix stays cached across questions.
-            {"type": "text", "text": documents_block(prompt_docs(question, context, docs)), "cache_control": {"type": "ephemeral"}},
-        ],
-        messages=[{"role": "user", "content": user}],
-        output_format=Draft,
-    )
-    if response.stop_reason == "refusal" or response.parsed_output is None:
-        raise VisionError(f"No usable answer (stop_reason={response.stop_reason})")
-    draft = response.parsed_output
+    documents = documents_block(prompt_docs(question, context, docs))
+    if vision.LLM_BACKEND == "nemotron":
+        # The same rules on Nemotron: the answer still passes only with a quote found word for word below.
+        draft = vision.nemotron_parse(f"{INSTRUCTIONS}\n\n{documents}", user, Draft, "ask", max_tokens=1200)
+    else:
+        response = client().beta.messages.parse(
+            model=MODEL_ID,
+            max_tokens=4000,
+            output_config={"effort": ASK_EFFORT},
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+            system=[
+                {"type": "text", "text": INSTRUCTIONS},
+                # The documents change only on upload, so this prefix stays cached across questions.
+                {"type": "text", "text": documents, "cache_control": {"type": "ephemeral"}},
+            ],
+            messages=[{"role": "user", "content": user}],
+            output_format=Draft,
+        )
+        if response.stop_reason == "refusal" or response.parsed_output is None:
+            raise VisionError(f"No usable answer (stop_reason={response.stop_reason})")
+        draft = response.parsed_output
 
     sources = grounded_sources(draft, docs) if draft.found else []
     if draft.found and not sources:
