@@ -2421,8 +2421,13 @@ final class OwlViewModel {
   }
 
   func startRecordedStep() async {
+    // A pinch on an old card while a step records ends that step, never nothing.
+    if isRecordingStep {
+      await endRecordedStep()
+      return
+    }
     // Only inside a recording: a step clip that no recording waits for would never be ended.
-    guard !isRecordingStep, recording != nil, let session = displayViewModel.currentDeviceSession() else { return }
+    guard recording != nil, let session = displayViewModel.currentDeviceSession() else { return }
     // The session's own camera, as it is (low, 7 fps): on the real glasses a recording that
     // switched to a medium 15 fps camera left the glasses speech with no words or an
     // unexpectedError, so the narration came out empty (JUN-53).
@@ -2446,13 +2451,19 @@ final class OwlViewModel {
       Task { await self.showRecord(narration: self.narration.joined(separator: " ")) }
     }
     listener.onError = { [weak self] _, message in self?.statusText = "Narration: \(message)" }
-    do {
-      try await listener.start(on: session, mode: .continuous)
-    } catch {
-      // Recording still works without narration; Owl Studio can add the text.
-      statusText = "No narration: \((error as? LocalizedError)?.errorDescription ?? "\(error)")"
-    }
+    // The card with End step first: on the real glasses the speech start could fail and hang,
+    // and the old card stayed with buttons that did nothing while a step was recording (JUN-53).
     await showRecord()
+    Task { [weak self] in
+      guard let self else { return }
+      do {
+        try await self.listener.start(on: session, mode: .continuous)
+      } catch {
+        // Recording still works without narration; Owl Studio can add the text.
+        self.statusText = "No narration: \((error as? LocalizedError)?.errorDescription ?? "\(error)")"
+        NSLog("[Owl] record: no narration (\(error))")
+      }
+    }
   }
 
   func endRecordedStep() async {
@@ -2516,6 +2527,8 @@ final class OwlViewModel {
   }
 
   func finishRecording() async {
+    // Finish while a step still records: end the step first, then finish.
+    if isRecordingStep { await endRecordedStep() }
     guard let recording, !isRecordingStep else { return }
     let number = newScene()
     closeCamera()
