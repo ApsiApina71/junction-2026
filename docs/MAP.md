@@ -14,7 +14,8 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 |---|---|---|---|
 | owl-glasses | ios (DAT) | [../apps/owl-glasses](../apps/owl-glasses/README.md) | Owl Boarding on Meta Ray-Ban Display glasses (display, camera, Neural Band, speech, voice invocations); was bite-ios |
 | owl-api | api | [../apps/owl-api](../apps/owl-api/README.md) | Owl Boarding engine: processes, Owl Check, Ask, Record and Help for the glasses app and Owl Studio |
-| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | OwlBoarding launch page: real glasses, the Junction onboarding walk in 3D and the public Studio demo link |
+| owl-lens-site | web (static) | [../apps/owl-lens-site](../apps/owl-lens-site/README.md) | OwlBoarding launch page at owlboarding.com: the glasses in 3D, a flight into the lens, real Display recordings |
+| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | The earlier launch page: real glasses, the Junction onboarding walk in 3D; no longer built for owlboarding.com |
 | owl-studio | web | [../apps/owl-studio](../apps/owl-studio/README.md) | Owl Studio: the company's web app for documents, task review, new workers and the Help console |
 
 ## Agent tooling

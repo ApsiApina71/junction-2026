@@ -13,12 +13,12 @@ last-updated: 2026-11-15
 | Path | What |
 |---|---|
 | `.github/workflows/site.yml` | On a push to main that changes `apps/owl-site`, `apps/owl-studio` or `shared`: both apps' lint and tests, the build, the publish to Netlify, a check of the live pages |
-| `infra/build-site.sh` | Builds the launch site (`/`) and the public Owl Studio demo (`/studio/`) into one folder. Runs locally too: `infra/build-site.sh /tmp/site` |
+| `infra/build-site.sh` | Builds the launch site (`apps/owl-lens-site`, at `/`) and the public Owl Studio demo (`/studio/`) into one folder. Runs locally too: `infra/build-site.sh /tmp/site` |
 | `infra/site-publish` | The switch: the workflow publishes only when its first line is `on` |
 
 Publishing also needs two repository secrets, which only the repository owner can add: `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`. Until the switch is on and the secrets are there, the workflow checks and builds and says it did not publish. The order for switching it on is in ADR-005.
 
-The finished launch-page source and assets are now versioned in `apps/owl-site`, together with the public Studio preview in `apps/owl-studio`. The [launch-page README](../apps/owl-site/README.md#build-the-complete-website) covers local preview and a manual release of the combined build to the existing Netlify site. Generated release folders are not committed.
+The launch page is `apps/owl-lens-site` (one static page, no build step), together with the public Studio preview in `apps/owl-studio`. The earlier launch-page source and assets stay in `apps/owl-site`. The [launch-page README](../apps/owl-site/README.md#build-the-complete-website) covers local preview and a manual release of the combined build to the existing Netlify site. Generated release folders are not committed.
 
 ## What runs where for the demo
 
@@ -29,4 +29,4 @@ Apart from owlboarding.com, owl-api and Owl Studio can run on a Verda GPU machin
 | `apps/owl-api` | the Mac, `uvicorn` on port 8000, behind `cloudflared tunnel` | Python 3.13+, no database server: state in `data/state.json`. Secrets: `ANTHROPIC_API_KEY`, the Jev key, `API_TOKEN` when the tunnel is public |
 | `apps/owl-studio` | the Mac, `npm run dev`, or any static host | Talks to owl-api at `VITE_API_URL` |
 | `apps/owl-glasses` | the iPhone paired with the glasses | Built with Xcode; the server address is set in the app |
-| `apps/owl-site` | Netlify, owlboarding.com, with the Studio demo at `/studio/` | Published from main by the Site workflow once it is switched on (ADR-005); [JUN-87](https://linear.app/junction-2026-bossit/issue/JUN-87) |
+| `apps/owl-lens-site` | Netlify, owlboarding.com, with the Studio demo at `/studio/` | Published from main by the Site workflow once it is switched on (ADR-005); [JUN-87](https://linear.app/junction-2026-bossit/issue/JUN-87) |

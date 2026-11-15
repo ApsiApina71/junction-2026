@@ -32,7 +32,8 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 | [`apps/owl-glasses`](apps/owl-glasses/README.md) | The iPhone app for Meta Ray-Ban Display glasses, built on Meta's Wearables Device Access Toolkit (DAT): display, camera, Neural Band, speech, voice invocations |
 | [`apps/owl-api`](apps/owl-api/README.md) | The engine: processes, Owl Check, Ask, Record, Help, training, location and customer service |
 | [`apps/owl-studio`](apps/owl-studio/README.md) | The company's web app: documents, recorded tasks, workers, training, the map, the Help console and where the data goes |
-| [`apps/owl-site`](apps/owl-site/README.md) | The one-page launch site with the glasses in 3D and a view through the lens |
+| [`apps/owl-lens-site`](apps/owl-lens-site/README.md) | The launch page at owlboarding.com: the glasses in 3D, a flight into the lens and real Display recordings from Junction |
+| [`apps/owl-site`](apps/owl-site/README.md) | The earlier launch site, kept in the repo |
 
 **AI engine (what runs in the demo, no Anthropic key needed):**
 

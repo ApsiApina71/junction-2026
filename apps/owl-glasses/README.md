@@ -36,6 +36,24 @@ What it does:
 - DAT analytics and crash reporting opted out in `Info.plist`.
 
 
+## Try it in the simulator, no glasses
+
+The same app runs in the iOS Simulator with Meta's mock Display glasses, and the display shows in Chrome. You need a Mac with Xcode 26.4 or later and Chrome. No Apple developer account is needed.
+
+1. In Chrome, add Meta's [Meta Ray-Ban Display Simulator](https://chromewebstore.google.com/detail/jpjlmmodokemlepklkdbimceggpbjcll) extension and pin it.
+2. Clone the repo and run, from its root:
+
+   ```sh
+   apps/owl-glasses/scripts/table-fallback.sh https://api.95-133-254-125.sslip.io
+   ```
+
+   That is our owl-api on Verda, with Nemotron and V-JEPA 2.1, while the machine runs for Junction 2026. Without an address the script starts owl-api on your Mac, and then it needs your own model key in `apps/owl-api/.env` (see [the demo runbook](../../docs/runbooks/owl-junction-demo.md)).
+3. The script builds the app once (a few minutes), starts the simulator and opens `http://127.0.0.1:9000` in Chrome. Turn the extension on in that tab.
+4. Once per Chrome session, open `https://localhost:8443/health` and choose **Advanced → Proceed**, so Chrome plays the expert's clip.
+
+You are Jose, a new volunteer, on the recycling round. The mock camera plays a recorded clip of the can sorting, and Owl checks it as it does on the real glasses. The stage view at `<owl-api>/stage` shows what Owl decides. Use the extension's arrows and Select button to pinch. Run the script again to start over (about 15 s).
+
+
 ## Run on your own glasses
 
 You need Meta Ray-Ban Display glasses (the Neural Band makes pinching easy), an iPhone with the Meta AI app where the glasses are paired, a Mac with Xcode 26.4 or later, and an owl-api the phone can reach (see [`apps/owl-api`](../owl-api/README.md); over the internet the glasses play clips only over https, so a Cloudflare tunnel is the simple way).

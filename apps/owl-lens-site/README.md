@@ -1,12 +1,12 @@
 ---
-status: draft
+status: active
 tags: [app, web, owl, site, alternative]
 last-updated: 2026-11-15
 ---
 
 # owl-lens-site
 
-An alternative, standalone version of the [launch page (JUN-86)](https://linear.app/junction-2026-bossit/issue/JUN-86), kept as a backup next to [`owl-site`](../owl-site/README.md). It does not replace the live site, and nothing deploys it.
+The OwlBoarding launch page ([JUN-86](https://linear.app/junction-2026-bossit/issue/JUN-86)). `infra/build-site.sh` puts it at the root of owlboarding.com, with the public Owl Studio demo under `/studio/` (ADR-005). The earlier launch site, [`owl-site`](../owl-site/README.md), stays in the repo.
 
 The page opens with the final glasses model from [JUN-88](https://linear.app/junction-2026-bossit/issue/JUN-88), the version with the Ray-Ban and Meta logos ([JUN-113](https://linear.app/junction-2026-bossit/issue/JUN-113)). Scrolling, or **See through Owl**, flies the camera round behind the glasses and into the right lens, where the Display sits. During the flight the video shows only through that lens. Inside, three real Display recordings from Junction 2026 play on a loop ([JUN-89](https://linear.app/junction-2026-bossit/issue/JUN-89)).
 

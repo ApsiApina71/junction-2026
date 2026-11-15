@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'apps/owl-lens-site/**'
       - 'apps/owl-site/**'
       - 'apps/owl-studio/**'
       - 'shared/**'

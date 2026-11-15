@@ -111,6 +111,21 @@ button { font: inherit; color: inherit; }
 .problem { display: grid; justify-items: center; gap: 22px; margin-bottom: clamp(56px, 10vh, 120px); }
 .trades { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0; margin: 4px 0 0; list-style: none; }
 .trades li { padding: 8px 16px; border: 1px solid #ffffff2e; border-radius: 999px; font-size: 0.9rem; color: var(--muted); }
+.studio-link { position: absolute; z-index: 5; top: calc(18px + env(safe-area-inset-top, 0px)); right: var(--gutter); display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 14px 10px 18px; border-radius: 999px; background: var(--text); color: #0b0b12; text-decoration: none; font-size: 0.92rem; font-weight: 500;
+  transition: opacity 400ms var(--ease), transform 250ms var(--ease); }
+.studio-link:hover { transform: translateY(-1px); }
+.studio-link svg { width: 16px; height: 16px; }
+.inside .studio-link, .flying .studio-link { opacity: 0; pointer-events: none; }
+.studio-card { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: center; gap: 28px; width: min(1080px, 100%);
+  margin-top: 24px; padding: 28px; border: 1px solid #ffffff2e; border-radius: 26px; background: linear-gradient(180deg, #ffffff0d, #ffffff04);
+  text-align: left; text-decoration: none; color: inherit; transition: border-color 250ms var(--ease), transform 250ms var(--ease); }
+.studio-card:hover { border-color: #ffffff5c; transform: translateY(-2px); }
+.studio-text { display: grid; gap: 14px; justify-items: start; }
+.studio-text b { font-weight: 500; font-size: clamp(1.4rem, 2.2vw, 1.9rem); letter-spacing: -0.02em; line-height: 1.1; }
+.studio-text p { font-size: 1rem; }
+.studio-card img { width: 100%; height: auto; border-radius: 14px; border: 1px solid #ffffff1f; }
+@media (max-width: 760px) { .studio-card { grid-template-columns: 1fr; } }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: min(1080px, 100%); margin: 16px 0 8px; text-align: left; }
 .steps article { border: 1px solid #ffffff17; border-radius: 22px; padding: 22px; background: linear-gradient(180deg, #ffffff0a, #ffffff03); }
 .steps b { display: block; font-weight: 500; font-size: 1.12rem; margin: 10px 0 6px; letter-spacing: -0.01em; }
@@ -142,6 +157,7 @@ button { font: inherit; color: inherit; }
     <div id="pov" aria-hidden="true"><video id="vid" muted playsinline preload="auto"></video></div>
     <canvas id="gl" aria-label="Meta Ray-Ban Display glasses in 3D. Drag to turn them."></canvas>
 
+    <a class="studio-link" href="studio/">Try the admin dashboard<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
     <a class="brand" href="#top" id="top"><img src="img/logo-light.svg" alt="" width="28" height="28"><span>OwlBoarding</span></a>
 
     <div class="hero">
@@ -187,10 +203,17 @@ button { font: inherit; color: inherit; }
     <article><span class="n">02</span><b>Guide in the lens</b><p>The new worker sees the next step in the Display and keeps both hands on the job.</p></article>
     <article><span class="n">03</span><b>Check and call</b><p>Owl checks the result. When unsure, it calls a colleague who sees exactly what the worker sees.</p></article>
   </div>
+  <a class="studio-card" href="studio/">
+    <div class="studio-text">
+      <b>Owl Studio, the company's side</b>
+      <p>Review recorded tasks, add handbooks, follow training and answer Help calls. A live demo with sample data, no login.</p>
+      <span class="cta">Open the admin dashboard demo<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </div>
+    <img src="img/studio.jpg" alt="Owl Studio demo: recorded tasks to review, with Documents, People, Training, Map, Help and Data in the sidebar" width="1010" height="440" loading="lazy">
+  </a>
   <div class="links">
-    <a class="primary" href="https://owlboarding.com/studio/" target="_blank" rel="noreferrer">View admin dashboard</a>
     <a href="https://github.com/ApsiApina71/junction-2026" target="_blank" rel="noreferrer">Source on GitHub</a>
-    <a href="#top" id="again">Fly in again</a>
+    <a href="https://github.com/ApsiApina71/junction-2026/tree/main/apps/owl-glasses#try-it-in-the-simulator-no-glasses" target="_blank" rel="noreferrer">Run it yourself in the simulator</a>
   </div>
   <p class="legal">A Junction 2026 prototype for Meta’s “AI Glasses for Everyone, Everyday” challenge. Not affiliated with Meta or Junction. The clips are real Display recordings filmed at Junction 2026. Meta, Ray-Ban and Neural Band are trademarks of their owners and are shown only to depict the product.</p>
 </section>
@@ -204,7 +227,7 @@ button { font: inherit; color: inherit; }
 <script type="module">
 // ---------------- the clips ----------------
 const CLIPS = [
-  { id: 'recycling-round', title: 'Welcome, Jose. Today: the recycling round.', sub: 'Owl greets the new crew member and walks through the round step by step.' },
+  { id: 'recycling-round', end: 39.4, title: 'Welcome, Jose. Today: the recycling round.', sub: 'Owl greets the new crew member and walks through the round step by step.' },
   { id: 'calling-mika', start: 14.2, title: 'Unsure? Call Mika.', sub: 'One tap and a colleague sees exactly what Jose sees.' },
   { id: 'hacker-question', title: 'A hacker asks. Owl knows.', sub: 'Answers come from the crew handbook, right where the question is asked.' },
 ];
@@ -227,7 +250,8 @@ CLIPS.forEach((c, i) => {
   li.firstChild.onclick = () => setClip(i, true);
   chips.appendChild(li);
 });
-// `start` skips the first seconds of a recording (a media fragment, so the file stays as filmed).
+// `start` skips the first seconds of a recording (a media fragment) and `end` moves on before its last ones,
+// so the files stay as filmed.
 const src = (c) => `media/${c.id}-${tall.matches ? 'tall' : 'wide'}.mp4${c.start ? `#t=${c.start}` : ''}`;
 function setClip(i, play) {
   clip = (i + CLIPS.length) % CLIPS.length;
@@ -245,8 +269,9 @@ function setClip(i, play) {
 vid.addEventListener('ended', () => setClip(clip + 1, true));
 vid.addEventListener('timeupdate', () => {
   const bar = chips.children[clip]?.querySelector('span');
-  const from = CLIPS[clip].start || 0;
-  if (bar && vid.duration) bar.style.transform = `scaleX(${clamp01((vid.currentTime - from) / (vid.duration - from))})`;
+  const c = CLIPS[clip], from = c.start || 0, to = c.end || vid.duration;
+  if (c.end && vid.currentTime >= c.end) { setClip(clip + 1, true); return; }
+  if (bar && vid.duration) bar.style.transform = `scaleX(${clamp01((vid.currentTime - from) / (to - from))})`;
 });
 tall.addEventListener('change', () => { const t = vid.currentTime; vid.src = src(CLIPS[clip]); vid.currentTime = t; if (wantPlay) vid.play().catch(() => {}); });
 setClip(0, false);
@@ -271,7 +296,6 @@ readScroll();
 const toInside = () => scrollTo({ top: track.offsetTop + (track.offsetHeight - innerHeight) * (IN + 0.04), behavior: reduce ? 'auto' : 'smooth' });
 $('enter').onclick = toInside;
 $('exit').onclick = () => scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
-$('again').onclick = (e) => { e.preventDefault(); scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); };
 
 function setState() {
   root.style.setProperty('--p', p.toFixed(4));
