@@ -21,6 +21,10 @@ Owl is a learning aid, not a monitoring tool. The full product spec is [docs/spe
 
 Every new worker gets a personal welcome in their own language. Easy-language, audio-first and display-first profiles make Owl usable for immigrants, people in supported employment, people with dyslexia and people with low vision or hearing. The phone stays in the pocket: the Neural Band does the rest, and "Hey Meta, start Owl" opens Owl once the app is registered in Meta's Wearables Developer Center.
 
+## How it fits together
+
+![Owl Boarding system architecture: the glasses and iPhone on the floor, owl-api with Owl Check, step recognition, Place, Ask, Record, Help and Owl Studio on a Verda GPU machine in Finland, Nemotron 3.5 Super VL on Verda Inference, and the company's knowledge coming in written, visual or both](docs/images/owl-boarding-system.png)
+
 ## Apps
 
 | App | What it is |
@@ -39,6 +43,10 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 | Which step the worker is doing, from 2 s of video | Meta's **V-JEPA 2.1** (March 2026), frozen, with Meta's **attentive probe** trained per task on the expert's own clips (`JEPA_BACKEND=vjepa21`). On the demo's own videos, which are in the repo: 55 of 55 held-out windows, and twice the margin of the same model untrained (d′ 15.4 vs 8.0; Meta's V-JEPA 2 as it comes: 91 %, d′ 3.4) ([data card](apps/owl-api/fixtures/stories/junction/jepa/README.md)) |
 | Where the worker is (unlocks the next part) | Meta's **DINOv2** |
 | Right, wrong or done | deterministic rules: two looks in a row before a warning or Owl's own ✓ |
+
+**Why a V-JEPA tuned to the company's own task, not a generic model.** The same 55 test windows, none of them seen in training. Meta's V-JEPA 2 as it comes gets 91 %; the expert's clip alone gets 62–65 %; a minute of extra takes and our probe get 100 % with twice the margin of the same model untrained. The videos, the script and the limits are in the [data card](apps/owl-api/fixtures/stories/junction/jepa/README.md).
+
+![Our tuned V-JEPA: the training set filmed at Junction, the five variants on 55 held-out test windows, and why a company-specific model beats a generic one](docs/images/owl-boarding-vjepa.png)
 
 Claude (`LLM_BACKEND=claude`) and Jev (TypeSafe) still work when their keys are set. `GET /health` says which models really run.
 
