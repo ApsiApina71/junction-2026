@@ -1018,8 +1018,7 @@ async def help_frame(
     # JUN-100: "manager" calls the manager on shift on their own glasses; "studio" (the default) the console.
     to: Annotated[Literal["manager", "studio"], Form()] = "studio",
 ):
-    # A call without a picture is allowed: the worker talks to the helper with the camera off (no view is shared).
-    frame = await read_frame(image, clip, REFERENCE_SIDE) if (image is not None or clip is not None) else None
+    frame = await read_frame(image, clip, REFERENCE_SIDE)
     if help_id:
         session = get_help(help_id)
         if session.status == "ended":
@@ -1034,8 +1033,7 @@ async def help_frame(
                 session.fallback = "no_manager"
         store.help[session.id] = session
     # The frame is the worker's live view and /media needs no token, so its folder name cannot be guessed.
-    if frame is not None:
-        session.latest_frame_url = store.save_media(f"{store.help_dir(session.id)}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
+    session.latest_frame_url = store.save_media(f"{store.help_dir(session.id)}/latest.jpg", frame) + f"?t={secrets.token_hex(4)}"
     session.employee_id = employee_id or session.employee_id
     session.process_id = process_id or session.process_id
     session.step_id = step_id or session.step_id
@@ -1202,15 +1200,6 @@ def stage_page() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "stage.html", media_type="text/html")
 
 
-@app.get("/static/glasses/{name}.png", include_in_schema=False)
-def glasses_still(name: Annotated[str, PathParam(pattern=r"^[a-z0-9-]{1,40}$")]) -> FileResponse:
-    """The exact 600x600 renders of the glasses screens (DAT's own renderer) that /stage shows. No worker data."""
-    path = Path(__file__).parent / "static" / "glasses" / f"{name}.png"
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="No such screen.")
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=300"})
-
-
 @app.get("/stage/frame", dependencies=[StageAuth])
 def stage_latest_frame(glasses: str = "") -> Response:
     snap = stage.snapshot(glasses or None)
@@ -1224,11 +1213,6 @@ def stage_state(glasses: str) -> dict:
     snap = stage.snapshot(glasses or None)
     if snap["glasses"]:
         snap["glasses"]["employee"] = stage_employee(snap["glasses"].get("employee_id")) or snap["glasses"].get("employee")
-        # The step's expert clip, so the stage plays the same video while the glasses play it.
-        st = snap["glasses"].get("step") or {}
-        process = store.processes.get(st.get("process_id", ""))
-        found = next((x for x in process.steps if x.id == st.get("step_id")), None) if process else None
-        snap["glasses"]["clip_url"] = found.clip_url if found else None
     return snap
 
 

@@ -28,13 +28,6 @@
   .display .title { font-size: 34px; font-weight: 700; line-height: 1.15; }
   .display .text { font-size: 22px; color: #d7deea; }
   .display .empty { color: var(--muted); font-size: 18px; text-align: center; }
-  /* The exact glasses screen: a 600x600 render from DAT's own display renderer. Black is see-through on the glasses. */
-  .display.still { padding: 0; background: #000; overflow: hidden; }
-  .display.still img { width: 100%; height: 100%; display: block; }
-  /* The expert's clip as the glasses show it: a rounded card centred on the black display. */
-  .display.clip { padding: 0; background: #000; align-items: center; justify-content: center; }
-  .display.clip { overflow: hidden; }
-  .display.clip video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .caption { margin-top: 16px; padding: 12px 16px; background: var(--panel); border-radius: 12px; border-left: 4px solid var(--gold); font-size: 20px; min-height: 52px; }
   .caption small { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
   .camera { width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 16px; border: 1px solid var(--line); object-fit: cover; }
@@ -79,65 +72,6 @@
   </section>
 </main>
 <script>
-  // ?play=recycling: the recycling scene's real glasses screens in order, full screen, for a screen recording.
-  // Space or → starts and steps on by itself; ← goes back one screen; R starts over; F toggles full screen.
-  if (new URLSearchParams(location.search).get("play") === "recycling") {
-    const clip = new URLSearchParams(location.search).get("clip") || "/media/steps/proc-recycling-GjdE5ylAOPq2/step-1.mp4";
-    const scenes = [
-      { still: "goto", secs: 5 },              // walking: "Go to: Recycling point"
-      { still: "you-are-there", secs: 2 },     // the bin is recognised: "You are there. The step is open."
-      { clip: true },                          // the expert's clip, to its end
-      { still: "step-watching", secs: 4 },     // the step card: Owl is watching
-      { still: "warning", secs: 5 },           // a can toward PLASTIC: the warning
-      { still: "step-watching", secs: 3 },     // check again
-      { still: "step-looks-right", secs: 3 },  // the can goes into CANS
-      { still: "finished", secs: 0 },          // Well done ✓
-    ];
-    document.head.insertAdjacentHTML("beforeend", `<style>
-      html, body { background: #000 !important; overflow: hidden; cursor: none; }
-      header, main { display: none !important; }
-      #screen { position: fixed; inset: 0; margin: auto; width: min(96vh, 96vw); height: min(96vh, 96vw); background: #000; }
-      #screen img, #screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-      #screen video { border-radius: 4%; }
-      #hint { position: fixed; bottom: 12px; width: 100%; text-align: center; color: #333; font: 13px -apple-system, sans-serif; }
-    </style>`);
-    document.body.insertAdjacentHTML("beforeend", `<div id="screen"></div><div id="hint">Space: start · ← back · R: again · F: full screen</div>`);
-    const box = document.getElementById("screen");
-    const images = scenes.filter((x) => x.still).map((x) => Object.assign(new Image(), { src: `/static/glasses/${x.still}.png` }));
-    const video = Object.assign(document.createElement("video"), { src: clip, muted: true, playsInline: true, preload: "auto" });
-    let at = -1, timer = null, started = false;
-    function show(i) {
-      clearTimeout(timer);
-      at = Math.max(0, Math.min(i, scenes.length - 1));
-      const sc = scenes[at];
-      box.innerHTML = "";
-      if (sc.clip) {
-        video.currentTime = 0; box.appendChild(video); video.play();
-        video.onended = () => started && show(at + 1);
-      } else {
-        video.pause();
-        box.appendChild(Object.assign(new Image(), { src: `/static/glasses/${sc.still}.png` }));
-        if (started && sc.secs) timer = setTimeout(() => show(at + 1), sc.secs * 1000);
-      }
-    }
-    show(0);
-    const go = () => {
-      document.getElementById("hint")?.remove();
-      if (!started) { started = true; show(0); } else show(at + 1);
-    };
-    // A click anywhere starts too (the page must have focus for keys), and ?auto=<seconds> starts by itself.
-    document.addEventListener("click", go);
-    const auto = Number(new URLSearchParams(location.search).get("auto"));
-    if (auto > 0) setTimeout(() => { if (!started) go(); }, auto * 1000);
-    document.addEventListener("keydown", (e) => {
-      if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") go();
-      else if (e.key === "ArrowLeft") show(at - 1);
-      else if (e.key === "r" || e.key === "R") { started = false; show(0); }
-      else if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-      e.preventDefault();
-    });
-    throw new Error("play mode");  // the live stage below doesn't run
-  }
   const params = new URLSearchParams(location.search);
   const token = params.get("token");
   let chosen = params.get("glasses") || "";
@@ -171,53 +105,11 @@
     if (pick) pick.onchange = () => { chosen = pick.value; connect(); };
   }
 
-  // Which exact glasses screen (static/glasses/<name>.png) matches what the glasses report now. The screens' words come
-  // from the glasses (screen kind, title, text) and from Owl's latest check, so the still is the same screen.
-  function stillFor(g) {
-    const s = g && g.screen;
-    if (!s) return null;
-    const t = `${s.title || ""} ${s.text || ""}`.toLowerCase();
-    if (/expert.s clip/.test(t)) return "clip";
-    switch (s.kind) {
-      case "locked": return "goto";
-      case "check": return /can.t check|cannot check/.test(t) ? null : "warning";
-      case "done": return "finished";
-      case "step":
-        if (t.includes("looks right")) return "step-looks-right";
-        if (t.includes("can't see") || t.includes("cannot see") || t.includes("move closer")) return "step-cant-see";
-        return "step-watching";
-    }
-    return null;
-  }
-
-  const missing = new Set();
   function renderDisplay(g) {
     const s = g && g.screen;
-    const still = stillFor(g);
-    const box = el("display");
-    if (still === "clip" && g.clip_url) {
-      // The same clip the glasses play, from the start, without sound like on the glasses.
-      if (!box.querySelector("video")) {
-        box.className = "display clip";
-        box.innerHTML = `<video src="${esc(g.clip_url)}" autoplay muted playsinline></video>`;
-      }
-    } else if (still && !missing.has(still)) {
-      const src = `/static/glasses/${still}.png`;
-      const img = box.querySelector("img");
-      if (!img || img.dataset.still !== still) {
-        const next = new Image();
-        next.alt = `The glasses screen: ${s.title || s.kind}`;
-        next.dataset.still = still;
-        next.onload = () => { box.className = "display still"; box.innerHTML = ""; box.appendChild(next); };
-        next.onerror = () => { missing.add(still); renderDisplay(g); };
-        next.src = src;
-      }
-    } else {
-      box.className = "display";
-      box.innerHTML = s && (s.title || s.text)
-        ? `<div class="kind">${esc(s.kind)}</div><div class="title">${esc(s.title)}</div><div class="text">${esc(s.text)}</div>`
-        : `<div class="empty">Waiting for the glasses…</div>`;
-    }
+    el("display").innerHTML = s && (s.title || s.text)
+      ? `<div class="kind">${esc(s.kind)}</div><div class="title">${esc(s.title)}</div><div class="text">${esc(s.text)}</div>`
+      : `<div class="empty">Waiting for the glasses…</div>`;
     const said = g && g.events.find((ev) => ev.kind === "said");
     el("said").textContent = said ? said.text : "–";
     const st = g && g.step;
@@ -258,27 +150,18 @@
     }).join("");
   }
 
-  let source, lastVersion = -1, lastMessage = 0;
-  function render(state) {
-    lastMessage = Date.now();
-    if (state.version === lastVersion) return;
-    lastVersion = state.version;
-    renderWho(state);
-    renderDisplay(state.glasses);
-    renderCamera(state.glasses, state.version);
-    renderTimeline(state.glasses);
-  }
+  let source;
   function connect() {
     if (source) source.close();
-    lastVersion = -1;
     source = new EventSource("/stage/events" + q());
-    source.onmessage = (msg) => render(JSON.parse(msg.data));
+    source.onmessage = (msg) => {
+      const state = JSON.parse(msg.data);
+      renderWho(state);
+      renderDisplay(state.glasses);
+      renderCamera(state.glasses, state.version);
+      renderTimeline(state.glasses);
+    };
   }
-  // Some tunnels hold back the event stream: then the page asks for the state twice a second.
-  setInterval(async () => {
-    if (Date.now() - lastMessage < 2000) return;
-    try { render(await (await fetch("/stage/state" + q(), { cache: "no-store" })).json()); } catch {}
-  }, 500);
   connect();
 </script>
 </body>

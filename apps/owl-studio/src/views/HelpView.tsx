@@ -369,7 +369,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
       <div className="console">
         <section className="console-view" aria-labelledby="view-heading">
           <TextView as="h2" id="view-heading" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-            {session.latest_frame_url || ended ? `WHAT ${name.toUpperCase()} SEES` : 'VOICE CALL'}
+            {`WHAT ${name.toUpperCase()} SEES`}
           </TextView>
           {problem && <Problem>{problem}</Problem>}
           {session.latest_frame_url ? (
@@ -388,9 +388,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
             <Panel width="100%" className={ended ? 'frame-empty is-ended' : 'frame-empty'}>
               <div className="panel-body">
                 <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
-                  {ended
-                    ? `Help ended at ${clockTime(session.updated_at)}. The picture was deleted when it ended.`
-                    : `Voice call with ${name}, camera off. Talk or type below: ${name} hears your words on the glasses.`}
+                  {ended ? `Help ended at ${clockTime(session.updated_at)}. The picture was deleted when it ended.` : `Waiting for the first picture from ${name}'s glasses.`}
                 </TextView>
               </div>
             </Panel>

@@ -110,10 +110,3 @@ def test_v_jepa_answers_appear_on_the_timeline_once(client, monkeypatch, tmp_pat
     events = client.get("/stage/state", params={"glasses": "glasses-1"}).json()["glasses"]["events"]
     assert [(e["kind"], e["status"], e["step"], e["probability"], e["by"]) for e in events] == [("recognize", "ok", 4, 0.91, "V-JEPA 2.1")]
     assert events[0]["title"] == "Pack heavy items first"
-
-
-def test_help_call_without_a_picture(client):
-    """Help with the camera off: the call rings and the helper can talk, but no view is shared."""
-    r = client.post("/help/frames", data={"employee_id": "emp-jose", "to": "manager"})
-    assert r.status_code == 200, r.text
-    assert r.json()["latest_frame_url"] is None
