@@ -34,6 +34,28 @@ Leave one video out: each take and each "other" video is held out in turn, the p
 
 **55 of 55 held-out windows right.** On the real glasses, during the filmed runs, every V-JEPA answer at the bin was "Sort the cans" (the stage view showed 92 %).
 
+## Meta's models as they come, against our training
+
+```sh
+uv run --extra jepa python scripts/jepa_compare.py
+```
+
+The same 55 held-out windows, leave one video out, five ways (run on the Verda RTX PRO 6000, 15 November 2026). "No training" means a frozen model and a nearest prototype: a window goes to whichever class's mean embedding it is closer to, and nothing is learned. d′ is the gap between the step's and the other windows' scores in standard deviations, so the cosine scores and the probabilities compare: the larger it is, the wider the margin before light, angle or an unusual window crosses the line.
+
+| Variant | Right | False alarms (other work taken for the step) | Misses | d′ |
+|---|---|---|---|---|
+| A. V-JEPA 2 (ViT-L, SSv2 action model), no training | 50/55 (91 %) | 0/28 | 5/27 | 3.4 |
+| B1. V-JEPA 2.1, no training, the expert's clip as the only example | 36/55 (65 %) | 0/28 | 19/27 | 4.3 |
+| B. V-JEPA 2.1, no training, all our clips as examples | 55/55 (100 %) | 0/28 | 0/27 | 8.0 |
+| C. V-JEPA 2.1 + attentive probe, trained on the expert's clip only | 34/55 (62 %) | 0/28 | 21/27 | 3.6 |
+| **D. V-JEPA 2.1 + attentive probe, trained on our clips (what owl-api runs)** | **55/55 (100 %)** | **0/28** | **0/27** | **15.4** |
+
+What it shows:
+
+- **Our set-up separates the step from other work about twice as widely as the same model untrained on the same clips (d′ 15.4 against 8.0), and four to five times as widely as Meta's V-JEPA 2 as it comes (3.4).** No variant took packing for sorting; the differences are in missed steps and in the margin.
+- **The extra takes are what matter most.** With the expert's clip alone, both the untrained model (B1) and the probe (C) miss most of the takes: that clip is the glasses' version (cropped to a rounded card, 196×354, 15 fps), unlike the phone takes. Two more takes of the step, filmed in a minute, lift both to 100 %, and training the probe on them then doubles the margin.
+- **Speed on Verda:** the probe trains in 6.8 s on the RTX PRO 6000 (about 35 s on a MacBook's MPS) and a look from the glasses is answered in 0.15 s, the request over the internet included.
+
 ## What this does and does not show
 
 - The held-out videos are separate recordings, but close ones: the expert's clip and `take-other-angle` were filmed minutes apart with the same blue can (in `take-other-angle` the can goes toward PLASTIC first, then into CANS), and the two sorting takes come from one longer video.

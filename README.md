@@ -36,7 +36,7 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 |---|---|
 | Owl Check sees the step in one camera picture | NVIDIA **Nemotron 3.5 Super VL**, open weights, on a **Verda** GPU in Finland (`LLM_BACKEND=nemotron`) |
 | Record, Ask, the customer-service Hint, translations, tasks from documents | the same Nemotron. Answers pass only with a quote found word for word in the company's documents |
-| Which step the worker is doing, from 2 s of video | Meta's **V-JEPA 2.1** (March 2026), frozen, with Meta's **attentive probe** trained per task on the expert's own clips (`JEPA_BACKEND=vjepa21`). On the demo's own videos, which are in the repo: 55 of 55 held-out windows ([data card](apps/owl-api/fixtures/stories/junction/jepa/README.md)) |
+| Which step the worker is doing, from 2 s of video | Meta's **V-JEPA 2.1** (March 2026), frozen, with Meta's **attentive probe** trained per task on the expert's own clips (`JEPA_BACKEND=vjepa21`). On the demo's own videos, which are in the repo: 55 of 55 held-out windows, and twice the margin of the same model untrained (d′ 15.4 vs 8.0; Meta's V-JEPA 2 as it comes: 91 %, d′ 3.4) ([data card](apps/owl-api/fixtures/stories/junction/jepa/README.md)) |
 | Where the worker is (unlocks the next part) | Meta's **DINOv2** |
 | Right, wrong or done | deterministic rules: two looks in a row before a warning or Owl's own ✓ |
 
