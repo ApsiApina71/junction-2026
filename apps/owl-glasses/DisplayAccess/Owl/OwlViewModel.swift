@@ -263,13 +263,6 @@ final class OwlViewModel {
 
   /// "Stage mirroring" (JUN-79): the glasses screen, spoken lines and one camera frame a second
   /// go to owl-api's stage page for the audience. Off by default; OWL_STAGE=1 turns it on.
-  /// Help calls ring without the camera (JUN-79, on by default): the call cannot fail on a
-  /// busy or hot camera; the manager hears and answers, but sees no picture.
-  static var helpWithoutCamera: Bool {
-    get { UserDefaults.standard.object(forKey: "owl.helpWithoutCamera") as? Bool ?? true }
-    set { UserDefaults.standard.set(newValue, forKey: "owl.helpWithoutCamera") }
-  }
-
   static var stageMirroring: Bool {
     get {
       ProcessInfo.processInfo.environment["OWL_STAGE"] == "1"
@@ -1999,11 +1992,14 @@ final class OwlViewModel {
   /// expert in Owl Studio.
   private func callForHelp(to: String?, managerName: String?) async {
     let number = newScene()
-    // The call never waits for the camera (JUN-79): with "Help without camera" on, or when
-    // the camera does not open, it rings without a picture and the voice still goes both ways.
-    let camera = Self.helpWithoutCamera ? nil : await openCamera()
+    guard let camera = await openCamera() else {
+      NSLog("[Owl] help: the glasses camera did not open (\(cameraDenied ? "permission" : "see camera failed above")), Owl can't help")
+      guard isCurrent(number) else { return }
+      await showProblem(cameraDenied ? .cameraNeeded : .other, detail: OwlError.noCamera.errorDescription)
+      return
+    }
     guard isCurrent(number) else { return }
-    NSLog("[Owl] help: calling \(to ?? "expert") \(camera == nil ? "without the camera" : "with the camera")")
+    NSLog("[Owl] help: camera open, calling \(to ?? "expert")")
     helpID = nil
     lastSpokenExpertMessage = 0
     helpTo = to
@@ -2037,19 +2033,17 @@ final class OwlViewModel {
     }
   }
 
-  private func helpTick(camera: OwlCamera?, _ number: Int) async {
+  private func helpTick(camera: OwlCamera, _ number: Int) async {
     do {
       let session: OwlHelpSession
-      if let frame = camera?.latestJPEG(maxSide: 800) {
+      if let frame = camera.latestJPEG(maxSide: 800) {
         session = try await api.sendHelpFrame(
           frame, helpID: helpID, employeeID: employee?.id, processID: process?.id, stepID: step?.id,
           to: helpID == nil ? helpTo : nil)
       } else if let helpID {
         session = try await api.help(helpID)
       } else {
-        // No picture yet, or none at all: the call rings without one.
-        session = try await api.sendHelpFrame(
-          nil, helpID: nil, employeeID: employee?.id, processID: process?.id, stepID: step?.id, to: helpTo)
+        return
       }
       guard !Task.isCancelled, isCurrent(number) else { return }
       helpID = session.id
