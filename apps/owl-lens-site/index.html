@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OwlBoarding · Through the lens</title>
+<meta name="description" content="OwlBoarding: onboarding new workers right in the lens of Meta Ray-Ban Display glasses. Fly into the lens and watch real Display recordings from Junction 2026.">
+<link rel="icon" href="img/logo-light.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap">
+<style>
+:root {
+  --bg: #07070d;
+  --text: #f4f4f8;
+  --muted: #a3a3b4;
+  --accent: #72d2db;
+  --good: #63e6a6;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --gutter: max(clamp(16px, 5vw, 72px), env(safe-area-inset-left, 0px));
+  --p: 0;      /* flight progress, 0 = hero, 1 = at the eye */
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); overflow-x: clip;
+  font: 400 16px/1.5 "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+h1, h2, p { margin: 0; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+
+/* ---------- the sticky stage ---------- */
+#track { position: relative; height: 560vh; height: 560svh; }
+#stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; isolation: isolate;
+  background: radial-gradient(ellipse 70% 70% at 50% 46%, #1a1930 0%, #0e0d1a 48%, var(--bg) 100%); }
+#gl { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: grab; }
+#gl.dragging { cursor: grabbing; }
+.inside #gl { cursor: default; }
+
+/* What the wearer sees: real Display recordings, revealed through the right lens. */
+#pov { position: absolute; inset: 0; z-index: 1; background: #000; opacity: 0; will-change: clip-path, opacity; }
+#pov video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#pov::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, #000000b0 100%); }
+
+/* ---------- hero copy ---------- */
+.brand { position: absolute; z-index: 5; top: calc(20px + env(safe-area-inset-top, 0px)); left: 50%; translate: -50% 0;
+  display: flex; align-items: center; gap: 10px; font-weight: 500; letter-spacing: -0.01em; font-size: 1.05rem; text-decoration: none; }
+.brand img { width: 28px; height: 28px; }
+.brand { transition: opacity 400ms var(--ease); }
+.inside .brand { opacity: 0; pointer-events: none; }
+.hero { position: absolute; z-index: 4; inset: auto 0 0 0; padding: 0 var(--gutter) calc(clamp(32px, 8vh, 88px) + env(safe-area-inset-bottom, 0px));
+  display: grid; justify-items: center; text-align: center; gap: 18px; pointer-events: none;
+  opacity: calc(1 - var(--p) * 5); translate: 0 calc(var(--p) * 60px); }
+.eyebrow { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.hero h1 { font-weight: 500; font-size: clamp(2.2rem, 5.4vw, 4.6rem); line-height: 1.02; letter-spacing: -0.045em; text-wrap: balance; max-width: 15ch; }
+.hero p.lede { color: var(--muted); font-size: clamp(1rem, 1.2vw, 1.2rem); max-width: 40ch; text-wrap: balance; }
+.cta { pointer-events: auto; display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  padding: 13px 22px; border-radius: 999px; background: var(--text); color: #0b0b12; font-weight: 500; font-size: 0.98rem;
+  transition: transform 300ms var(--ease), background 300ms var(--ease); }
+.cta:hover { transform: translateY(-1px); background: #fff; }
+.cta svg { width: 18px; height: 18px; }
+.hint { font-size: 0.8rem; color: #ffffff70; letter-spacing: 0.04em; }
+.hint .mouse { display: inline-block; width: 14px; height: 21px; border: 1.5px solid currentColor; border-radius: 8px; vertical-align: -6px; margin-right: 8px; position: relative; }
+.hint .mouse::after { content: ""; position: absolute; left: 50%; top: 4px; width: 2px; height: 4px; margin-left: -1px; border-radius: 2px; background: currentColor; animation: wheel 1.6s var(--ease) infinite; }
+@keyframes wheel { 0% { opacity: 0; transform: translateY(-2px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateY(6px); } }
+
+/* The callout that names what the camera dives into. */
+.dive { position: absolute; z-index: 4; left: 50%; top: calc(14vh + env(safe-area-inset-top, 0px)); translate: -50% 0; text-align: center; pointer-events: none;
+  font-size: clamp(1.3rem, 2.4vw, 2rem); font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; width: min(30ch, 90vw);
+  opacity: 0; transition: opacity 400ms var(--ease); }
+.dive small { display: block; margin-top: 8px; font-size: 0.82rem; font-weight: 400; color: var(--muted); letter-spacing: 0.02em; }
+.flying .dive { opacity: 1; }
+
+/* ---------- inside the lens ---------- */
+.hud { position: absolute; z-index: 6; inset: 0; pointer-events: none; opacity: 0; transition: opacity 600ms var(--ease); }
+.inside .hud { opacity: 1; }
+.inside .hud .live { pointer-events: auto; }
+.hud .shade { position: absolute; inset: auto 0 0 0; height: 44%; background: linear-gradient(to top, #000000cc, #00000066 50%, transparent); }
+.hud .caption { position: absolute; left: var(--gutter); bottom: calc(clamp(28px, 6vh, 64px) + env(safe-area-inset-bottom, 0px));
+  width: min(36rem, calc(100% - 2 * var(--gutter))); display: grid; gap: 12px; text-shadow: 0 2px 18px #000c; }
+.hud .tag { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.hud h2 { font-weight: 500; font-size: clamp(1.4rem, 2.4vw, 2.2rem); letter-spacing: -0.02em; line-height: 1.12; text-wrap: balance; }
+.hud .sub { color: #e6e6ee; opacity: 0.8; font-size: 0.98rem; max-width: 46ch; }
+.chips { display: flex; gap: 6px; margin-top: 6px; padding: 0; list-style: none; flex-wrap: wrap; }
+.chips button { position: relative; overflow: hidden; width: 54px; height: 22px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  background: #ffffff24; }
+.chips button span { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); background: var(--good); }
+.chips button[aria-current="true"] { background: #ffffff38; }
+.chips button:hover { background: #ffffff40; }
+.chips { gap: 8px; }
+.chips button { height: 5px; width: 46px; }
+.chips li { padding: 9px 0; }
+.chips li button::before { content: ""; position: absolute; inset: -9px 0; }
+.out { position: absolute; top: calc(18px + env(safe-area-inset-top, 0px)); right: var(--gutter); display: inline-flex; gap: 8px; align-items: center;
+  padding: 9px 16px; border-radius: 999px; border: 1px solid #ffffff3a; background: #0b0b1299; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  cursor: pointer; font-size: 0.88rem; }
+.out:hover { background: #1b1b28cc; }
+.out svg { width: 16px; height: 16px; }
+.rec { position: absolute; top: calc(22px + env(safe-area-inset-top, 0px)); left: var(--gutter); display: flex; align-items: center; gap: 8px;
+  font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: #ffffffb0; text-shadow: 0 1px 10px #000; }
+.rec i { width: 8px; height: 8px; border-radius: 50%; background: #ff5a5a; box-shadow: 0 0 0 4px #ff5a5a33; animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: 0.35; } }
+
+#msg { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; color: var(--muted); pointer-events: none; font-size: 0.95rem; }
+
+/* ---------- after the walk ---------- */
+.after { position: relative; z-index: 2; background: var(--bg); padding: clamp(80px, 14vh, 160px) var(--gutter) 48px; display: grid; justify-items: center; text-align: center; gap: 28px; }
+.after h2 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.6rem); letter-spacing: -0.04em; line-height: 1.05; max-width: 18ch; text-wrap: balance; }
+.after p { color: var(--muted); max-width: 52ch; text-wrap: pretty; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: min(1080px, 100%); margin: 16px 0 8px; text-align: left; }
+.steps article { border: 1px solid #ffffff17; border-radius: 22px; padding: 22px; background: linear-gradient(180deg, #ffffff0a, #ffffff03); }
+.steps b { display: block; font-weight: 500; font-size: 1.12rem; margin: 10px 0 6px; letter-spacing: -0.01em; }
+.steps span.n { font-size: 0.75rem; letter-spacing: 0.12em; color: var(--accent); }
+.steps p { font-size: 0.95rem; }
+.links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.links a { text-decoration: none; padding: 12px 20px; border-radius: 999px; border: 1px solid #ffffff2e; font-size: 0.95rem; transition: background 250ms var(--ease); }
+.links a:hover { background: #ffffff12; }
+.links a.primary { background: var(--text); color: #0b0b12; border-color: transparent; }
+.legal { font-size: 0.75rem; color: #ffffff59; max-width: 80ch; margin-top: 32px; }
+
+/* Without WebGL: the recordings, plainly. */
+.nogl #gl, .nogl .dive, .nogl .hint { display: none; }
+.nogl #pov { opacity: 1 !important; clip-path: none !important; }
+
+@media (max-width: 720px) {
+  .steps { grid-template-columns: 1fr; }
+  .hud .caption { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint .mouse::after, .rec i { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="track">
+  <div id="stage">
+    <div id="pov" aria-hidden="true"><video id="vid" muted playsinline preload="auto"></video></div>
+    <canvas id="gl" aria-label="Meta Ray-Ban Display glasses in 3D. Drag to turn them."></canvas>
+
+    <a class="brand" href="#top" id="top"><img src="img/logo-light.svg" alt="" width="28" height="28"><span>OwlBoarding</span></a>
+
+    <div class="hero">
+      <span class="eyebrow">Built for Meta Ray-Ban Display</span>
+      <h1>Onboarding, right in the lens.</h1>
+      <p class="lede">A new worker puts on the glasses. Owl shows every step, checks the work and calls a colleague when it matters.</p>
+      <button class="cta" id="enter" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="13" r="4.2"/><circle cx="17" cy="13" r="4.2"/><path d="M11.2 12.4c.5-.4 1.1-.6 1.6 0"/></svg>
+        See through Owl
+      </button>
+      <span class="hint"><span class="mouse"></span>Scroll to fly into the lens · drag to turn</span>
+    </div>
+
+    <p class="dive">Into the right lens<small>where the Display sits</small></p>
+
+    <div class="hud">
+      <div class="shade"></div>
+      <p class="rec"><i></i>Display recording</p>
+      <button class="out live" id="exit" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
+        Back to the glasses
+      </button>
+      <div class="caption">
+        <span class="tag" id="c-tag">Clip 1 of 4</span>
+        <h2 id="c-title">Welcome to Junction.</h2>
+        <p class="sub" id="c-sub"></p>
+        <ol class="chips live" id="chips"></ol>
+      </div>
+    </div>
+
+    <div id="msg">Loading the glasses…</div>
+  </div>
+</div>
+
+<section class="after">
+  <h2>Show it once. Owl teaches it every shift.</h2>
+  <p>An experienced worker records the task one time in Owl Studio. Owl turns it into steps on the glasses, checks each one with the camera and keeps the human in the loop.</p>
+  <div class="steps">
+    <article><span class="n">01</span><b>Record once</b><p>A colleague does the task while the glasses film it. Owl Studio cuts it into clear steps.</p></article>
+    <article><span class="n">02</span><b>Guide in the lens</b><p>The new worker sees the next step in the Display and keeps both hands on the job.</p></article>
+    <article><span class="n">03</span><b>Check and call</b><p>Owl checks the result. When unsure, it calls a colleague who sees exactly what the worker sees.</p></article>
+  </div>
+  <div class="links">
+    <a class="primary" href="https://owlboarding.com/studio/" target="_blank" rel="noreferrer">View admin dashboard</a>
+    <a href="https://github.com/ApsiApina71/junction-2026" target="_blank" rel="noreferrer">Source on GitHub</a>
+    <a href="#top" id="again">Fly in again</a>
+  </div>
+  <p class="legal">A Junction 2026 prototype for Meta’s “AI Glasses for Everyone, Everyday” challenge. Not affiliated with Meta or Junction. The clips are real Display recordings filmed at Junction 2026. Meta, Ray-Ban and Neural Band are trademarks of their owners and are shown only to depict the product.</p>
+</section>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+// ---------------- the clips ----------------
+const CLIPS = [
+  { id: 'welcome-to-junction', title: 'Welcome to Junction.', sub: 'Owl opens from the glasses’ own menu and greets the new crew member. No phone in hand.' },
+  { id: 'recycling-round', title: 'Welcome, Jose. Today: the recycling round.', sub: 'Owl greets the new crew member and walks through the round step by step.' },
+  { id: 'calling-mika', title: 'Unsure? Call Mika.', sub: 'One tap and a colleague sees exactly what Jose sees.' },
+  { id: 'hacker-question', title: 'A hacker asks. Owl knows.', sub: 'Answers come from the crew handbook, right where the question is asked.' },
+];
+
+const $ = (id) => document.getElementById(id);
+const root = document.documentElement, stage = $('stage'), track = $('track'), pov = $('pov'), vid = $('vid'), msg = $('msg');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tall = matchMedia('(max-aspect-ratio: 1/1)');
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const ramp = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const mix = (a, b, t) => a + (b - a) * t;
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+// ---------------- the looping playlist ----------------
+let clip = 0, wantPlay = false;
+const chips = $('chips');
+CLIPS.forEach((c, i) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<button type="button" aria-label="Clip ${i + 1}: ${c.title}"><span></span></button>`;
+  li.firstChild.onclick = () => setClip(i, true);
+  chips.appendChild(li);
+});
+const src = (c) => `media/${c.id}-${tall.matches ? 'tall' : 'wide'}.mp4`;
+function setClip(i, play) {
+  clip = (i + CLIPS.length) % CLIPS.length;
+  const c = CLIPS[clip];
+  vid.poster = `media/${c.id}.jpg`;
+  vid.src = src(c);
+  $('c-tag').textContent = `Clip ${clip + 1} of ${CLIPS.length}`;
+  $('c-title').textContent = c.title;
+  $('c-sub').textContent = c.sub;
+  [...chips.querySelectorAll('button')].forEach((b, k) => {
+    b.setAttribute('aria-current', String(k === clip));
+    b.firstChild.style.transform = `scaleX(${k < clip ? 1 : 0})`;
+  });
+  if (play || wantPlay) vid.play().catch(() => {});
+}
+vid.addEventListener('ended', () => setClip(clip + 1, true));
+vid.addEventListener('timeupdate', () => {
+  const bar = chips.children[clip]?.querySelector('span');
+  if (bar && vid.duration) bar.style.transform = `scaleX(${vid.currentTime / vid.duration})`;
+});
+tall.addEventListener('change', () => { const t = vid.currentTime; vid.src = src(CLIPS[clip]); vid.currentTime = t; if (wantPlay) vid.play().catch(() => {}); });
+setClip(0, false);
+function playing(on) {
+  if (on === wantPlay) return;
+  wantPlay = on;
+  if (on) vid.play().catch(() => {}); else vid.pause();
+}
+
+// ---------------- scroll ----------------
+// s: 0..1 over the track. Hero until HERO, the flight until IN, then inside the lens.
+const HERO = 0.1, IN = 0.58;
+let target = 0, p = 0;
+function readScroll() {
+  const r = track.getBoundingClientRect();
+  const s = clamp01(-r.top / (r.height - innerHeight));
+  target = ramp(HERO, IN, s);
+}
+addEventListener('scroll', readScroll, { passive: true });
+addEventListener('resize', readScroll);
+readScroll();
+const toInside = () => scrollTo({ top: track.offsetTop + (track.offsetHeight - innerHeight) * (IN + 0.04), behavior: reduce ? 'auto' : 'smooth' });
+$('enter').onclick = toInside;
+$('exit').onclick = () => scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+$('again').onclick = (e) => { e.preventDefault(); scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); };
+
+function setState() {
+  root.style.setProperty('--p', p.toFixed(4));
+  stage.classList.toggle('flying', p > 0.04 && p < 0.55);
+  stage.classList.toggle('inside', p > 0.97);
+  playing(p > 0.3);
+}
+
+// ---------------- 3D ----------------
+let THREE, GLTFLoader, RoomEnvironment;
+try {
+  THREE = await import('three');
+  ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
+  ({ RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'));
+} catch (e) { fallback('The 3D library did not load.'); }
+
+function fallback(text) {
+  document.body.classList.add('nogl');
+  msg.textContent = '';
+  stage.classList.add('inside');
+  playing(true);
+  console.warn(text);
+}
+
+if (THREE) start();
+
+function start() {
+  const canvas = $('gl');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); }
+  catch (e) { return fallback('No WebGL.'); }
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(0.6, 0.9, 1.0); scene.add(key);
+  const rim = new THREE.DirectionalLight(0x9fdcff, 2.4); rim.position.set(-0.8, 0.3, -0.9); scene.add(rim);
+  const fill = new THREE.HemisphereLight(0xe8ecff, 0x1a1830, 0.6); scene.add(fill);
+
+  const FOV = 26, POV_FOV = 72;
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.004, 10);
+  const CENTER = new THREE.Vector3();
+
+  // orbit state (hero)
+  let yaw = 0.5, pitch = 0.22, dragYaw = 0, dragPitch = 0, dist = 0.6, drop = 0, spin = reduce ? 0 : 0.18;
+  let drag = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (p > 0.02) return;
+    drag = { x: e.clientX, y: e.clientY, yaw: dragYaw, pitch: dragPitch };
+    canvas.classList.add('dragging'); canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    dragYaw = drag.yaw - (e.clientX - drag.x) * 0.008;
+    dragPitch = Math.max(-0.6, Math.min(0.9, drag.pitch + (e.clientY - drag.y) * 0.005));
+  });
+  const endDrag = () => { drag = null; canvas.classList.remove('dragging'); };
+  canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+  // A click on a lens flies in.
+  const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+  let downAt = null;
+  canvas.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+  canvas.addEventListener('click', (e) => {
+    if (!downAt || Math.abs(e.clientX - downAt[0]) + Math.abs(e.clientY - downAt[1]) > 6 || p > 0.02) return;
+    const r = canvas.getBoundingClientRect();
+    ptr.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ptr, camera);
+    if (ray.intersectObjects(lenses).length) toInside();
+  });
+
+  // the model
+  let model = null, display = null, lensR = null; const lenses = [];
+  const eye = new THREE.Vector3(), look = new THREE.Vector3(), behind = new THREE.Vector3();
+  new GLTFLoader().load('models/owl-glasses.glb', (gltf) => {
+    model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    model.position.sub(box.getCenter(new THREE.Vector3()));
+    scene.add(model); model.updateMatrixWorld(true);
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      const n = o.name.toLowerCase();
+      if (n.startsWith('lens_')) {
+        o.material = o.material.clone();
+        o.material.transparent = true; o.material.opacity = 0.16; o.material.depthWrite = false;
+        o.material.roughness = 0.02; o.material.metalness = 0; o.material.envMapIntensity = 1.6;
+        o.renderOrder = 2; lenses.push(o);
+        if (n === 'lens_right') lensR = o;
+      }
+      if (n === 'display_area') { o.visible = false; display = o; }
+      if (n.startsWith('decal')) {
+        // The Ray-Ban and Meta prints come as textures in the model. A slot without one stays hidden.
+        const map = o.material.map;
+        o.visible = !!map;
+        if (map) {
+          const onLens = n.startsWith('decal_lens');
+          o.material = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, color: onLens ? 0xd8d8d8 : 0xffffff, opacity: onLens ? 0.9 : 0.8 });
+          o.renderOrder = 3;
+        }
+      }
+      if (o.material && o.material.name === 'Frame_Black') { o.material.roughness = 0.28; o.material.envMapIntensity = 1.2; }
+    });
+    const ref = display || lensR;
+    if (!ref) { msg.textContent = ''; return; }
+    // The eye sits 20 mm behind the display, a touch toward the nose and above it.
+    const d = new THREE.Box3().setFromObject(ref).getCenter(new THREE.Vector3());
+    eye.set(d.x + 0.004, d.y + 0.003, d.z - 0.022);
+    look.set(eye.x, eye.y, eye.z + 0.5);
+    behind.set(eye.x * 0.6, eye.y + 0.02, eye.z - 0.3);
+    msg.textContent = '';
+    resize();
+  }, undefined, () => fallback('The model did not load.'));
+
+  // camera path
+  const sph = new THREE.Spherical(), s0 = new THREE.Spherical(), s1 = new THREE.Spherical();
+  const v = new THREE.Vector3(), tgt = new THREE.Vector3();
+  const SWING = 0.42;
+  function orbitPos(out) {
+    const y = yaw + dragYaw, ph = Math.PI / 2 - (pitch + dragPitch);
+    sph.set(dist, ph, y);
+    return out.setFromSpherical(sph).add(CENTER);
+  }
+  function place() {
+    if (p <= 0) {
+      // aim below the glasses so they sit in the upper part, above the headline
+      orbitPos(camera.position); tgt.copy(CENTER); tgt.y -= drop;
+      camera.fov = FOV;
+    } else if (p < SWING) {
+      // swing round, the shorter way, to just behind the wearer's head
+      s0.setFromVector3(orbitPos(v).sub(CENTER));
+      s1.setFromVector3(v.copy(behind).sub(CENTER));
+      let dth = s1.theta - s0.theta; dth = ((dth + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      const t = ease(p / SWING);
+      sph.set(mix(s0.radius, s1.radius, t), mix(s0.phi, s1.phi, t), s0.theta + dth * t);
+      camera.position.setFromSpherical(sph).add(CENTER); tgt.copy(CENTER); tgt.y -= drop * (1 - t);
+      camera.fov = FOV;
+    } else {
+      const u = ease((p - SWING) / (1 - SWING));
+      camera.position.lerpVectors(behind, eye, u);
+      tgt.lerpVectors(CENTER, look, u);
+      camera.fov = mix(FOV, POV_FOV, u);
+    }
+    camera.lookAt(tgt);
+    camera.updateProjectionMatrix();
+  }
+
+  // The recordings show only through the right lens until the lens fills the view.
+  const corner = new THREE.Vector3();
+  function portal() {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    const show = ramp(0.28, 0.62, p);
+    pov.style.opacity = show.toFixed(3);
+    if (!lensR || show <= 0) { pov.style.clipPath = 'inset(50%)'; return; }
+    if (p > 0.985) { pov.style.clipPath = 'none'; return; }
+    const pos = lensR.geometry.attributes.position;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, behindCam = false;
+    lensR.updateMatrixWorld();
+    for (let i = 0; i < pos.count; i += 2) {
+      corner.fromBufferAttribute(pos, i).applyMatrix4(lensR.matrixWorld).project(camera);
+      if (corner.z > 1) { behindCam = true; break; }
+      x0 = Math.min(x0, corner.x); x1 = Math.max(x1, corner.x); y0 = Math.min(y0, corner.y); y1 = Math.max(y1, corner.y);
+    }
+    if (behindCam) { pov.style.clipPath = 'none'; return; }
+    const L = (x0 + 1) / 2 * W, R = (x1 + 1) / 2 * W, T = (1 - y1) / 2 * H, B = (1 - y0) / 2 * H;
+    const rad = Math.min(R - L, B - T) * 0.32;
+    pov.style.clipPath = `inset(${T.toFixed(1)}px ${(W - R).toFixed(1)}px ${(H - B).toFixed(1)}px ${L.toFixed(1)}px round ${rad.toFixed(1)}px)`;
+  }
+
+  function resize() {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H) return;
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H;
+    // keep the whole frame in view on narrow screens
+    const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * camera.aspect);
+    dist = Math.max(0.6, 0.12 / Math.tan(hfov / 2));
+    // the vertical half-view at the glasses, so the drop is a share of the screen
+    drop = dist * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * 0.34;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  let last = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    // follow the scroll with a little lag, so the flight feels like a camera move
+    p += (target - p) * (reduce ? 1 : 1 - Math.exp(-dt * 7));
+    if (Math.abs(target - p) < 0.0005) p = target;
+    if (p <= 0.001 && !drag) yaw += spin * dt;
+    setState();
+    if (model) {
+      place();
+      lenses.forEach((o) => { o.material.opacity = mix(0.16, 0.04, ramp(0.5, 1, p)); });
+      portal();
+    }
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
