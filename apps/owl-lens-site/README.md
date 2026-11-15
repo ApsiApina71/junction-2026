@@ -8,7 +8,7 @@ last-updated: 2026-11-15
 
 An alternative, standalone version of the [launch page (JUN-86)](https://linear.app/junction-2026-bossit/issue/JUN-86), kept as a backup next to [`owl-site`](../owl-site/README.md). It does not replace the live site, and nothing deploys it.
 
-The page opens with the final glasses model from [JUN-88](https://linear.app/junction-2026-bossit/issue/JUN-88), the version with the Ray-Ban and Meta logos ([JUN-113](https://linear.app/junction-2026-bossit/issue/JUN-113)). Scrolling, or **See through Owl**, flies the camera round behind the glasses and into the right lens, where the Display sits. During the flight the video shows only through that lens. Inside, four real Display recordings from Junction 2026 play on a loop ([JUN-89](https://linear.app/junction-2026-bossit/issue/JUN-89)).
+The page opens with the final glasses model from [JUN-88](https://linear.app/junction-2026-bossit/issue/JUN-88), the version with the Ray-Ban and Meta logos ([JUN-113](https://linear.app/junction-2026-bossit/issue/JUN-113)). Scrolling, or **See through Owl**, flies the camera round behind the glasses and into the right lens, where the Display sits. During the flight the video shows only through that lens. Inside, three real Display recordings from Junction 2026 play on a loop ([JUN-89](https://linear.app/junction-2026-bossit/issue/JUN-89)).
 
 ## Run
 
@@ -32,7 +32,7 @@ Open `http://localhost:4377/`. Opening the file directly does not work, because 
 | `media/*.jpg` | Poster frames |
 | `img/logo-light.svg` | The owl mark from `shared/brand` |
 
-The clips have no audio and are H.264, CRF 27, about 26 MB in total.
+The clips have no audio and are H.264, CRF 27, about 17 MB in total.
 
 ## Behaviour
 
