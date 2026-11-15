@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "mascot:build": "node scripts/build-owl.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
@@ -13,6 +14,9 @@
   "dependencies": {
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
+    "@react-three/postprocessing": "3.2.2",
+    "lottie-web": "^5.13.0",
+    "postprocessing": "6.39.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.187.0"

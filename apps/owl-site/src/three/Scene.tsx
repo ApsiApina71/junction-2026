@@ -11,6 +11,7 @@ import { useOptionalGlb } from './useGlb'
 export type Fly = 'orbit' | 'in' | 'out'
 
 interface SceneProps {
+  compact?: boolean
   fly: Fly
   active: boolean
   reduced: boolean
@@ -126,7 +127,7 @@ function CameraRig({ fly, lens, reduced, onProgress, onArrived }: Omit<SceneProp
  * Pulls the camera back on narrow screens so the whole pair stays in view, and shifts the picture
  * down (a view offset, so the glasses still turn about their own centre) to sit below the headline.
  */
-function FitCamera() {
+function FitCamera({ compact = false }: { compact?: boolean }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
   const size = useThree((s) => s.size)
@@ -134,15 +135,15 @@ function FitCamera() {
   const placed = useRef(false)
 
   useEffect(() => {
-    view.shift = aspect < 0.8 ? 0.27 : 0.3
+    view.shift = compact ? 0 : aspect < 0.8 ? 0.27 : 0.3
     if (placed.current || !controls) return
     placed.current = true
     controls.target.copy(TARGET)
-    const distance = Math.max(0.6, 0.4 / aspect)
+    const distance = compact ? Math.max(0.42, 0.32 / aspect) : Math.max(0.6, 0.4 / aspect)
     camera.position.copy(TARGET).add(new THREE.Vector3(0.42, 0.14, 1).normalize().multiplyScalar(distance))
     camera.lookAt(TARGET)
     controls.update()
-  }, [aspect, camera, controls])
+  }, [aspect, camera, controls, compact])
 
   useFrame(() => {
     const shift = view.shift * (1 - view.fly)
@@ -151,7 +152,7 @@ function FitCamera() {
   return null
 }
 
-export function Scene({ fly, active, reduced, videoUrl, onProgress, onArrived }: SceneProps) {
+export function Scene({ fly, active, reduced, videoUrl, onProgress, onArrived, compact = false }: SceneProps) {
   const [lens, setLens] = useState(() => RIGHT_LENS_CENTER.clone())
   const [interacted, setInteracted] = useState(false)
   const videoTexture = useVideoTexture(videoUrl)
@@ -168,7 +169,7 @@ export function Scene({ fly, active, reduced, videoUrl, onProgress, onArrived }:
         gl.toneMappingExposure = 1.05
       }}
     >
-      <FitCamera />
+      <FitCamera compact={compact} />
       <ambientLight intensity={0.15} />
       <directionalLight position={[0.6, 1, 0.8]} intensity={1.2} />
       <Environment resolution={256} frames={1}>

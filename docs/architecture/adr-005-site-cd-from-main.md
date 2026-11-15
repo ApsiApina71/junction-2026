@@ -38,7 +38,7 @@ Two switches keep it from publishing too early:
 
 ## Switching it on
 
-1. Commit the launch page that is live into `apps/owl-site`. On 2026-11-15 main's `apps/owl-site` was older than the live page: it had no `demo/`, `fonts/` and `owl/` folders, no glasses models or intro video, and it loaded Google Fonts. Check with `infra/build-site.sh` and a local server that `/` matches owlboarding.com.
+1. The finished launch page is now versioned in `apps/owl-site`, including the glasses model, local fonts, owl expressions and the 3D Junction walk. Check a fresh `infra/build-site.sh` output on a local server before enabling the first automatic publish; verify both `/` and `/studio/` against the intended release.
 2. The repository owner adds the two secrets (Settings, Secrets and variables, Actions).
 3. Write `on` as the first line of `infra/site-publish` and push. The Site run publishes and checks the live pages.
 

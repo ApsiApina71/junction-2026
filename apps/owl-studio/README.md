@@ -29,7 +29,7 @@ The development entry opens at `/studio/preview.html`. To build the public demo:
 npm run build:preview
 ```
 
-This writes a complete static app to `dist-preview/`, including `index.html`, the sample media and bundled fonts. Place that directory's contents in the marketing site's `dist/studio/` and deploy the combined `dist/`. The demo expects the `/studio/` base path; publishing it as the site's root will break asset URLs. Build into a fresh release directory so old Studio assets do not remain in the combined release. The regular `npm run build` still produces the connected app in `dist/`.
+This writes a complete static app to `dist-preview/`, including `index.html`, the sample media and bundled fonts. To package it with the landing page, run `infra/build-site.sh` from the repository root; it builds both apps into a fresh `site-dist/` with the demo at `/studio/`. See the [launch-page README](../owl-site/README.md#build-the-complete-website) for local preview and publishing. The demo expects the `/studio/` base path; publishing it as the site's root will break asset URLs. The regular `npm run build` still produces the connected app in `dist/`.
 
 The entry is `preview.html` and `src/preview.tsx`; `src/preview/` contains the in-memory API, fixtures, styles and tests. `public/preview/` contains the sample images and clips. `vite.preview.config.ts` isolates the demo's environment loading and prefixes Studio's owl assets with `/studio/`. All these inputs are versioned; generated builds are ignored.
 

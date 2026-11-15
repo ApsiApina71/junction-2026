@@ -48,3 +48,6 @@ DerivedData/
 
 # infra/build-site.sh output (owlboarding.com)
 site-dist/
+
+# Local Netlify account and site state
+.netlify/

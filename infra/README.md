@@ -6,7 +6,7 @@ last-updated: 2026-11-15
 
 # Infra
 
-**owlboarding.com is published from main by the Site workflow** ([ADR-005](../docs/architecture/adr-005-site-cd-from-main.md)). Other hosting and CD (owl-api, preview deploys per PR) are still undecided. We will not use AWS.
+**owlboarding.com has a Site workflow ready to publish from main**, gated by the switch and secrets described below ([ADR-005](../docs/architecture/adr-005-site-cd-from-main.md)). The connected owl-api and Owl Studio have a separate [Verda deployment](verda/README.md). We will not use AWS.
 
 ## owlboarding.com
 
@@ -17,6 +17,8 @@ last-updated: 2026-11-15
 | `infra/site-publish` | The switch: the workflow publishes only when its first line is `on` |
 
 Publishing also needs two repository secrets, which only the repository owner can add: `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`. Until the switch is on and the secrets are there, the workflow checks and builds and says it did not publish. The order for switching it on is in ADR-005.
+
+The finished launch-page source and assets are now versioned in `apps/owl-site`, together with the public Studio preview in `apps/owl-studio`. The [launch-page README](../apps/owl-site/README.md#build-the-complete-website) covers local preview and a manual release of the combined build to the existing Netlify site. Generated release folders are not committed.
 
 ## What runs where for the demo
 

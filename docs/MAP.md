@@ -1,7 +1,7 @@
 ---
 status: active
 tags: [index]
-last-updated: 2026-11-14
+last-updated: 2026-11-15
 ---
 
 # Map
@@ -14,7 +14,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 |---|---|---|---|
 | owl-glasses | ios (DAT) | [../apps/owl-glasses](../apps/owl-glasses/README.md) | Owl Boarding on Meta Ray-Ban Display glasses (display, camera, Neural Band, speech, voice invocations); was bite-ios |
 | owl-api | api | [../apps/owl-api](../apps/owl-api/README.md) | Owl Boarding engine: processes, Owl Check, Ask, Record and Help for the glasses app and Owl Studio |
-| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | Owl Boarding launch page: the glasses and Neural Band in 3D and a fly-into-the-lens POV view |
+| owl-site | web | [../apps/owl-site](../apps/owl-site/README.md) | OwlBoarding launch page: real glasses, the Junction onboarding walk in 3D and the public Studio demo link |
 | owl-studio | web | [../apps/owl-studio](../apps/owl-studio/README.md) | Owl Studio: the company's web app for documents, task review, new workers and the Help console |
 
 ## Agent tooling
@@ -54,6 +54,9 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [runbooks/owl-demo.md](runbooks/owl-demo.md) | Owl demo: start owl-api, tunnel and glasses app; rehearsal checklist for real glasses (JUN-53) |
 | [../infra/README.md](../infra/README.md) | Hosting: what runs where for the demo |
 | [../infra/verda/README.md](../infra/verda/README.md) | owl-api and Owl Studio on a Verda GPU machine: deploy, update, roll back (JUN-114) |
+| [../shared/brand/README.md](../shared/brand/README.md) | Approved OwlBoarding silhouette, editable master and logo generation for both web apps (JUN-35, JUN-86) |
+| [../apps/owl-site/public/models/README.md](../apps/owl-site/public/models/README.md) | Glasses model source and optional legacy model |
+| [../apps/owl-site/public/video/README.md](../apps/owl-site/public/video/README.md) | Optional assets for the earlier standalone POV preview |
 | [../design/README.md](../design/README.md) | Claude Design workflow and prototypes |
 
 ## Specs

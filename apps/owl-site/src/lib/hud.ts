@@ -29,8 +29,8 @@ export const HUD_FRAMES: HudFrame[] = [
   {
     tone: 'warning',
     eyebrow: 'Owl Check',
-    title: 'Wrong size',
-    body: '0.5 l in the box. The order says 1 l.',
+    title: 'Use oat drink 1 l',
+    body: 'Swap the 0.5 l carton for a 1 l carton. The other items match.',
     lines: [
       { name: 'Oat drink 1 l', mark: '1 / 2', tone: 'warning' },
       { name: 'Coffee 500 g', mark: '✓', tone: 'ok' },
@@ -39,7 +39,7 @@ export const HUD_FRAMES: HudFrame[] = [
     ms: 3800,
   },
   { tone: 'checking', eyebrow: 'Owl Check', title: 'Checking…', body: 'Swapped. Checking again.', ms: 1600 },
-  { tone: 'ok', eyebrow: 'Owl Check', title: 'All items in the box', body: 'Step done. Next: pack heavy items first.', ms: 3000 },
+  { tone: 'ok', eyebrow: 'Owl Check', title: 'All items in the box', body: 'Final check passed. The worker can continue.', ms: 3000 },
   {
     tone: 'answer',
     eyebrow: '“What if an item is out of stock?”',

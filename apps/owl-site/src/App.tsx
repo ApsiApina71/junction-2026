@@ -1,341 +1,258 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { ASSETS, LINKS, hasVideo } from './lib/assets'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { LINKS } from './lib/assets'
 import { hasWebGL, prefersReducedMotion } from './lib/motion'
-import { Pov } from './Pov'
-import { Scene, type Fly } from './three/Scene'
+import { ASIDE, EXAMPLE, HANDBOOK, glassesAside, itemTiming } from './intro'
+import { LensCard } from './LensCard'
+import type { ScreenId } from './lens'
+import { BEATS, END_SCREENS, INTRO_SCREENS, STOP_SCREENS, TASK, WALK_SCREENS, beatAt, leadProgress, putOnProgress } from './walk'
 
-type PovState = 'off' | 'entering' | 'on' | 'leaving'
+const PutOn = lazy(() => import('./three/PutOn'))
+const World = lazy(() => import('./three/World'))
+const HEADLINE = 'The new way to onboard workers.\nRight in the lens.'
+const CLOSING = 'Tonight, Junction’s fridges. Tomorrow, your warehouse.'
+const LEGAL = 'A Junction 2026 prototype for Meta’s “AI Glasses for Everyone, Everyday” challenge. Not affiliated with Meta or Junction. Interactive prototype: a made-up 3D Hype with made-up people; the tags stand in for what Owl tells the wearer. Meta, Ray-Ban and Neural Band are trademarks of their owners.'
 
-const FEATURES = [
-  {
-    name: 'Record',
-    title: 'Your best worker, once.',
-    text: 'An experienced worker does the task with the glasses on and talks it through. Owl turns it into a guided process: steps, short clips and what to check.',
-  },
-  {
-    name: 'Learn & Check',
-    title: 'Every step, in view.',
-    text: "The new hire sees each step in the lens and can watch the expert's clip. Owl looks through the camera and catches the wrong product or quantity before the box is sealed.",
-  },
-  {
-    name: 'Ask',
-    title: 'Answers from your handbook.',
-    text: "Ask out loud. Owl answers from the company's own instructions and names the source. If it isn't written down, Owl says so instead of guessing.",
-  },
-  {
-    name: 'Help',
-    title: 'An expert, one tap away.',
-    text: 'Stuck? Share the view with a remote expert, who sees the current step and guides by voice.',
-  },
-]
-
-const POCKET = [
-  { title: '“Hey Meta, start Owl.”', text: 'Owl opens by voice. No phone, no app to find.' },
-  { title: 'Neural Band', text: 'A pinch confirms. A swipe moves to the next step. Hands stay on the work.' },
-  { title: 'Display', text: 'Steps and clips in the right lens. Answers in the open-ear speakers.' },
-]
-
-const TRUST = [
-  {
-    title: 'Never marks a wrong order done.',
-    text: "Two frames must agree before a step passes. When the camera can't tell, Owl says it is unsure and asks to look again.",
-  },
-  {
-    title: 'The knowledge stays with the company.',
-    text: "Processes and handbooks belong to the employer. Check photos aren't stored, and faces in recordings are blurred.",
-  },
-  {
-    title: 'A learning aid, not a monitor.',
-    text: "Owl doesn't score people. Progress belongs to the worker and is shared only with their consent.",
-  },
-]
-
-function Reveal({ children, className = '' }: { children: ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [shown, setShown] = useState(false)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && setShown(true), { rootMargin: '0px 0px -12% 0px' })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
-  return (
-    <div ref={ref} className={`reveal ${shown ? 'shown' : ''} ${className}`}>
-      {children}
-    </div>
-  )
+/** The owl silhouette (shared/brand/owl-mark.svg) beside the name; `big` stacks them for the ending. */
+function OwlBrand({ big = false }: { big?: boolean }) {
+  const size = big ? 64 : 32
+  return <p className={big ? 'wordmark big' : 'wordmark'}><img src={`${import.meta.env.BASE_URL}owl/logo-light.svg`} alt="" width={size} height={size} /><span>OwlBoarding</span></p>
 }
 
-function Mark() {
+/** A line whose words rise in one after another when `on`, and leave together. A newline starts a new row. */
+function Line({ text, on, as: Tag = 'p', className }: { text: string; on: boolean; as?: 'p' | 'h1' | 'h2'; className?: string }) {
+  const rows = text.split('\n').map(row => row.split(' '))
+  const firsts = rows.map((_, r) => rows.slice(0, r).reduce((sum, words) => sum + words.length, 0))
   return (
-    <svg className="mark" viewBox="0 0 64 40" aria-hidden="true">
-      <circle cx="18" cy="20" r="12" fill="none" stroke="currentColor" strokeWidth="4.5" />
-      <circle cx="46" cy="20" r="12" fill="none" stroke="currentColor" strokeWidth="4.5" />
-      <circle cx="46" cy="20" r="4.5" fill="var(--accent)" />
-      <circle cx="18" cy="20" r="4.5" fill="currentColor" />
-    </svg>
+    <Tag className={`line${on ? ' on' : ''}${className ? ` ${className}` : ''}`} aria-hidden={on ? undefined : true}>
+      {rows.map((words, r) => (
+        <span key={r} className="row">
+          {words.map((word, i) => (
+            <span key={i}>
+              <span className="w" style={{ '--i': firsts[r] + i } as CSSProperties}>{word}</span>
+              {i < words.length - 1 ? ' ' : ''}
+            </span>
+          ))}
+        </span>
+      ))}
+    </Tag>
   )
 }
 
 export default function App() {
-  const [reduced] = useState(prefersReducedMotion)
   const [webgl] = useState(hasWebGL)
-  const [pov, setPov] = useState<PovState>('off')
-  const [video, setVideo] = useState<{ mp4: string | null; webm: string | null }>({ mp4: null, webm: null })
-  const [heroVisible, setHeroVisible] = useState(true)
-  const heroRef = useRef<HTMLElement>(null)
-  const povRef = useRef<HTMLDivElement>(null)
+  return <main>{webgl ? <Walk /> : <Compact />}</main>
+}
 
-  useEffect(() => {
-    Promise.all([hasVideo(ASSETS.povMp4), hasVideo(ASSETS.povWebm)]).then(([mp4, webm]) =>
-      setVideo({ mp4: mp4 ? ASSETS.povMp4 : null, webm: webm ? ASSETS.povWebm : null }),
-    )
-  }, [])
+type WalkRef = { index: number; within: number; ended: boolean }
 
-  useEffect(() => {
-    const el = heroRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setHeroVisible(e.isIntersecting))
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+  return t * t * (3 - 2 * t)
+}
 
-  const setPovOpacity = useCallback((k: number) => {
-    const el = povRef.current
-    if (el) el.style.opacity = String(Math.min(1, Math.max(0, (k - 0.62) / 0.38)))
-  }, [])
-
-  const enter = useCallback(() => {
-    if (pov !== 'off') return
-    if (!webgl) {
-      setPovOpacity(1)
-      setPov('on')
+/**
+ * The handbook's items, for the put-on's progress `p`: each comes into the list, then streams into the glasses, which
+ * stand aside where PutOn puts them (intro.ts). The list sits in a full-screen box, so the items' resting places are
+ * their offsets, which transforms do not change.
+ */
+function streamHandbook(p: number, stage: HTMLElement, wrap: HTMLElement | null, reduced: boolean) {
+  if (!wrap) return
+  const width = stage.clientWidth
+  const height = stage.clientHeight
+  const tall = width < height * 0.9
+  const aside = glassesAside(p)
+  const tx = ((1 + (tall ? 0 : ASIDE.wide * aside)) / 2) * width
+  const ty = ((1 - (tall ? ASIDE.tall * aside : 0)) / 2) * height
+  const items = [...wrap.querySelectorAll<HTMLElement>('li')]
+  // All the reading first, then all the writing, so a scroll frame lays the page out once.
+  const rests = items.map(li => [li.offsetLeft + li.offsetWidth / 2, li.offsetTop + li.offsetHeight / 2])
+  items.forEach((li, i) => {
+    const { appear, flight } = itemTiming(i, p)
+    if (reduced) {
+      li.style.opacity = String(appear * (1 - flight))
+      li.style.transform = ''
       return
     }
-    if (window.scrollY > 40) {
-      window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
-      window.setTimeout(() => setPov('entering'), reduced ? 0 : 650)
-    } else {
-      setPov('entering')
-    }
-  }, [pov, webgl, reduced, setPovOpacity])
+    const e = flight * flight * flight
+    const dx = (tx - rests[i][0]) * e + (1 - appear) * 18
+    const dy = (ty - rests[i][1]) * e
+    li.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${(1 - 0.82 * e).toFixed(3)})`
+    li.style.opacity = String(appear * (1 - smooth(0.7, 1, flight)))
+  })
+}
 
-  const leave = useCallback(() => {
-    if (!webgl) {
-      setPovOpacity(0)
-      setPov('off')
-      return
-    }
-    setPov('leaving')
-  }, [webgl, setPovOpacity])
-
-  const onArrived = useCallback((dir: 'in' | 'out') => setPov(dir === 'in' ? 'on' : 'off'), [])
-
-  const fly: Fly = pov === 'entering' || pov === 'on' ? 'in' : pov === 'leaving' ? 'out' : 'orbit'
-
+/** Without 3D the walk has nothing to show, so the page is one short screen instead. */
+function Compact() {
   return (
-    <>
-      <header className="nav">
-        <a className="brand" href="#top" aria-label="Owl Boarding, back to top">
-          <Mark />
-          <span>Owl Boarding</span>
-        </a>
-        <nav aria-label="Sections">
-          <a href="#how">How it works</a>
-          <a href="#trust">Trust</a>
-          <a href="#pilot">Pilot</a>
-        </nav>
-        <button type="button" className="btn btn-small" onClick={enter}>
-          See through Owl
-        </button>
-      </header>
-
-      <main id="top">
-        <section className="hero" ref={heroRef}>
-          <div className="hero-stage" aria-hidden={pov !== 'off'}>
-            {webgl ? (
-              <Scene
-                fly={fly}
-                active={heroVisible || pov !== 'off'}
-                reduced={reduced}
-                videoUrl={video.mp4}
-                onProgress={setPovOpacity}
-                onArrived={onArrived}
-              />
-            ) : (
-              <div className="scene-fallback" role="img" aria-label="Meta Ray-Ban Display glasses with Owl Boarding">
-                <Mark />
-              </div>
-            )}
-          </div>
-          <div className={`hero-copy ${pov !== 'off' ? 'hidden' : ''}`}>
-            <p className="eyebrow">For Meta Ray-Ban Display</p>
-            <h1>
-              Day one.
-              <br />
-              Done right.
-            </h1>
-            <p className="lede">
-              Owl Boarding puts your best worker's know-how in front of every new hire's eyes, step by step, and checks
-              the work as it happens.
-            </p>
-            <div className="ctas">
-              <button type="button" className="btn" onClick={enter}>
-                <EyeIcon /> See through Owl
-              </button>
-              {LINKS.film && (
-                <a className="btn btn-ghost" href={LINKS.film} target="_blank" rel="noreferrer">
-                  Watch the film <span aria-hidden="true">›</span>
-                </a>
-              )}
-            </div>
-          </div>
-          {webgl && pov === 'off' && <p className="hint">Drag to turn the glasses</p>}
-        </section>
-
-        <section className="statement">
-          <Reveal>
-            <p className="big">
-              Office onboarding has a hundred apps.
-              <br />
-              <span className="dim">The warehouse floor has a colleague who's busy.</span>
-            </p>
-            <p className="support">
-              Warehouses, kitchens, bakeries and building sites learn by shadowing. The know-how is tacit, so onboarding is
-              slow and costly, and companies end up hiring only people who already know the job.
-            </p>
-          </Reveal>
-        </section>
-
-        <section id="how" className="section">
-          <Reveal>
-            <p className="eyebrow">How it works</p>
-            <h2>Learn the job from the person who does it best.</h2>
-          </Reveal>
-          <div className="grid four">
-            {FEATURES.map((f, i) => (
-              <Reveal key={f.name} className="card">
-                <span className="step">{String(i + 1).padStart(2, '0')}</span>
-                <p className="card-name">{f.name}</p>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
-              </Reveal>
-            ))}
-          </div>
-        </section>
-
-        <section className="section band">
-          <Reveal>
-            <p className="eyebrow">Hands-free</p>
-            <h2>The phone stays in the pocket.</h2>
-            <p className="support">
-              The employer pairs the glasses once. After that, the new worker never takes out a phone.
-            </p>
-          </Reveal>
-          <div className="grid three">
-            {POCKET.map((p) => (
-              <Reveal key={p.title} className="tile">
-                <h3>{p.title}</h3>
-                <p>{p.text}</p>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal className="center">
-            <button type="button" className="btn" onClick={enter}>
-              <EyeIcon /> See what the worker sees
-            </button>
-          </Reveal>
-        </section>
-
-        <section className="section">
-          <Reveal className="split">
-            <div>
-              <p className="eyebrow">Inclusive by design</p>
-              <h2>Hire anyone.</h2>
-            </div>
-            <div className="split-text">
-              <p>
-                Instructions in the worker's own language. Pictures and clips instead of walls of text for people with
-                dyslexia. Calm, repeatable steps for supported employment.
-              </p>
-              <p>And for everyone, on their first day.</p>
-              <ul className="chips" aria-label="Example languages">
-                <li>English</li>
-                <li>Suomi</li>
-                <li>Svenska</li>
-                <li>Українська</li>
-                <li>العربية</li>
-                <li>Español</li>
-              </ul>
-            </div>
-          </Reveal>
-        </section>
-
-        <section id="trust" className="section">
-          <Reveal>
-            <p className="eyebrow">Trust</p>
-            <h2>Built to be trusted on the floor.</h2>
-          </Reveal>
-          <div className="grid three">
-            {TRUST.map((t) => (
-              <Reveal key={t.title} className="card">
-                <h3>{t.title}</h3>
-                <p>{t.text}</p>
-              </Reveal>
-            ))}
-          </div>
-        </section>
-
-        <section id="pilot" className="section pilot">
-          <Reveal>
-            <p className="eyebrow">Pilot</p>
-            <h2>One site. Three new hires.</h2>
-            <p className="support">
-              We measure the time until each new hire works alone, and the mistakes Owl caught before they reached a
-              customer. Paid per site by the employer.
-            </p>
-            <div className="ctas center">
-              <button type="button" className="btn" onClick={enter}>
-                <EyeIcon /> See through Owl
-              </button>
-              <a className="btn btn-ghost" href={LINKS.repo} target="_blank" rel="noreferrer">
-                Source on GitHub <span aria-hidden="true">›</span>
-              </a>
-            </div>
-          </Reveal>
-        </section>
-      </main>
-
-      <footer className="footer">
-        <div className="brand">
-          <Mark />
-          <span>Owl Boarding</span>
-        </div>
-        <p>
-          Built at Junction 2026 for the Meta challenge “AI Glasses for Everyone, Everyday”. An independent project, not
-          affiliated with or endorsed by Meta. Meta, Ray-Ban and Neural Band are trademarks of their owners.
-        </p>
-      </footer>
-
-      <Pov
-        ref={povRef}
-        open={pov === 'on' || pov === 'entering'}
-        videoUrl={video.mp4}
-        webmUrl={video.webm}
-        posterUrl={ASSETS.povPoster}
-        reduced={reduced}
-        onClose={leave}
-      />
-    </>
+    <section className="compact">
+      <h1>{HEADLINE}</h1>
+      <p className="example">{EXAMPLE.title} {EXAMPLE.body}</p>
+      <OwlBrand />
+      <p className="task">{TASK}</p>
+      <ol>{BEATS.map(b => <li key={b.id}>{b.line}</li>)}</ol>
+      <h2>{CLOSING}</h2>
+      <div className="ending-links">
+        {LINKS.film && <a href={LINKS.film} target="_blank" rel="noreferrer">Watch the film</a>}
+        <a href={LINKS.studio} target="_blank" rel="noreferrer">View admin dashboard</a>
+        <a href={LINKS.repo} target="_blank" rel="noreferrer">Source on GitHub</a>
+      </div>
+      <p className="legal-inline">{LEGAL}</p>
+    </section>
   )
 }
 
-function EyeIcon() {
-  return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="3.2" fill="currentColor" />
-    </svg>
-  )
+function Walk() {
+  const root = useRef<HTMLElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
+  const lidTop = useRef<HTMLDivElement>(null)
+  const lidBottom = useRef<HTMLDivElement>(null)
+  const putOn = useRef(0)
+  const handbook = useRef<HTMLDivElement>(null)
+  const walk = useRef<WalkRef>({ index: 0, within: 0, ended: false })
+  const pointer = useRef({ x: 0, y: 0 })
+  const [index, setIndex] = useState(0)
+  const [wearing, setWearing] = useState(false)
+  // The world behind the landing is hidden until the lenses open, so it waits until the glasses are near the eyes.
+  const [nearEyes, setNearEyes] = useState(false)
+  const [landing, setLanding] = useState(true)
+  // The lead: the headline at the top, then the statement of what the example is, until the handbook comes in.
+  const [atTop, setAtTop] = useState(true)
+  const [example, setExample] = useState(false)
+  const [ended, setEnded] = useState(false)
+  const [inView, setInView] = useState(true)
+  const [ready, setReady] = useState(false)
+  const [reduced, setReduced] = useState(prefersReducedMotion)
+  const [glassesReady, setGlassesReady] = useState(false)
+  const onGlassesReady = useCallback(() => setGlassesReady(true), [])
+  const still = useRef(reduced)
+  useEffect(() => {
+    still.current = reduced
+  }, [reduced])
+
+  // The eyelids: 0 open, 1 closed. The world drives them for the blinks between far stops and at the end.
+  const onLids = useCallback((closed: number) => {
+    const shut = Math.min(1, Math.max(0, closed))
+    if (lidTop.current) lidTop.current.style.transform = `translateY(${(shut - 1) * 100}%)`
+    if (lidBottom.current) lidBottom.current.style.transform = `translateY(${(1 - shut) * 100}%)`
+  }, [])
+  const onStop = useCallback((stop: number) => setIndex(stop), [])
+  const [screen, setScreen] = useState<ScreenId | null>(null)
+  const onScreen = useCallback((id: ScreenId | null) => setScreen(id), [])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setReady(true))
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onMedia = () => setReduced(media.matches)
+    const onPointer = (e: PointerEvent) => {
+      pointer.current = { x: (e.clientX / window.innerWidth) * 2 - 1, y: (e.clientY / window.innerHeight) * 2 - 1 }
+    }
+    media.addEventListener('change', onMedia)
+    window.addEventListener('pointermove', onPointer, { passive: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      media.removeEventListener('change', onMedia)
+      window.removeEventListener('pointermove', onPointer)
+    }
+  }, [])
+
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const el = root.current
+      const st = stage.current
+      if (!el || !st) return
+      const rect = el.getBoundingClientRect()
+      const viewport = window.innerHeight
+      const scrolled = -rect.top
+      const lead = leadProgress(scrolled, viewport)
+      const p = putOnProgress(scrolled, viewport)
+      putOn.current = p
+      st.style.setProperty('--lead', lead.toFixed(4))
+      st.style.setProperty('--puton', p.toFixed(4))
+      streamHandbook(p, st, handbook.current, still.current)
+      setAtTop(lead < EXAMPLE.SHOW)
+      setExample(lead >= EXAMPLE.SHOW && p < 0.03)
+      setWearing(p >= 0.96)
+      setNearEyes(p >= 0.7)
+      setLanding(p < 1)
+      setInView(rect.bottom > 0 && rect.top < viewport)
+      // The stops start once the glasses are on, measured from the middle of the viewport.
+      const position = scrolled - INTRO_SCREENS * viewport + viewport / 2
+      const at = beatAt(position, viewport, STOP_SCREENS)
+      const within = position < 0 ? 0 : at.progress
+      const end = position >= (WALK_SCREENS + 0.15) * viewport
+      walk.current = { index: at.index, within, ended: end }
+      setEnded(end)
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
+    update()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  const walking = wearing && !ended
+  return <section id="walk" className={`walk${wearing ? ' wearing' : ''}${ended ? ' ended' : ''}`} ref={root} aria-label="Aino’s first crew shift at Junction 2026, through her glasses">
+    <div className={reduced ? 'stage still' : 'stage'} ref={stage}>
+      <div className="scene" aria-hidden="true">
+        <Suspense fallback={null}><World walk={walk} pointer={pointer} onLids={onLids} onStop={onStop} onScreen={onScreen} reduced={reduced} active={inView && !ended && nearEyes} /></Suspense>
+      </div>
+      <div className="shade" aria-hidden="true" />
+      <div className="caption" aria-hidden="true">
+        <p className="task">{TASK}</p>
+        <div className="lines">{BEATS.map((b, i) => <Line key={b.id} text={b.line} on={walking && i === index} />)}</div>
+        <ol className="stops">{BEATS.map((b, i) => <li key={b.id} className={i <= index ? 'on' : undefined} />)}</ol>
+      </div>
+      <LensCard id={walking ? screen : null} />
+      <p className="sim-note" aria-hidden="true">Interactive prototype</p>
+      <div className="lid lid-top" ref={lidTop} aria-hidden="true" />
+      <div className="lid lid-bottom" ref={lidBottom} aria-hidden="true" />
+      <div className={glassesReady ? 'landing ready' : 'landing'} aria-hidden={wearing || undefined}>
+        <div className="landing-backdrop" />
+        <Suspense fallback={null}><PutOn progress={putOn} reduced={reduced} active={landing && inView} interactive={!wearing} onReady={onGlassesReady} /></Suspense>
+        <div className="landing-brand"><OwlBrand /></div>
+        <div className="handbook-wrap" ref={handbook}>
+          <div className="handbook">
+            <p className="handbook-kicker">{HANDBOOK.kicker}</p>
+            <h2>{HANDBOOK.title}</h2>
+            <ul>
+              {HANDBOOK.items.map(item => (
+                <li key={item.title}><i /><b>{item.title}</b><span>{item.detail}</span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="landing-copy">
+          <Line as="h1" text={HEADLINE} on={ready && atTop} />
+          <p className="scroll-hint"><span className="scroll-cue" aria-hidden="true" />Scroll to put them on</p>
+        </div>
+        <div className="landing-example">
+          <Line as="h2" text={EXAMPLE.title} on={example} />
+          <Line text={EXAMPLE.body} on={example} className="sub" />
+        </div>
+      </div>
+      <div className="ending" aria-hidden={ended ? undefined : true}>
+        <OwlBrand big />
+        <Line as="h2" text={CLOSING} on={ended} />
+        <div className="ending-links">
+          {LINKS.film && <a href={LINKS.film} target="_blank" rel="noreferrer" tabIndex={ended ? undefined : -1}>Watch the film</a>}
+          <a href={LINKS.studio} target="_blank" rel="noreferrer" tabIndex={ended ? undefined : -1}>View admin dashboard</a>
+          <a href={LINKS.repo} target="_blank" rel="noreferrer" tabIndex={ended ? undefined : -1}>Source on GitHub</a>
+        </div>
+        <p className="legal">{LEGAL}</p>
+      </div>
+    </div>
+    <div className="beats">
+      <div style={{ height: `${INTRO_SCREENS * 100}svh` }} aria-hidden="true" />
+      {BEATS.map((b, i) => <article key={b.id} id={`stop-${i}`} className="beat" style={{ height: `${(b.screens ?? 1) * 100}svh` }}>
+        <h2 className="visually-hidden">{b.line}</h2>
+      </article>)}
+      <div style={{ height: `${END_SCREENS * 100}svh` }} />
+    </div>
+  </section>
 }

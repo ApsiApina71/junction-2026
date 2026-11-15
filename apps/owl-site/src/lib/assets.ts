@@ -2,6 +2,13 @@
 const base = import.meta.env.BASE_URL
 
 export const ASSETS = {
+  owl: {
+    welcome: `${base}owl/welcome.png`,
+    listening: `${base}owl/listening.png`,
+    thinking: `${base}owl/thinking.png`,
+    alert: `${base}owl/alert.png`,
+    done: `${base}owl/done.png`,
+  },
   glasses: `${base}models/owl-glasses.glb`,
   band: `${base}models/neural-band.glb`,
   povMp4: `${base}video/pov-loop.mp4`,
@@ -11,6 +18,8 @@ export const ASSETS = {
 
 export const LINKS = {
   repo: 'https://github.com/ApsiApina71/junction-2026',
+  // Owl Studio, the admin dashboard, with sample data, served from the same host.
+  studio: '/studio/',
   // The public 2-minute film (JUN-50). Empty hides the button.
   film: '',
 }

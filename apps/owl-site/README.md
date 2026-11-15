@@ -1,34 +1,80 @@
 ---
 status: active
-tags: [app, web, launch-page, onboarding-owl]
-last-updated: 2026-11-14
+tags: [app, web, owl, site]
+last-updated: 2026-11-15
 ---
 
 # owl-site
 
-The one-page launch site for Owl Boarding ([JUN-86](https://linear.app/junction-2026-bossit/issue/JUN-86)), Linear project [Launch Page](https://linear.app/junction-2026-bossit/project/launch-page-5e64dd64e4ff). Peer reviewers can't put on the glasses, so this page shows the product and how it feels to wear it.
+The [OwlBoarding launch site](https://owlboarding.com/): a scroll-driven walk through a Junction crew member's first task, seen through Meta Ray-Ban Display glasses. [Launch page: JUN-86](https://linear.app/junction-2026-bossit/issue/JUN-86). [Hosting: JUN-87](https://linear.app/junction-2026-bossit/issue/JUN-87).
 
-- **Hero:** the Meta Ray-Ban Display glasses and the Neural Band in 3D (three.js via React Three Fiber). Visitors drag to turn them.
-- **See through Owl:** the camera flies into the right lens and the page becomes the wearer's view, with the POV video on a loop.
-- **Story:** the problem, Record → Learn & Check → Ask → Help, hands-free, hire anyone, trust, pilot.
+The opening shows Antti's glasses model, explains the Junction example and brings the workers' handbook into the lens. The glasses go on, then ten stops follow the worker through finding Fridge 2, restocking it, asking for help and giving a hacker directions. The final view reveals the owl-pillow presenter on stage. The ending links to the [public Owl Studio dashboard](https://owlboarding.com/studio/) and this repository.
 
-Static site with no backend. It builds with relative paths (`base: './'`), so it works from any host or sub-path. Hosting: [JUN-87](https://linear.app/junction-2026-bossit/issue/JUN-87).
+## Run and verify
 
-## Assets from Lauri
+Requires Node 22.12 or newer; CI uses Node 24. From `apps/owl-site/`:
 
-Drop these into `public/` with exactly these names. The page detects them at load time and replaces its built-in placeholders without code changes:
+```sh
+npm ci
+npm run dev
+```
 
-| File | Ticket | Placeholder until then |
-|---|---|---|
-| `public/models/owl-glasses.glb` | [JUN-88](https://linear.app/junction-2026-bossit/issue/JUN-88) | Glasses drawn in code (`src/three/placeholder.tsx`) |
-| `public/models/neural-band.glb` | JUN-88 | Band drawn in code |
-| `public/video/pov-loop.mp4` (+ `pov-loop.webm`, `pov-poster.jpg`) | [JUN-89](https://linear.app/junction-2026-bossit/issue/JUN-89) | A simulated display (`src/lib/hud.ts`), labelled as simulated |
-| `public/og-image.png` (1200×630) | [JUN-90](https://linear.app/junction-2026-bossit/issue/JUN-90) | None |
+The verification commands, also listed in [CLAUDE.md](CLAUDE.md), are:
 
-Models are scaled to fit and centred automatically. The page flies into the node named `lens_right` and plays the POV video on the node named `display_area`. Draco and Meshopt compression are supported.
+```sh
+npm ci
+npm run lint
+npm test
+npm run build
+```
 
-## Notes
+`npm run preview` serves the production landing-page build. Its Studio link needs the combined build below. The site is hosted at the domain root; the public dashboard uses `/studio/`.
 
-- `prefers-reduced-motion` turns off auto-rotation, the flight and the scroll reveals.
-- Without WebGL, the hero shows the logo and "See through Owl" opens the wearer's view directly.
-- The footer says the project is independent and not affiliated with Meta. Keep it.
+## Build the complete website
+
+From the repository root:
+
+```sh
+infra/build-site.sh
+python3 -m http.server 4323 --directory site-dist
+```
+
+Open `http://localhost:4323/` and `http://localhost:4323/studio/`. The script installs the locked dependencies, builds this app and Studio's sample-data preview, and assembles both in `site-dist/`. It requires a fresh output directory; pass a different path for another release. Use `SKIP_INSTALL=1` only after `npm ci` has run in both apps.
+
+Studio's preview keeps fictional data in memory for each tab and does not connect to owl-api. Its source, images and clips are versioned in [`apps/owl-studio`](../owl-studio/README.md#public-demo). The connected Studio app has its own build and hosting.
+
+Publishing uses the existing Netlify site in Johannes's account. Follow [`infra/README.md`](../../infra/README.md) and [ADR-005](../../docs/architecture/adr-005-site-cd-from-main.md): the Site workflow checks and builds both apps, and publishes only when its repository switch and secrets are configured. A manual release uploads the **combined** `site-dist/`, never this app's standalone `dist/`:
+
+```sh
+netlify deploy --prod --no-build --dir site-dist --site 2efd0ad7-3d5d-4556-9115-0107b9103073
+```
+
+Build output, dependencies, local design-tool state and Netlify account state are ignored by Git. No credentials are needed to build or preview either public page.
+
+## Source and assets
+
+| Path | Purpose |
+|---|---|
+| `src/App.tsx`, `src/index.css` | Intro, scrolling, captions, ending, responsive layout and the no-WebGL fallback |
+| `src/intro.ts`, `src/walk.ts` | Handbook content, intro timing, ten stops and their camera positions |
+| `src/LensCard.tsx`, `src/lens.ts` | In-lens cards and copy based on the glasses app's screens |
+| `src/three/PutOn.tsx`, `src/three/useGlasses.ts` | Glasses opening, fit and transition into the lens |
+| `src/three/World.tsx`, `src/three/parts.tsx`, `src/three/drinks.tsx` | Junction hall, people, furniture, fridges and drink trays |
+| `src/three/Presenter.tsx` | The costumed presenter, visible only at the final stop |
+| `src/three/tray.ts`, `src/three/show.ts` | Reversible tray animation and scene timing |
+| `src/three/Grade.tsx`, `src/three/air.tsx`, `src/three/beam.ts` | Lighting, atmosphere and postprocessing |
+| `public/models/owl-glasses.glb` | Antti's Blender glasses model from [JUN-88](https://linear.app/junction-2026-bossit/issue/JUN-88); runtime fit leaves the source asset intact |
+| `public/owl/lens/` | Owl expressions used by the lens cards |
+| `public/owl/logo*.svg`, `public/favicon.svg` | Static brand mark, generated from [`shared/brand`](../../shared/brand/README.md) |
+| `public/fonts/` | Self-hosted Outfit variable font and its OFL license |
+| `public/og-image.png` | Link-sharing image |
+| `public/demo/`, `src/TaskPreview.tsx`, `src/Pov.tsx` | Earlier standalone task and POV previews retained with their supporting assets |
+| `src/mascot/`, `scripts/build-owl.mjs` | Editable vector mascot and optional Lottie companion; regenerate with `npm run mascot:build` |
+
+The current entry uses `src/index.css`. The retained `base.css` and `tokens.css` belong to the earlier preview design. The live treatment uses dark surfaces, Outfit, cyan guidance and softly translucent lens cards. Keep the static owl silhouette for branding and the expressive owls for task states.
+
+## Rendering checks
+
+Check the opening, example, handbook, all ten stops, backward scrolling and the final presenter on desktop and phone. The stage stays empty during the walk. Reverse scrolling reverses the trays; reduced motion uses the current stop without a timed transition. The intro headline returns when scrolling back to the top.
+
+With WebGL unavailable, the page shows a readable explanation, task preview and dashboard link. Reduced-motion preferences are respected. For rendering comparisons, `?fx=off` disables the optional effects and `?fx=all` enables them all; normal touch-screen rendering skips postprocessing. The unit tests cover the intro, walk, lens copy, effects policy and reversible animation timing.
