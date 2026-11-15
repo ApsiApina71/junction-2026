@@ -108,8 +108,8 @@ AI agents do most of the work from Linear tickets (team `JUN`).
 |---|---|
 | Aapo Putkonen | [@ApsiApina71](https://github.com/ApsiApina71) |
 | Lauri Pörsti | [@LauriPor](https://github.com/LauriPor) |
-| Antti Nieminen | |
-| Johannes Tenhunen | |
+| Antti Nieminen | [@ajknieminen-cpu](https://github.com/ajknieminen-cpu) |
+| Johannes Tenhunen | [@BuliFit](https://github.com/BuliFit) |
 
 ## License
 
