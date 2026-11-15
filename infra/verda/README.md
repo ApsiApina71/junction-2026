@@ -9,6 +9,7 @@ owl-api runs on a Verda GPU machine in Finland, next to the Nemotron endpoint it
 | Owl Studio | `https://studio.<ip with dashes>.sslip.io` (Mika's Help console: `/#/help`) |
 | Stage view | `https://api.<ip with dashes>.sslip.io/stage` |
 | Models | Nemotron 3.5 Super VL on Verda's inference endpoint; V-JEPA 2.1 on this machine's GPU |
+| GPU | The `.CC` machines start with the GPU in confidential-computing mode and "not-ready", so CUDA fails (error 802) until `nvidia-smi conf-compute -srs 1`. The `owl-gpu-ready` service does that on every boot, before owl-api |
 | Data | `/var/lib/owl/junction` (the Junction story, seeded on the first start) |
 | Keys | `/etc/owl/owl-api.env`, copied from your own `apps/owl-api/.env` by `deploy.sh`. Never in the repo |
 

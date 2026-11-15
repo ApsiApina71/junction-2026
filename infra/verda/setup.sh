@@ -70,9 +70,11 @@ JEPA_BACKEND=vjepa21
 PUBLIC_BASE_URL=https://api.${DOMAIN}
 EOF
 install -m 644 /opt/owl/repo/infra/verda/owl-api.service /etc/systemd/system/owl-api.service
+install -m 644 /opt/owl/repo/infra/verda/owl-gpu-ready.service /etc/systemd/system/owl-gpu-ready.service
 sed "s/__DOMAIN__/${DOMAIN}/g" /opt/owl/repo/infra/verda/Caddyfile.tmpl > /etc/caddy/Caddyfile
 systemctl daemon-reload
-systemctl enable -q owl-api caddy
+systemctl enable -q owl-gpu-ready owl-api caddy
+systemctl start owl-gpu-ready
 systemctl restart owl-api
 systemctl reload caddy || systemctl restart caddy
 
@@ -83,6 +85,7 @@ for _ in $(seq 1 180); do
   sleep 5
 done
 echo "$HEALTH"
+echo "GPU: $(sudo -u owl env HOME=/opt/owl /opt/owl/uv run --project /opt/owl/repo/apps/owl-api --extra jepa python -c 'import torch; print(torch.cuda.is_available())' 2>/dev/null | tail -1) (True = V-JEPA on the GPU)"
 echo
 echo "owl-api:  https://api.${DOMAIN}"
 echo "Studio:   https://studio.${DOMAIN}"

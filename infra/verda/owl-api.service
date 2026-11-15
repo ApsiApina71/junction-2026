@@ -1,7 +1,7 @@
 [Unit]
 Description=Owl Boarding owl-api (the Junction story, Nemotron on Verda, V-JEPA 2.1 on this GPU)
-After=network-online.target
-Wants=network-online.target
+After=network-online.target owl-gpu-ready.service
+Wants=network-online.target owl-gpu-ready.service
 
 [Service]
 User=owl
