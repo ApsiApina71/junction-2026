@@ -142,7 +142,6 @@ button { font: inherit; color: inherit; }
     <a class="brand" href="#top" id="top"><img src="img/logo-light.svg" alt="" width="28" height="28"><span>OwlBoarding</span></a>
 
     <div class="hero">
-      <span class="eyebrow">Built for Meta Ray-Ban Display</span>
       <h1>Onboarding, right in the lens.</h1>
       <p class="lede">A new worker puts on the glasses. Owl shows every step, checks the work and calls a colleague when it matters.</p>
       <button class="cta" id="enter" type="button">
@@ -162,7 +161,6 @@ button { font: inherit; color: inherit; }
         Back to the glasses
       </button>
       <div class="caption">
-        <span class="tag" id="c-tag">Clip 1 of 3</span>
         <h2 id="c-title">Welcome, Jose. Today: the recycling round.</h2>
         <p class="sub" id="c-sub"></p>
         <ol class="chips live" id="chips"></ol>
@@ -199,7 +197,7 @@ button { font: inherit; color: inherit; }
 // ---------------- the clips ----------------
 const CLIPS = [
   { id: 'recycling-round', title: 'Welcome, Jose. Today: the recycling round.', sub: 'Owl greets the new crew member and walks through the round step by step.' },
-  { id: 'calling-mika', title: 'Unsure? Call Mika.', sub: 'One tap and a colleague sees exactly what Jose sees.' },
+  { id: 'calling-mika', start: 14.2, title: 'Unsure? Call Mika.', sub: 'One tap and a colleague sees exactly what Jose sees.' },
   { id: 'hacker-question', title: 'A hacker asks. Owl knows.', sub: 'Answers come from the crew handbook, right where the question is asked.' },
 ];
 
@@ -221,13 +219,13 @@ CLIPS.forEach((c, i) => {
   li.firstChild.onclick = () => setClip(i, true);
   chips.appendChild(li);
 });
-const src = (c) => `media/${c.id}-${tall.matches ? 'tall' : 'wide'}.mp4`;
+// `start` skips the first seconds of a recording (a media fragment, so the file stays as filmed).
+const src = (c) => `media/${c.id}-${tall.matches ? 'tall' : 'wide'}.mp4${c.start ? `#t=${c.start}` : ''}`;
 function setClip(i, play) {
   clip = (i + CLIPS.length) % CLIPS.length;
   const c = CLIPS[clip];
   vid.poster = `media/${c.id}.jpg`;
   vid.src = src(c);
-  $('c-tag').textContent = `Clip ${clip + 1} of ${CLIPS.length}`;
   $('c-title').textContent = c.title;
   $('c-sub').textContent = c.sub;
   [...chips.querySelectorAll('button')].forEach((b, k) => {
@@ -239,7 +237,8 @@ function setClip(i, play) {
 vid.addEventListener('ended', () => setClip(clip + 1, true));
 vid.addEventListener('timeupdate', () => {
   const bar = chips.children[clip]?.querySelector('span');
-  if (bar && vid.duration) bar.style.transform = `scaleX(${vid.currentTime / vid.duration})`;
+  const from = CLIPS[clip].start || 0;
+  if (bar && vid.duration) bar.style.transform = `scaleX(${clamp01((vid.currentTime - from) / (vid.duration - from))})`;
 });
 tall.addEventListener('change', () => { const t = vid.currentTime; vid.src = src(CLIPS[clip]); vid.currentTime = t; if (wantPlay) vid.play().catch(() => {}); });
 setClip(0, false);
