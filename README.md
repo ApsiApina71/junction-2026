@@ -19,7 +19,7 @@ Owl is a learning aid, not a monitoring tool. The full product spec is [docs/spe
 | **Location** | During training Owl recognises where the worker is from the camera picture, and the next part opens at the right spot. |
 | **Customer service** | During training Owl listens at the counter, and a Hint pinch shows two or three points from the company's handbook. |
 
-Every new worker gets a personal welcome in their own language. Easy-language, audio-first and display-first profiles make Owl usable for immigrants, people in supported employment, people with dyslexia and people with low vision or hearing. The phone stays in the pocket: "Hey Meta, start Owl" opens it, and the Neural Band does the rest.
+Every new worker gets a personal welcome in their own language. Easy-language, audio-first and display-first profiles make Owl usable for immigrants, people in supported employment, people with dyslexia and people with low vision or hearing. The phone stays in the pocket: the Neural Band does the rest, and "Hey Meta, start Owl" opens Owl once the app is registered in Meta's Wearables Developer Center.
 
 ## Apps
 
@@ -36,7 +36,7 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 |---|---|
 | Owl Check sees the step in one camera picture | NVIDIA **Nemotron 3.5 Super VL**, open weights, on a **Verda** GPU in Finland (`LLM_BACKEND=nemotron`) |
 | Record, Ask, the customer-service Hint, translations, tasks from documents | the same Nemotron. Answers pass only with a quote found word for word in the company's documents |
-| Which step the worker is doing, from 2 s of video | Meta's **V-JEPA 2.1** (March 2026), frozen, with Meta's **attentive probe** trained per task on the expert's own clips (`JEPA_BACKEND=vjepa21`) |
+| Which step the worker is doing, from 2 s of video | Meta's **V-JEPA 2.1** (March 2026), frozen, with Meta's **attentive probe** trained per task on the expert's own clips (`JEPA_BACKEND=vjepa21`). On the demo's own videos, which are in the repo: 55 of 55 held-out windows ([data card](apps/owl-api/fixtures/stories/junction/jepa/README.md)) |
 | Where the worker is (unlocks the next part) | Meta's **DINOv2** |
 | Right, wrong or done | deterministic rules: two looks in a row before a warning or Owl's own ✓ |
 
@@ -44,22 +44,30 @@ Claude (`LLM_BACKEND=claude`) and Jev (TypeSafe) still work when their keys are 
 
 ## Run it
 
-With only a Verda key, `LLM_BACKEND=nemotron` and `JEPA_BACKEND=vjepa21` run everything on real models (the Junction volunteer story: `docs/runbooks/owl-junction-shoot.md`). Without any key, demo mode plays the pick-and-pack story: a wrong 0.5 l carton is caught, then the fixed box passes.
+**The demo video, on your machine.** Everything it ran on is in this repo: the Junction story (people, task, handbook), the expert's clip, the place photos and the V-JEPA training videos. You bring a model key: an OpenAI-compatible Nemotron 3.5 Super VL endpoint (ours ran on Verda and is closed after the event) or an Anthropic key. Step by step, including the glasses, the tunnel and what each scene should do: **[docs/runbooks/owl-junction-demo.md](docs/runbooks/owl-junction-demo.md)**.
 
 ```sh
-# 1. owl-api (Python 3.13+, uv)
-cd apps/owl-api
-cp .env.example .env            # a human adds ANTHROPIC_API_KEY for the real models
-OWL_DEMO=1 uv run --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
+# owl-api (Python 3.13+, uv). Put VERDA_INFERENCE_KEY (+ NEMOTRON_URL) or ANTHROPIC_API_KEY in .env yourself.
+cd apps/owl-api && cp .env.example .env
+OWL_RESET=1 OWL_STORY=junction DATA_DIR=data/junction OWL_STAGE=1 \
+  LLM_BACKEND=nemotron JEPA_BACKEND=vjepa21 PUBLIC_BASE_URL=https://<tunnel> \
+  uv run --extra jepa --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# 2. Owl Studio (Node 22.12+), in another terminal
-cd apps/owl-studio && npm ci && npm run dev
+# Owl Studio (Node 22.12+), in another terminal
+cd apps/owl-studio && npm ci && VITE_API_URL=https://<tunnel> npm run dev
 
-# 3. The glasses app: Xcode, the iOS Simulator and Meta's MockDeviceKit
-#    see apps/owl-glasses/CLAUDE.md
+# V-JEPA 2.1 on the demo's own videos (leave one video out)
+cd apps/owl-api && uv run --extra jepa python scripts/jepa_probe_eval.py
 ```
 
-On real glasses the iPhone reaches owl-api through a tunnel. The demo-day steps are in [docs/runbooks/owl-demo.md](docs/runbooks/owl-demo.md).
+**Without any key.** Demo mode plays the pick-and-pack story by itself: a wrong 0.5 l carton is caught, then the fixed box passes. It is scripted, and every check says `decided_by: "demo"`.
+
+```sh
+cd apps/owl-api && OWL_DEMO=1 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+cd apps/owl-studio && npm ci && npm run dev
+```
+
+**The glasses app** runs on Meta Ray-Ban Display glasses or in the iOS Simulator with Meta's MockDeviceKit: [apps/owl-glasses/README.md](apps/owl-glasses/README.md). On real glasses the iPhone reaches owl-api through an https tunnel.
 
 ## Data and consent
 

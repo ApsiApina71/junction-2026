@@ -175,3 +175,14 @@ def test_other_companies_stay_out_after_a_restart(tmp_path):
     assert {e.company for e in again.employees.values()} == {"Junction 2026"}
     assert {p.company for p in again.processes.values()} == {"Junction 2026"}
     assert all(doc.title.startswith("Junction 2026") for doc, _ in again.docs.values())
+
+
+def test_the_recycling_step_has_its_clip_places_and_training_takes(store):
+    """Everything the demo ran on is in the repo: the expert's clip, the place photos, and V-JEPA's takes."""
+    step = store.processes["proc-recycling"].steps[0]
+    assert store.media_path(step.clip_url.removeprefix("/media/")).is_file()
+    assert len(step.checkpoint.photo_urls) == 5
+    assert all(store.media_path(u.removeprefix("/media/")).is_file() for u in step.checkpoint.photo_urls)
+    takes = sorted(p.name for p in (store.data_dir / "jepa-steps" / "proc-recycling" / "step-1").glob("*.mp4"))
+    assert takes == ["take-other-angle.mp4", "take-sorting-1.mp4", "take-sorting-2.mp4"]
+    assert (store.data_dir / "jepa-other" / "packing.mp4").is_file()

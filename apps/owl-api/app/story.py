@@ -1,8 +1,12 @@
 """The Junction volunteer story for the demo video (JUN-102, JUN-105), without demo mode.
 
 `OWL_STORY=junction` turns this server into the Junction 2026 volunteer crew: Sami (crew lead, the expert), Jose (a new
-volunteer in training, Owl's lines in English and his welcome in Spanish), Mika (the shift manager on shift), the volunteer handbook, the recycling round and the venue's
+volunteer in training, Owl's lines in English), Mika (the shift manager on shift), the volunteer handbook, the recycling round and the venue's
 areas. The other demo companies are removed, so Studio shows only Junction.
+
+The story also brings the recycling step's training videos for V-JEPA 2.1 step recognition (`jepa/` next to the story,
+see `jepa/README.md`): they are copied into DATA_DIR/jepa-steps and DATA_DIR/jepa-other, where the recognizer reads a
+company's extra takes and its "not doing a step" clips. A file already there is left alone.
 
 Only the data changes: vision, the rules, Hint and Help are the real engine, unlike `OWL_DEMO=1`, which scripts what
 the camera sees. The story is seeded once: what Studio changes afterwards (Sami's recorded task, a place photo,
@@ -10,6 +14,7 @@ the training) is kept across restarts. `OWL_RESET=1` seeds it again from scratch
 """
 
 import json
+import shutil
 from datetime import date
 
 from .models import Employee, Process, TrainingPlan, Zone
@@ -28,10 +33,22 @@ def _employee(data: dict) -> Employee:
     return Employee.model_validate({k: v for k, v in data.items() if k in Employee.model_fields})
 
 
+def seed_jepa(store: Store, folder) -> None:
+    """The story's V-JEPA training takes into DATA_DIR, where app/jepa.py's Recognizer reads them."""
+    for source, target in (("steps", "jepa-steps"), ("other", "jepa-other")):
+        root = folder / "jepa" / source
+        for path in sorted(root.rglob("*.mp4")) if root.is_dir() else []:
+            dest = store.data_dir / target / path.relative_to(root)
+            if not dest.exists():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, dest)
+
+
 def apply(store: Store, name: str = "junction", today: date | None = None) -> None:
     folder = STORY_DIR / name
     story = _load(name)
     company = story["company"]
+    seed_jepa(store, folder)
     with store.lock:
         # The handbook lives with the story, not in fixtures/docs, so other demos never answer from it.
         for path in sorted(folder.glob("*.md")):
