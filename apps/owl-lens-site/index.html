@@ -148,6 +148,11 @@ button { font: inherit; color: inherit; }
 .nogl #gl, .nogl .dive, .nogl .hint { display: none; }
 .nogl #pov { opacity: 1 !important; clip-path: none !important; }
 
+/* A phone has no room for a centred brand and the Owl Studio button side by side: the brand moves left. */
+@media (max-width: 560px) {
+  .brand { left: var(--gutter); translate: none; }
+  .studio-link { top: calc(16px + env(safe-area-inset-top, 0px)); padding: 8px 12px 8px 14px; font-size: 0.86rem; }
+}
 @media (max-width: 720px) {
   .steps { grid-template-columns: 1fr; }
   .hud .caption { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
