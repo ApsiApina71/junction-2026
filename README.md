@@ -48,6 +48,8 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 
 ![Our tuned V-JEPA: the training set filmed at Junction, the five variants on 55 held-out test windows, and why a company-specific model beats a generic one](docs/images/owl-boarding-vjepa.png)
 
+**Owl learns from use.** Every step Owl Check passes or warns on can become one more V-JEPA example of that step: an embedding, never video, not tied to the worker, at most 20 per step. The task's probe then retrains itself in the background, in seconds on the Verda GPU. So the more a task is done, the better the local model knows it, without anyone labelling anything. It is built and tested (`tests/test_jepa.py`) and switched on with one setting, `JEPA_LEARN_FROM_USE=1`. It is off in the Junction demo.
+
 Claude (`LLM_BACKEND=claude`) and Jev (TypeSafe) still work when their keys are set. `GET /health` says which models really run.
 
 ## Run it

@@ -58,7 +58,7 @@ What runs (JUN-68, JUN-34, JUN-103): only open models, no Anthropic key.
 - **Place: Meta's DINOv2** recognises the spot from the step's photos.
 - **Decisions: rules.** A warning or Owl's own ✓ needs two looks in a row; a step is never done while something is wrong. Jev (TypeSafe) can join with its key.
 
-**Roadmap for V-JEPA:** (1) *JEPA as a gate before the LLM*: V-JEPA runs locally all the time and the cloud model is asked only when the action changes (fewer calls, lower cost, less data out). (2) *Nemotron teaches JEPA*: every check Owl Check decides becomes a labelled V-JEPA example (`JEPA_LEARN_FROM_USE`), so the local model learns the company's tasks from use. (3) *A whole working day into steps*: V-JEPA proposes where one action ends and the next starts in an expert's continuous video. (4) A bigger 2.1 encoder and Meta's full 4-block probe on a Verda GPU once there are more clips.
+**Roadmap for V-JEPA:** (1) *JEPA as a gate before the LLM*: V-JEPA runs locally all the time and the cloud model is asked only when the action changes (fewer calls, lower cost, less data out). (2) *Nemotron teaches JEPA*, built and tested, off in the demo: every check Owl Check decides becomes a labelled V-JEPA example and the task's probe retrains in the background (`JEPA_LEARN_FROM_USE=1`), so the local model learns the company's tasks from use. (3) *A whole working day into steps*: V-JEPA proposes where one action ends and the next starts in an expert's continuous video. (4) A bigger 2.1 encoder and Meta's full 4-block probe on a Verda GPU once there are more clips.
 
 ## Users and inclusion
 

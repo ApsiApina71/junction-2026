@@ -91,7 +91,7 @@ Use `uv run --extra jepa` every time: a plain `uv sync` removes the extra, and s
 
 - `JEPA_CONFIRM_DONE=0.6`: V-JEPA is the second opinion for Owl's own ✓. A step with `done_when` finishes by itself only when Nemotron sees the done moment twice in a row **and** V-JEPA's latest look in the run (within 15 s) is that step with a probability of at least 0.6. The glasses send a clip every ~8 s on such a step.
 - `JEPA_ORDER_PRIOR=1`: the steps come in order, so the probe's answer is weighted towards the step the worker is on and the next one (half for each step further away).
-- `JEPA_LEARN_FROM_USE=1`: Owl Check teaches V-JEPA. When a check passes or warns on a step, the run's latest V-JEPA look is kept as one more example of that step (pooled tokens, never video, not tied to the worker, at most 20 per step, in `data/jepa/learned-*.pt`), and the task's probe is trained again in the background. The more the task is done, the better the local model gets, and the fewer cloud calls it would need.
+- `JEPA_LEARN_FROM_USE=1`: Owl Check teaches V-JEPA. When a check passes or warns on a step, the run's latest V-JEPA look is kept as one more example of that step (pooled tokens, never video, not tied to the worker, at most 20 per step, in `data/jepa/learned-*.pt`), and the task's probe is trained again in the background. The more the task is done, the better the local model gets, and the fewer cloud calls it would need. Tested in `tests/test_jepa.py` (`test_second_opinion_and_learning_from_use`): the look is kept, the probe retrains with it, and the examples survive a restart. Off in the Junction deployment on Verda; to switch it on there, see [infra/verda/README.md](../../infra/verda/README.md).
 
 ## Stage view
 

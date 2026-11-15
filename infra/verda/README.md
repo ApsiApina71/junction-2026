@@ -11,6 +11,7 @@ owl-api runs on a Verda GPU machine in Finland, next to the Nemotron endpoint it
 | Models | Nemotron 3.5 Super VL on Verda's inference endpoint; V-JEPA 2.1 on this machine's GPU |
 | GPU | The `.CC` machines start with the GPU in confidential-computing mode and "not-ready", so CUDA fails (error 802) until `nvidia-smi conf-compute -srs 1`. The `owl-gpu-ready` service does that on every boot, before owl-api |
 | Data | `/var/lib/owl/junction` (the Junction story, seeded on the first start) |
+| Learning from use | Off. To switch it on, add `JEPA_LEARN_FROM_USE=1` to `/etc/owl/deploy.env` and `systemctl restart owl-api`: each step Owl Check passes or warns on then teaches the task's V-JEPA probe, which retrains on this GPU in the background. `deploy.sh` rewrites `deploy.env`, so add it again after a deploy |
 | Keys | `/etc/owl/owl-api.env`, copied from your own `apps/owl-api/.env` by `deploy.sh`. Never in the repo |
 
 The address comes from [sslip.io](https://sslip.io): `1-2-3-4.sslip.io` resolves to `1.2.3.4`, and Caddy gets a Let's Encrypt certificate for it. It stays the same as long as the machine keeps its IP, so the iPhone build does not change when owl-api or the machine restarts.
