@@ -51,6 +51,6 @@ The challenge partner picks the challenge winners with its own criteria. The top
 
 ## Links
 
-- Challenge page: TODO(team)
+- Challenge pages: Meta and NVIDIA, on the Junction Platform
 - Junction Platform: https://hackjunction.app/
 - Organizers: hello@hackjunction.com, Discord #announcements
