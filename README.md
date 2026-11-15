@@ -102,7 +102,14 @@ AI agents do most of the work from Linear tickets (team `JUN`).
 
 ## Team
 
-TODO(team): names and GitHub handles.
+**Bossit**, at Junction 2026:
+
+| Name | GitHub |
+|---|---|
+| Aapo Putkonen | [@ApsiApina71](https://github.com/ApsiApina71) |
+| Lauri Pörsti | [@LauriPor](https://github.com/LauriPor) |
+| Antti Nieminen | |
+| Johannes Tenhunen | |
 
 ## License
 
