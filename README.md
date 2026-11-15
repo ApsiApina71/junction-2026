@@ -51,6 +51,13 @@ Every new worker gets a personal welcome in their own language. Easy-language, a
 
 **Owl learns from use.** Every step Owl Check passes or warns on can become one more V-JEPA example of that step: an embedding, never video, not tied to the worker, at most 20 per step. The task's probe then retrains itself in the background, in seconds on the Verda GPU. So the more a task is done, the better the local model knows it, without anyone labelling anything. It is built and tested (`tests/test_jepa.py`) and switched on with one setting, `JEPA_LEARN_FROM_USE=1`. It is off in the Junction demo.
 
+### NVIDIA Nemotron
+
+- **Model:** NVIDIA Nemotron 3.5 Super VL (open weights), self-hosted with vLLM on a Verda GPU in Finland ([`app/vision.py`](apps/owl-api/app/vision.py)).
+- **What it does:** it is Owl's vision and language engine. Owl Check gives it one frame from the glasses, the step and the expert's reference photo, and gets back a structured observation: right item, right quantity, step done or not. The same model turns a narrated recording into a guided process (Record), answers spoken questions from the company's handbooks (Ask), gives customer-service hints and translates every step into the worker's language.
+- **Why it matters:** onboarding for physical work needs a model that sees what the worker sees and knows the company's own knowledge. Open weights on a European GPU keep the company's data and the workers' views under its control.
+- **How we improved its outputs:** vLLM structured output (JSON schema) at temperature 0 with thinking off for latency; an answer that is not complete and schema-valid is rejected, not guessed. Ask keeps only sources whose quote is found word for word in the documents ([`app/ask.py`](apps/owl-api/app/ask.py)). Owl Check warns only after two looks in a row agree. Which step the worker is on comes from the V-JEPA 2.1 probe, so Nemotron only judges the step.
+
 Claude (`LLM_BACKEND=claude`) and Jev (TypeSafe) still work when their keys are set. `GET /health` says which models really run.
 
 ## Run it

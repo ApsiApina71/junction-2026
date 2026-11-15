@@ -1,14 +1,14 @@
 ---
 status: active
 tags: [context, challenge]
-last-updated: 2026-11-14
+last-updated: 2026-11-15
 ---
 
 # Challenge
 
 Junction 2026, Hype Areena, Espoo, 13–15.11.2026. Theme: **European Tech Renaissance**.
 
-We submit to **Meta, "AI Glasses for Everyone, Everyday"**. On the first night we also tried the S-Bank challenge (a money coach) and a calorie tracker for camera glasses. We dropped both, and their code was removed from the repo in [JUN-52](https://linear.app/junction-2026-bossit/issue/JUN-52); it is still in git history.
+We submit to **Meta, "AI Glasses for Everyone, Everyday"**, and to NVIDIA's side challenge (any track): **Nemotron 3.5 Super VL** must do core work, with a written explanation of the model, what it does, why it matters and how we improved its outputs (in the README, section "NVIDIA Nemotron"). On the first night we also tried the S-Bank challenge (a money coach) and a calorie tracker for camera glasses. We dropped both, and their code was removed from the repo in [JUN-52](https://linear.app/junction-2026-bossit/issue/JUN-52); it is still in git history.
 
 ## Brief: Meta, "AI Glasses for Everyone, Everyday"
 
