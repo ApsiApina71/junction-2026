@@ -1,0 +1,15 @@
+# owl-api and Owl Studio on one machine, each with its own Let's Encrypt certificate.
+# DOMAIN is <ip with dashes>.sslip.io, so the address never changes while the machine keeps its IP.
+api.__DOMAIN__ {
+	encode gzip
+	reverse_proxy 127.0.0.1:8000 {
+		flush_interval -1
+	}
+}
+
+studio.__DOMAIN__ {
+	encode gzip
+	root * /opt/owl/studio
+	try_files {path} /index.html
+	file_server
+}

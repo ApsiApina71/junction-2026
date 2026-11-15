@@ -1,0 +1,14 @@
+[Unit]
+Description=Mark the confidential-computing GPU ready, so CUDA can use it (Verda .CC machines)
+After=nvidia-persistenced.service
+Before=owl-api.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# On a CC machine the GPU starts "not-ready" and CUDA fails with error 802 until this is set.
+# No-op where confidential computing is off.
+ExecStart=/bin/sh -c 'nvidia-smi conf-compute -f | grep -q "CC status: ON" && nvidia-smi conf-compute -srs 1 || true'
+
+[Install]
+WantedBy=multi-user.target

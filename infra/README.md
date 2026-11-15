@@ -20,7 +20,7 @@ Publishing also needs two repository secrets, which only the repository owner ca
 
 ## What runs where for the demo
 
-Apart from owlboarding.com, nothing is deployed. For the demo everything else runs on one Mac, and the glasses app reaches owl-api through a Cloudflare quick tunnel. The steps are in [owl-demo.md](../docs/runbooks/owl-demo.md).
+Apart from owlboarding.com, owl-api and Owl Studio can run on a Verda GPU machine with fixed https addresses: [verda/README.md](verda/README.md) (JUN-114). Otherwise everything runs on one Mac, and the glasses app reaches owl-api through a Cloudflare quick tunnel. The steps are in [owl-demo.md](../docs/runbooks/owl-demo.md).
 
 | Part | Where it runs | Notes |
 |---|---|---|

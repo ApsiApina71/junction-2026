@@ -1,0 +1,20 @@
+[Unit]
+Description=Owl Boarding owl-api (the Junction story, Nemotron on Verda, V-JEPA 2.1 on this GPU)
+After=network-online.target owl-gpu-ready.service
+Wants=network-online.target owl-gpu-ready.service
+
+[Service]
+User=owl
+WorkingDirectory=/opt/owl/repo/apps/owl-api
+# Keys and model settings, written by hand on the machine (never in the repo): VERDA_INFERENCE_KEY, LLM_BACKEND, ...
+EnvironmentFile=/etc/owl/owl-api.env
+# The deployment's own settings, written by setup.sh.
+EnvironmentFile=/etc/owl/deploy.env
+ExecStart=/opt/owl/uv run --extra jepa uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers
+Restart=always
+RestartSec=3
+Environment=UV_CACHE_DIR=/opt/owl/uv-cache
+Environment=HOME=/opt/owl
+
+[Install]
+WantedBy=multi-user.target
