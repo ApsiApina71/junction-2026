@@ -343,7 +343,14 @@ struct OwlTraining: Codable, Equatable, Sendable {
 
   /// The trainer's result once confirmed, else Owl's suggestion.
   var result: String? { confirmed?.result ?? suggestion }
-  var missing: [Target] { practise ?? target.filter { !$0.reached } }
+  /// The target rows not met yet. owl-api's `practise` names them (ids and title only), so
+  /// each is the matching `target` row, with its counts: "1 of 2 done without help".
+  var missing: [Target] {
+    guard let practise else { return target.filter { !$0.reached } }
+    return practise.map { row in
+      target.first { $0.processId == row.processId && $0.stepId == row.stepId } ?? row
+    }
+  }
 
   /// Days left after today; 0 on the last day. nil when unknown.
   func remainingDays(from now: Date = Date()) -> Int? {

@@ -59,8 +59,8 @@ final class OwlCamera: @unchecked Sendable {
   /// What the stream is for. Checks, place and step recognition run at low resolution and
   /// 7 fps: the glasses stayed cool enough to keep the camera, owl-api reads the labels at
   /// 640 px (it downsizes to 1024 anyway, V-JEPA crops to 384), and on a busy Bluetooth link
-  /// the glasses dropped to 360×640 by themselves (JUN-53). An expert's recording keeps
-  /// medium at 15 fps, because its clips are what workers watch.
+  /// the glasses dropped to 360×640 by themselves (JUN-53). Recording uses it too: a medium
+  /// 15 fps camera (`recording`) left the glasses speech with no words, so it is not used.
   enum Quality: Sendable {
     case work
     case recording
