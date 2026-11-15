@@ -225,6 +225,16 @@ body,
   gap: var(--uit-spacing-large);
 }
 
+.recording-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+  gap: var(--uit-spacing-medium);
+}
+
 .task-card {
   position: relative;
   aspect-ratio: 4 / 3;

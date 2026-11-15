@@ -55,13 +55,20 @@ export function TasksView() {
             </Panel>
           )}
 
-          {(recordings.length > 0 || (processes?.length ?? 0) > 0) && (
-            <ul className="card-grid" aria-label="Tasks">
+          {/* Recordings on their way get their own low row, so they never stretch to a photo card's height and push
+              the tasks down. */}
+          {recordings.length > 0 && (
+            <ul className="recording-grid" aria-label="Being recorded">
               {recordings.map((recording) => (
                 <li key={recording.id}>
                   <RecordingTile recording={recording} />
                 </li>
               ))}
+            </ul>
+          )}
+
+          {(processes?.length ?? 0) > 0 && (
+            <ul className="card-grid" aria-label="Tasks">
               {sortProcesses(processes ?? []).map((process) => {
                 const learners = (employees ?? []).filter((employee) => employee.process_ids.includes(process.id)).map((employee) => employee.name)
                 return (
