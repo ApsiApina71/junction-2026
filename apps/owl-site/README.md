@@ -39,7 +39,7 @@ infra/build-site.sh
 python3 -m http.server 4323 --directory site-dist
 ```
 
-Open `http://localhost:4323/` and `http://localhost:4323/studio/`. The script installs the locked dependencies, builds this app and Studio's sample-data preview, and assembles both in `site-dist/`. It requires a fresh output directory; pass a different path for another release. Use `SKIP_INSTALL=1` only after `npm ci` has run in both apps.
+Open `http://localhost:4323/` and `http://localhost:4323/studio/`. The script builds Studio's sample-data preview and assembles it with the launch page, now [`apps/owl-lens-site`](../owl-lens-site/README.md), in `site-dist/`; this app is no longer part of the build. It requires a fresh output directory; pass a different path for another release. Use `SKIP_INSTALL=1` only after `npm ci` has run in both apps.
 
 Studio's preview keeps fictional data in memory for each tab and does not connect to owl-api. Its source, images and clips are versioned in [`apps/owl-studio`](../owl-studio/README.md#public-demo). The connected Studio app has its own build and hosting.
 
