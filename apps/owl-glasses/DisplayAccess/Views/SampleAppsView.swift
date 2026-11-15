@@ -818,6 +818,8 @@ struct SampleAppsView: View {
     // restart the preview and end the display session the first one opened (JUN-109).
     guard !Self.testHooksRan, developerPreviewMode == nil, let mode = env["OWL_AUTO_PREVIEW"] else { return }
     Self.testHooksRan = true
+    // The mock feed starts again when a step starts watching (JUN-109).
+    OwlViewModel.onStepWatch = { [phonePreview] in phonePreview.restartCameraFeed() }
     selectedDeveloperPreviewMode = mode == "chrome" ? .chrome : .inApp
     isDeveloperPreviewPresented = true
     isDeveloperPreviewTransitioning = true

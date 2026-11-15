@@ -63,6 +63,8 @@ struct PhonePreviewDevice {
   let sendLaunchApp: () -> String?
   /// Simulator: a final transcription from the glasses microphone.
   let simulateSpeech: (String) -> Void
+  /// Simulator: the camera feed plays again from its start (JUN-109).
+  var restartCameraFeed: () -> Void = {}
 }
 
 @MainActor
@@ -91,12 +93,13 @@ final class LivePhonePreviewManager: PhonePreviewManaging {
 
   func pairGlasses() throws -> PhonePreviewDevice {
     let device = try mockDeviceKit.pairGlasses(model: .metaRayBanDisplay)
-    if let feed = OwlDemoAssets.cameraFeedURL() {
+    let feed = OwlDemoAssets.cameraFeedURL()
+    if let feed {
       device.services.camera.setCameraFeed(fileURL: feed)
       device.services.camera.setCapturedImage(fileURL: feed)
     }
     let services = device.services
-    return PhonePreviewDevice(
+    var preview = PhonePreviewDevice(
       deviceIdentifier: device.deviceIdentifier,
       display: services.display,
       powerOn: device.powerOn,
@@ -113,6 +116,11 @@ final class LivePhonePreviewManager: PhonePreviewManaging {
         services.speech.simulateTranscription(text: text, isFinal: true, confidence: 0.9)
       }
     )
+    preview.restartCameraFeed = {
+      guard let feed else { return }
+      services.camera.setCameraFeed(fileURL: feed)
+    }
+    return preview
   }
 
   func waitUntilDeviceIsReady(_ deviceIdentifier: DeviceIdentifier) async throws {
@@ -167,6 +175,10 @@ final class PhonePreviewViewModel {
 
   func simulateSpeech(_ text: String) {
     device?.simulateSpeech(text)
+  }
+
+  func restartCameraFeed() {
+    device?.restartCameraFeed()
   }
 
   func setWorn(_ worn: Bool) {

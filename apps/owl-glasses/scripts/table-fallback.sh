@@ -4,6 +4,8 @@
 #
 #   apps/owl-glasses/scripts/table-fallback.sh [owl-api url]      (default http://127.0.0.1:8000)
 #
+# When nothing answers on :8000 it starts the table's owl-api itself (junction story, Nemotron,
+# V-JEPA 2.1; log /tmp/owl-table.log) and waits until it is ready.
 # It builds and installs the app (once), puts an https front before owl-api (clips play over
 # https only), trusts that front in the simulator, sets the glasses to glasses-1 (Jose), turns
 # Stage mirroring on and starts the recycling task. The mock camera plays the can clip.
@@ -25,7 +27,23 @@ say() { printf '\033[1m%s\033[0m\n' "$*"; }
 
 say "1/6 owl-api at ${UPSTREAM}"
 if ! curl -sf "${UPSTREAM}/health" >/dev/null; then
-  echo "owl-api does not answer at ${UPSTREAM}/health. Start it first (see docs/runbooks/owl-junction-demo.md)." >&2
+  # Nothing answers: start the table's owl-api (the junction story, the real models) in the
+  # background, and wait until V-JEPA 2.1 is loaded (about a minute the first time).
+  echo "starting owl-api on :8000 (log /tmp/owl-table.log)"
+  (cd "$HERE/../owl-api" && OWL_STORY=junction DATA_DIR=data/junction-table OWL_STAGE=1 LLM_BACKEND=nemotron \
+    JEPA_BACKEND=vjepa21 PUBLIC_BASE_URL="https://localhost:${PORT}" \
+    nohup uv run --extra jepa --env-file .env uvicorn app.main:app --host 0.0.0.0 --port 8000 \
+    > /tmp/owl-table.log 2>&1 &)
+  UPSTREAM="http://127.0.0.1:8000"
+fi
+for _ in $(seq 1 120); do
+  HEALTH="$(curl -sf "${UPSTREAM}/health" || true)"
+  if [[ "$HEALTH" == *vjepa21* && "$HEALTH" != *loading* ]]; then break; fi
+  sleep 2
+done
+if [[ "${HEALTH:-}" != *vjepa21* || "${HEALTH:-}" == *loading* ]]; then
+  echo "owl-api is not ready (no V-JEPA 2.1 in ${UPSTREAM}/health). See /tmp/owl-table.log." >&2
+  echo "health: ${HEALTH:-none}" >&2
   exit 1
 fi
 
@@ -82,6 +100,7 @@ SIMCTL_CHILD_OWL_AUTO_PREVIEW=chrome SIMCTL_CHILD_OWL_STAGE=1 \
 # until a Chrome page shows it, so the order cannot go wrong: open it now.
 for _ in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:9000 && break; sleep 0.5; done
 open -a "Google Chrome" http://127.0.0.1:9000 2>/dev/null || true
+open -a "Google Chrome" "${UPSTREAM/127.0.0.1/localhost}/stage" 2>/dev/null || true
 
 cat <<EOF
 

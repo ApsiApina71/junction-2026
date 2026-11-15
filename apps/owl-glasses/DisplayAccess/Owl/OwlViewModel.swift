@@ -263,6 +263,10 @@ final class OwlViewModel {
 
   /// "Stage mirroring" (JUN-79): the glasses screen, spoken lines and one camera frame a second
   /// go to owl-api's stage page for the audience. Off by default; OWL_STAGE=1 turns it on.
+  /// Simulator (JUN-109): called when a step starts watching, so the mock camera's feed plays
+  /// from its start and the table demo always shows the same moves in the same order.
+  static var onStepWatch: (@MainActor () -> Void)?
+
   static var stageMirroring: Bool {
     get {
       ProcessInfo.processInfo.environment["OWL_STAGE"] == "1"
@@ -624,6 +628,10 @@ final class OwlViewModel {
     }
     await render(number)
     guard isCurrent(number) else { return }
+    if speak, step.check.usesCamera, let restart = Self.onStepWatch {
+      NSLog("[Owl] test: camera feed from its start")
+      restart()
+    }
     if step.check.usesCamera {
       await startWatching(number)
     } else if !recognizes(step) {
