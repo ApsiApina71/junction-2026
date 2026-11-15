@@ -56,7 +56,7 @@ You are Jose, a new volunteer, on the recycling round. The mock camera plays a r
 
 ## Run on your own glasses
 
-You need Meta Ray-Ban Display glasses (the Neural Band makes pinching easy), an iPhone with the Meta AI app where the glasses are paired, a Mac with Xcode 26.4 or later, and an owl-api the phone can reach (see [`apps/owl-api`](../owl-api/README.md); over the internet the glasses play clips only over https, so a Cloudflare tunnel is the simple way).
+You need Meta Ray-Ban Display glasses (the Neural Band makes pinching easy), an iPhone with the Meta AI app where the glasses are paired, a Mac with Xcode 26.4 or later, and an owl-api the phone can reach (see [`apps/owl-api`](../owl-api/README.md); over the internet the glasses play clips only over https, so a Cloudflare tunnel is the simple way). While our Verda machine runs for Junction 2026, you can skip your own owl-api: use `OWL_API_URL=https://api.95-133-254-125.sslip.io` (Nemotron 3.5 Super VL and V-JEPA 2.1, no token) and the Junction story's `glasses-1`.
 
 1. **Developer Mode.** On the iPhone: Settings → Privacy & Security → Developer Mode. In the Meta AI app: Settings → App Info, tap the version five times. In Developer Mode the app registers with the glasses without a Wearables Developer Center app id, and only one third-party app can be registered at a time.
 2. **Build and sign** with your own Apple team (the bundle id is `fi.junction2026.bossit.owl`; change `PRODUCT_BUNDLE_IDENTIFIER` if your team cannot use it). Bake in the owl-api address and, if your owl-api has one, its token:
