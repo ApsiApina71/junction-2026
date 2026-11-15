@@ -1837,6 +1837,27 @@ body,
   line-height: 32px;
 }
 
+/* Content starts below the title bar, with room for the toolkit's lit rims above a control. The bar is solid, so the
+   toolkit's top fade (made for the floating chip) is not needed and only cut into whatever sat first on a page. */
+.route [class*='Page-module__content'] {
+  --uit-page-content-origin-offset: 40px !important;
+}
+
+.route [class*='Page-module__headerWrapper'] {
+  padding-block-end: 0;
+}
+
+.route [data-scroll-view='true'][style*='padding-top'] {
+  mask-image: none;
+}
+
+/* A record beside a list starts level with the list's first line, clear of the title bar. Below 901 px they stack. */
+@media (min-width: 901px) {
+  .route .split-detail {
+    padding-block-start: calc(var(--uit-spacing-5xl) + 40px);
+  }
+}
+
 /* One quiet line under the title. */
 .lede.lede,
 .list-lede.list-lede {
