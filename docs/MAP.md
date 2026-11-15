@@ -53,6 +53,7 @@ The index of every doc and app. Read this first. Add every new doc or app here.
 | [runbooks/owl-junction-demo.md](runbooks/owl-junction-demo.md) | Run the Junction demo yourself, exactly as filmed: the volunteer story with `OWL_STORY=junction` (JUN-102) |
 | [runbooks/owl-demo.md](runbooks/owl-demo.md) | Owl demo: start owl-api, tunnel and glasses app; rehearsal checklist for real glasses (JUN-53) |
 | [../infra/README.md](../infra/README.md) | Hosting: what runs where for the demo |
+| [../infra/verda/README.md](../infra/verda/README.md) | owl-api and Owl Studio on a Verda GPU machine: deploy, update, roll back (JUN-114) |
 | [../design/README.md](../design/README.md) | Claude Design workflow and prototypes |
 
 ## Specs
