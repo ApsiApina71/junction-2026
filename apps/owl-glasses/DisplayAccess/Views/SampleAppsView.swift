@@ -836,14 +836,26 @@ struct SampleAppsView: View {
       try? await Task.sleep(for: .seconds(2))
       testNote = phonePreview.sendLaunchApp() ?? "Sent \u{201C}Hey Meta, start Owl\u{201D}"
     } else {
-      // The mock glasses can take a moment to become eligible (noEligibleDevice): open Owl
-      // again until the display session is up, for up to 15 s.
-      for attempt in 1...6 {
-        await sendSample(item, deviceIdentifier: phonePreviewDeviceIdentifier)
-        if displayViewModel.isConnected { break }
-        NSLog("[Owl] test: the mock display is not up yet (try \(attempt)/6)")
-        try? await Task.sleep(for: .seconds(2.5))
+      // The mock glasses become eligible only once something shows their display (with the
+      // Chrome preview: a Chrome page on :9000). Until then a quiet "getting ready" screen is
+      // sent again every second, and Owl opens once, after the display is up (JUN-109). A
+      // click the Chrome page sends as it connects lands on that screen's button, which does
+      // nothing, not on the step card's Done.
+      let waiting = OwlScreens.status(
+        "Owl Boarding", detail: "Getting ready", mood: .listening, onCancel: {})
+      var waited = 0
+      while !displayViewModel.isConnected, waited < 300 {
+        if waited % 10 == 0 {
+          NSLog("[Owl] test: waiting for the display\(mode == "chrome" ? ": open http://127.0.0.1:9000 in Chrome" : "")")
+        }
+        await displayViewModel.send(waiting, deviceIdentifier: phonePreviewDeviceIdentifier)
+        try? await Task.sleep(for: .seconds(1))
+        waited += 1
       }
+      // A moment for the connecting page to settle before the welcome.
+      try? await Task.sleep(for: .seconds(2))
+      NSLog("[Owl] test: display up, opening Owl")
+      await sendSample(item, deviceIdentifier: phonePreviewDeviceIdentifier)
     }
     try? await Task.sleep(for: .seconds(4))
     if env["OWL_AUTO_RUN"] == "1", let first = owlViewModel.myProcesses.first {

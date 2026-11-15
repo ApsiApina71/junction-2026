@@ -78,10 +78,17 @@ SIMCTL_CHILD_OWL_AUTO_PREVIEW=chrome SIMCTL_CHILD_OWL_STAGE=1 \
   SIMCTL_CHILD_OWL_AUTO_SCRIPT="wait:4;allowlocation;wait:2;run" \
   xcrun simctl launch "$SIM" "$BUNDLE" -AppleLanguages "(en)" >/dev/null
 
+# The app serves the display preview on :9000. Owl waits on a quiet "getting ready" screen
+# until a Chrome page shows it, so the order cannot go wrong: open it now.
+for _ in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:9000 && break; sleep 0.5; done
+open -a "Google Chrome" http://127.0.0.1:9000 2>/dev/null || true
+
 cat <<EOF
 
-Running. Show these side by side:
-  display  http://127.0.0.1:9000  in Chrome, with the "Meta Ray-Ban Display Simulator" extension on
+Running. Chrome opened http://127.0.0.1:9000: turn on the "Meta Ray-Ban Display Simulator"
+extension there if the display is not showing yet. Owl starts once the display is up.
+Show these side by side:
+  display  http://127.0.0.1:9000  in Chrome
   stage    ${UPSTREAM}/stage
 Once per Chrome session, before the first run: open https://localhost:${PORT}/health in Chrome and
 choose Advanced → Proceed, so Chrome plays the expert's clip from the local https front.
