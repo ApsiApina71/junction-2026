@@ -2423,7 +2423,10 @@ final class OwlViewModel {
   func startRecordedStep() async {
     // Only inside a recording: a step clip that no recording waits for would never be ended.
     guard !isRecordingStep, recording != nil, let session = displayViewModel.currentDeviceSession() else { return }
-    guard let camera = await openCamera(quality: .recording) else {
+    // The session's own camera, as it is (low, 7 fps): on the real glasses a recording that
+    // switched to a medium 15 fps camera left the glasses speech with no words or an
+    // unexpectedError, so the narration came out empty (JUN-53).
+    guard let camera = await openCamera() else {
       await showProblem(cameraDenied ? .cameraNeeded : .other, detail: OwlError.noCamera.errorDescription)
       return
     }
