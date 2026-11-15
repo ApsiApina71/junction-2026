@@ -266,6 +266,9 @@ let trainingJSON = """
   """
 if let training = try? decoder.decode(OwlTraining.self, from: Data(trainingJSON.utf8)) {
   expect(training.missing.map(\.title) == ["Pack heavy items first"], "only the steps not met are missing")
+  // practise rows carry only ids and the title: the counts come from the target row.
+  expect(training.missing.first?.doneWithoutHelp == 2 && training.missing.first?.required == 3,
+    "a missing step keeps its counts: 2 of 3 done without help")
   expect(training.result == "more_practice", "the suggestion is the result until a trainer confirms")
   expect(training.remainingDays() == 0, "the last day has no days left")
 } else {
