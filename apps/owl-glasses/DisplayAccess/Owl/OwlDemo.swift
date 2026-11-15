@@ -9,8 +9,12 @@ import AVFoundation
 import UIKit
 
 enum OwlDemoAssets {
-  /// A few seconds of HEVC video of the demo picture, written once per picture to the temp folder.
+  /// What the mock glasses camera sees. The recycling story (JUN-109): a phone clip of the
+  /// hall's white sorting bin, the blue can moving toward the black square PLASTIC hole and
+  /// then into the round CANS hole, HEVC because MockDeviceKit streams HEVC files. Without it,
+  /// a few seconds of video of the demo picture, written once per picture to the temp folder.
   static func cameraFeedURL() -> URL? {
+    if let story = Bundle.main.url(forResource: "owl-feed-recycling", withExtension: "mp4") { return story }
     let files = FileManager.default
     let folder = files.temporaryDirectory
     let name = UIImage(named: "owlDemoFeed") != nil ? "owlDemoFeed" : "demoMeal"

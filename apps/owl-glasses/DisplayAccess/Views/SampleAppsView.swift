@@ -62,6 +62,7 @@ struct SampleAppsView: View {
   var openFirmwareUpdate: () -> Void
 
   private let item: SampleAppItem = .carMaintenance
+  @MainActor private static var testHooksRan = false
   @State private var isDeveloperPreviewPresented = false
   @State private var isDeveloperPreviewTransitioning = false
   @State private var selectedDeveloperPreviewMode = DeveloperPreviewMode.defaultMode
@@ -813,7 +814,10 @@ struct SampleAppsView: View {
     // glasses, OWL_AUTO_VOICE=1 says "Hey Meta, start Owl", OWL_AUTO_RUN=1 starts the
     // first task, OWL_AUTO_ASK=<question> asks it by voice, OWL_AUTO_RECORD=1 records.
     let env = ProcessInfo.processInfo.environment
-    guard developerPreviewMode == nil, let mode = env["OWL_AUTO_PREVIEW"] else { return }
+    // Once per launch: the view can appear again (the preview sheet), and a second run would
+    // restart the preview and end the display session the first one opened (JUN-109).
+    guard !Self.testHooksRan, developerPreviewMode == nil, let mode = env["OWL_AUTO_PREVIEW"] else { return }
+    Self.testHooksRan = true
     selectedDeveloperPreviewMode = mode == "chrome" ? .chrome : .inApp
     isDeveloperPreviewPresented = true
     isDeveloperPreviewTransitioning = true
@@ -832,7 +836,14 @@ struct SampleAppsView: View {
       try? await Task.sleep(for: .seconds(2))
       testNote = phonePreview.sendLaunchApp() ?? "Sent \u{201C}Hey Meta, start Owl\u{201D}"
     } else {
-      await sendSample(item, deviceIdentifier: phonePreviewDeviceIdentifier)
+      // The mock glasses can take a moment to become eligible (noEligibleDevice): open Owl
+      // again until the display session is up, for up to 15 s.
+      for attempt in 1...6 {
+        await sendSample(item, deviceIdentifier: phonePreviewDeviceIdentifier)
+        if displayViewModel.isConnected { break }
+        NSLog("[Owl] test: the mock display is not up yet (try \(attempt)/6)")
+        try? await Task.sleep(for: .seconds(2.5))
+      }
     }
     try? await Task.sleep(for: .seconds(4))
     if env["OWL_AUTO_RUN"] == "1", let first = owlViewModel.myProcesses.first {
