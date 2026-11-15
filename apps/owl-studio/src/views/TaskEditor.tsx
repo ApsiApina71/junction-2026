@@ -611,6 +611,7 @@ function StepForm({ step, total, process, onChange, onStored }: { step: Step; to
                   </TextView>
                 </figure>
               )}
+              <div className="media-pair">
               <figure className="media">
                 {step.reference_image_url ? (
                   <img src={step.reference_image_url} alt={`The expert's photo of step ${step.index} done right`} />
@@ -631,6 +632,7 @@ function StepForm({ step, total, process, onChange, onStored }: { step: Step; to
                   </TextView>
                 </figure>
               )}
+              </div>
               <StepVideo process={process} step={step} onStored={onStored} />
             </div>
           </Panel>
