@@ -2451,9 +2451,9 @@ final class OwlViewModel {
       Task { await self.showRecord(narration: self.narration.joined(separator: " ")) }
     }
     listener.onError = { [weak self] _, message in self?.statusText = "Narration: \(message)" }
-    // The card with End step first: on the real glasses the speech start could fail and hang,
-    // and the old card stayed with buttons that did nothing while a step was recording (JUN-53).
-    await showRecord()
+    // The speech starts at once, beside the card: the first words come right after the pinch.
+    // It runs on its own, because on the real glasses its start could fail and hang, and the
+    // card with End step must still come (JUN-53).
     Task { [weak self] in
       guard let self else { return }
       do {
@@ -2464,6 +2464,7 @@ final class OwlViewModel {
         NSLog("[Owl] record: no narration (\(error))")
       }
     }
+    await showRecord()
   }
 
   func endRecordedStep() async {
