@@ -8,19 +8,19 @@
 */
 
 :root {
-  --studio-zoom: 0.64;
+  --studio-zoom: 0.58;
   color-scheme: dark;
 }
 
 @media (min-width: 1680px) {
   :root {
-    --studio-zoom: 0.72;
+    --studio-zoom: 0.64;
   }
 }
 
 @media (max-width: 1180px) {
   :root {
-    --studio-zoom: 0.58;
+    --studio-zoom: 0.56;
   }
 }
 
@@ -109,9 +109,9 @@ body,
 .brand-mark {
   display: inline-flex;
   flex: none;
-  inline-size: 72px;
-  block-size: 72px;
-  margin-inline-end: var(--uit-spacing-small);
+  inline-size: 52px;
+  block-size: 52px;
+  margin-inline-end: var(--uit-spacing-xsmall);
   color: var(--uit-color-text-primary);
 }
 
@@ -1770,5 +1770,111 @@ body,
     order: 3;
     flex-basis: 100%;
     padding-inline: 0;
+  }
+}
+
+/* Desktop polish (2026-11-15). The toolkit draws every row, header and card as a lit surface, which on a desktop
+   reads as a wall of buttons. Here only what is open or under the pointer shows a surface, the page title sits where
+   a desktop reader looks for it, and the help lines under a title stay one quiet line. */
+
+/* Sections read as a list: the open one keeps the toolkit's focused surface, the others show theirs on hover or
+   keyboard focus only. The toolkit animates the layer's opacity inline, hence !important. */
+.sidebar-nav [data-uit-interactable]:not([aria-current]) > [class*='Container-module__backgroundLayers'],
+.sidebar-nav [data-uit-interactable]:not([aria-current]) > [class*='Container-module__foregroundLayers'] {
+  opacity: 0 !important;
+  transition: opacity 140ms ease-out;
+}
+
+.sidebar-nav [data-uit-interactable]:not([aria-current]):hover > [class*='Container-module__backgroundLayers'],
+.sidebar-nav [data-uit-interactable]:not([aria-current]):focus-visible > [class*='Container-module__backgroundLayers'] {
+  opacity: 0.6 !important;
+}
+
+@media (min-width: 701px) {
+  .sidebar-nav {
+    --uit-listitem-min-height: 76px;
+  }
+}
+
+.sidebar {
+  gap: var(--uit-spacing-small);
+}
+
+.sidebar-head {
+  padding-block-end: var(--uit-spacing-small);
+}
+
+/* The page title: left, on a solid bar the content scrolls under, instead of the glasses' centred floating chip. */
+.route [class*='Page-module__headerWrapper'] {
+  inset-block-start: 0 !important;
+  inset-inline: 0;
+  transform: none;
+  box-sizing: border-box;
+  padding: var(--uit-spacing-large) var(--uit-spacing-large) var(--uit-spacing-small);
+  background: var(--uit-color-background-window);
+}
+
+.route [class*='Header-module__header'] [class*='Container-module__backgroundLayers'],
+.route [class*='Header-module__header'] [class*='Container-module__foregroundLayers'] {
+  display: none;
+}
+
+.route [class*='Header-module__header'] [class*='Chip-module__chipContainer'] {
+  margin: 0;
+  gap: var(--uit-spacing-medium);
+  align-items: baseline;
+}
+
+.route [class*='Header-module__header'] [class*='Chip-module__textView'] {
+  font-size: var(--uit-scaled-font-size-36, 36px);
+  font-weight: 700;
+  line-height: 44px;
+  letter-spacing: -0.3px;
+}
+
+.route [class*='Header-module__header'] [class*='Chip-module__metadataText'] {
+  font-size: var(--uit-scaled-font-size-24, 24px);
+  line-height: 32px;
+}
+
+/* One quiet line under the title. */
+.lede.lede,
+.list-lede.list-lede {
+  max-inline-size: 72ch;
+}
+
+/* Content starts under the title instead of centring in a very wide window. */
+.route-content {
+  gap: var(--uit-spacing-large);
+  margin-inline: 0;
+}
+
+/* A task's state is a chip on the photo, readable on any picture. */
+.task-card .card-status {
+  align-self: flex-start;
+  margin-block-end: var(--uit-spacing-xsmall);
+}
+
+.card-status.is-warning [class*='IconImage-module__fill'] {
+  background-color: var(--uit-color-persistent-warning) !important;
+}
+
+.card-status.is-positive [class*='IconImage-module__fill'] {
+  background-color: var(--uit-color-persistent-positive) !important;
+}
+
+@media (max-width: 700px) {
+  .phone-bar .brand-mark {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+
+  .phone-bar-top .sidebar-head-text > :not(:first-child) {
+    display: none;
+  }
+
+  .route [class*='Header-module__header'] [class*='Chip-module__textView'] {
+    font-size: var(--uit-scaled-font-size-40, 40px);
+    line-height: 48px;
   }
 }

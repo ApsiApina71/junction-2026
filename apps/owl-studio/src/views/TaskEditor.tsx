@@ -229,10 +229,8 @@ export function TaskEditor({ processId }: { processId: string }) {
           <div className="editor-content">
             <header className="editor-head">
               <div className="editor-head-line">
-                <StatusText tone={status.tone} textStyle={TextStyle.BODY2_EMPHASIZED}>
-                  {status.text}
-                </StatusText>
-                <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+                <StatusText tone={status.tone}>{status.text}</StatusText>
+                <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
                   {[stepsText(draft.steps.length), originText(draft), languageName(draft.language), isDraft && toReview > 0 ? `${toReview} of ${draft.steps.length} to review` : isDraft ? 'every step reviewed' : learnersText(learners.map((e) => e.name))]
                     .filter(Boolean)
                     .join(' · ')}
@@ -343,9 +341,7 @@ export function TaskEditor({ processId }: { processId: string }) {
                     <Button title={`Remove step ${selectedIndex + 1}`} icon={ICONS.trash} onClick={() => remove(selected)} />
                   </Actions>
                 )}
-                <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                  Drag a step, or choose it and use the arrows, to change the order.
-                </TextView>
+                <p className="visually-hidden">Drag a step, or choose it and use the arrows, to change the order.</p>
                 <p className="visually-hidden" aria-live="polite">
                   {moved}
                 </p>
@@ -548,7 +544,7 @@ function StepForm({ step, total, process, onChange, onStored }: { step: Step; to
                   <span className="status-text is-warning">
                     <strong>This step needs you.</strong>
                   </span>{' '}
-                  {`Owl wrote it from what ${expert} said. Read the title, the instruction and what Owl says against ${step.source ? `everything ${expert} said beside them` : 'the photo'}, fix what is missing, then mark the step reviewed.`}
+                  {`Check it against ${step.source ? `what ${expert} said` : 'the photo'}.`}
                 </TextView>
                 {refused && (
                   <TextView as="p" textStyle={TextStyle.BODY2} role="alert">
@@ -588,7 +584,7 @@ function StepForm({ step, total, process, onChange, onStored }: { step: Step; to
               onChange={(say) => onChange({ ...step, say })}
               invalid={sayWords > LIMITS.sayWords || sayWords === 0}
               extra={<WordCount used={sayWords} limit={LIMITS.sayWords} />}
-              hint={hints.say ? `These are the first ${sayWords} words of what ${expert} said, and ${expert} said more. Write one whole sentence for Owl to say.` : "Spoken in the worker's ear when the step opens. Say it the way you would to a new colleague."}
+              hint={hints.say ? `These are the first ${sayWords} words of what ${expert} said, and ${expert} said more. Write one whole sentence for Owl to say.` : "Spoken in the worker's ear when the step opens."}
               hintTone={hints.say ? 'warning' : undefined}
             />
 

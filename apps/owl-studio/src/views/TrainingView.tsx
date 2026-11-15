@@ -73,8 +73,8 @@ export function TrainingView() {
         <section className="split-list" aria-label="Training">
           <ScrollView insetForHeader ariaLabel="Training" className="detail-scroll">
             <div className="column-content">
-              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
-                Set how long training lasts and the level a new worker reaches, in your own steps. At the end Owl suggests Ready or More practice. The worker sees it on the glasses first, and a person decides.
+              <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
+                How long training lasts and the level to reach. At the end Owl suggests Ready or More practice, and a person decides.
               </TextView>
 
               {problem && <Problem>{problem}</Problem>}
@@ -110,7 +110,7 @@ export function TrainingView() {
                       Target level per role
                     </TextView>
                     <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-                      Which steps a new worker does without help, and how many times. Only steps Owl verified count. A mistake the worker fixed is learning, not a minus point.
+                      Which steps a new worker does without help, and how many times. Only steps Owl verified count.
                     </TextView>
                     {plans !== null && (
                       <div className="plans">
@@ -262,7 +262,7 @@ function TraineeCard({ trainee, onChange }: { trainee: Trainee; onChange: () => 
                   ? trainee.confirmed.result === 'ready'
                     ? `${trainee.name} works on their own now.`
                     : `${trainee.name} practises with the glasses. Owl suggests again at the end, and they see it first.`
-                  : `${count(trainee.days_left, 'day', 'days')} left. How it goes is between them and Owl until the end.`}
+                  : `${count(trainee.days_left, 'day', 'days')} left.`}
             </TextView>
           )}
           {error && !(trainee.suggestion && !trainee.confirmed) && <StatusText tone="negative">{error}</StatusText>}
@@ -486,7 +486,7 @@ function SignEditor({ initial }: { initial: string }) {
             Customer service: the sign at the desk
           </TextView>
           <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-            In customer service mode the glasses listen during training, only while the worker has it on, and suggest answers from your documents. Nothing is recorded. This sign tells customers.
+            In customer service mode the glasses suggest answers from your documents. Nothing is recorded. This sign tells customers.
           </TextView>
           <TextField id="sign-text" label="Text of the sign" value={text} multiline maxLength={SIGN_LIMIT} onChange={setText} error={error || null} />
           <Actions align="start">

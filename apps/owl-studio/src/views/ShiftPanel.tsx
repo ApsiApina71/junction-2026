@@ -45,7 +45,7 @@ export function ShiftRows() {
   return (
     <>
       <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="list-note">
-        When a new worker calls for help, the manager on shift answers, on their own glasses or in Help on their phone, and sees the worker's view. If they do not answer in 30 seconds, the call comes to Help here.
+        The manager on shift answers Help calls first. After 30 seconds a call comes here.
       </TextView>
       {companies.map((company) => {
         const current = onShift.find((row) => row.company === company)?.employee_id ?? ''

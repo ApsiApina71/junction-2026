@@ -52,8 +52,8 @@ export function DataView() {
               <TextView as="h1" textStyle={TextStyle.BODY2_EMPHASIZED}>
                 Where your data goes
               </TextView>
-              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
-                Owl has to see and read to teach. This page keeps two things apart: what stays on your own Owl server, which Owl controls, and what is sent out to others, where their terms apply.
+              <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
+                What stays on your Owl server, and what is sent out to others.
               </TextView>
               <section aria-labelledby="data-server" className="data-section">
                 <Panel width="100%">

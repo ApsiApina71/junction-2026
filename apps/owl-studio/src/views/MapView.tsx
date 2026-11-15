@@ -129,8 +129,8 @@ export function MapView() {
         <section className="split-list" aria-label="The map">
           <ScrollView insetForHeader ariaLabel="The map" className="detail-scroll">
             <div className="column-content">
-              <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
-                Draw the areas of your workplace and say where each step happens. No markers to put up: during training a step opens on the glasses when Owl recognises its place in the camera picture, and you see which area each trainee is in now.
+              <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
+                Draw your workplace and say where each step happens. Owl recognises the place in the camera picture, no markers needed.
               </TextView>
 
               {problem && <Problem>{problem}</Problem>}

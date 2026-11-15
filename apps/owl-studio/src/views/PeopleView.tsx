@@ -28,8 +28,8 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
       <div className={adding || selected ? 'split is-master-detail has-record' : 'split is-master-detail'}>
         <section className="split-list" aria-label="Everyone">
           <VerticalList insetForHeader ariaLabel="People">
-            <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-lede">
-              Add a new worker, choose their language and their tasks, and give them a pair of glasses. On the first day they say "Hey Meta, start Owl" and the rest is in their own language.
+            <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="list-lede">
+              Each worker gets their tasks and a pair of glasses, in their own language.
             </TextView>
             {employees === null && connection.state === 'connecting' && <Waiting what="Getting your people" />}
             {employees !== null && employees.length === 0 && (
@@ -39,7 +39,7 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
             )}
             {(employees ?? []).map((employee) => {
               const current = selected?.id === employee.id
-              const facts = [severalCompanies && employee.company, employee.role, employee.shift_manager && employee.role?.toLowerCase() !== 'shift manager' && 'Shift manager', languageName(employee.language), tasksText(employee, processes), employee.glasses_id ? `Wears ${glassesName(employee.glasses_id)}` : 'No glasses yet']
+              const facts = [severalCompanies && employee.company, employee.role, employee.shift_manager && employee.role?.toLowerCase() !== 'shift manager' && 'Shift manager', tasksText(employee, processes), employee.glasses_id ? glassesName(employee.glasses_id) : 'No glasses yet']
               return (
                 <ListItem
                   key={employee.id}
@@ -50,6 +50,7 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
                   avatarStatusIndicator={employee.glasses_id ? StatusIndicatorType.POSITIVE : StatusIndicatorType.INACTIVE}
                   visualStateOverride={current ? VisualState.FOCUSED : undefined}
                   aria-current={current ? 'true' : undefined}
+                  initialFocusEligible={false}
                   onClick={() => (window.location.hash = href('people', employee.id))}
                 />
               )
@@ -96,13 +97,13 @@ export function PeopleView({ selectedId }: { selectedId: string | null }) {
             <ScrollView ariaLabel="About the welcome" className="detail-scroll" tabIndex={0}>
               <Panel width="100%">
                 <div className="panel-body panel-owl">
-                  <img className="owl-figure" src="/owl/full/welcome.png" alt="" height={240} />
+                  <img className="owl-figure" src="/owl/full/welcome.png" alt="" height={160} />
                   <div className="panel-body-text">
                     <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
                       A welcome in their own language
                     </TextView>
                     <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
-                      Choose a person to see what Owl says to them on their first day, or add someone new. Owl writes the welcome from their name, your company and their first task.
+                      Choose a person to see what Owl says to them on their first day.
                     </TextView>
                   </div>
                 </div>

@@ -77,8 +77,8 @@ export function DocumentsView() {
       <div className="split split-wide split-docs">
         <section className="split-list" aria-labelledby="docs-heading">
           <VerticalList insetForHeader ariaLabel="Documents">
-            <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="list-lede">
-              Your own instructions, as you already have them. Owl answers workers' questions from these and from nothing else, and says so when the answer is not in them.
+            <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="list-lede">
+              Owl answers workers' questions from these files only.
             </TextView>
             <div
               className={dropping ? 'dropzone is-over' : 'dropzone'}

@@ -37,8 +37,8 @@ function HelpList() {
     <Page headerText="Help" headerMetadata={waitingCount ? `${waitingCount} waiting` : undefined} enableSystemBarInset={false} className="route">
       <ScrollView insetForHeader ariaLabel="Help requests" className="route-scroll">
         <div className="route-content">
-          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
-            When a worker is stuck they pinch Help on the glasses. You see what they see and the step they are on, and what you write is spoken in their ear.
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
+            Workers who pinch Help on the glasses. You see their view, and what you write is spoken in their ear.
           </TextView>
 
           {sessions === null && connection.state === 'connecting' && <Waiting what="Looking for help requests" />}
@@ -163,7 +163,7 @@ function AnswerCall({ session, onAnswered }: { session: HelpSession; onAnswered:
     <Page headerText={worker} headerMetadata={`Calling ${manager}`} enableSystemBarInset={false} className="route">
       <ScrollView insetForHeader ariaLabel="Help call" className="route-scroll" tabIndex={0}>
         <div className="route-content">
-          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
             {`${worker} needs help with ${whereText(session, studio.processes)} and is calling ${manager}, the shift manager. When you answer, ${worker}'s glasses say that ${manager} is watching their view.`}
           </TextView>
           {problem && <Problem>{problem}</Problem>}
@@ -255,7 +255,7 @@ function HelpConsole({ helpId }: { helpId: string }) {
       <Page headerText={workerName(session, studio.employees)} enableSystemBarInset={false} className="route">
         <ScrollView insetForHeader ariaLabel="Help request" className="route-scroll" tabIndex={0}>
           <div className="route-content">
-            <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
+            <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
               {session.status === 'ringing'
                 ? `Calling ${session.assignee_name ?? 'the shift manager'} on their glasses. If they do not answer in 30 seconds, the request comes here.`
                 : `${session.assignee_name ?? 'The shift manager'} is helping on their own glasses. The live view is only for them.`}

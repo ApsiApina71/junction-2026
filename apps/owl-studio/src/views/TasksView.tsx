@@ -1,10 +1,12 @@
-import { AvatarShape, Card, CardAboveScrim, ContainerHeader, Page, Panel, ScrimType, ScrollView, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
+import { AvatarShape, Card, CardAboveScrim, Chip, ChipStyle, ContainerHeader, Page, Panel, ScrimType, ScrollView, TextColor, TextStyle, TextView } from '@wearables-ui-toolkit/mrbd'
 import { useState } from 'react'
 import { usePolling } from '../lib/hooks.ts'
 import { href } from '../lib/route.ts'
 import { learnersText, originText, sortProcesses, stepsText } from '../lib/steps.ts'
 import { useStudio } from '../lib/studio.ts'
 import type { Process, Recording } from '../lib/types.ts'
+import ICON_DRAFT from '@wearables-ui-toolkit/icons/svg/pencil__filled.svg'
+import ICON_LIVE from '@wearables-ui-toolkit/icons/svg/circlecheck__filled.svg'
 import { StatusText, Waiting } from '../ui/meta.tsx'
 import type { Tone } from '../ui/meta.tsx'
 
@@ -33,8 +35,8 @@ export function TasksView() {
     <Page headerText="Tasks" headerMetadata={draftCount ? (draftCount === 1 ? '1 draft' : `${draftCount} drafts`) : undefined} enableSystemBarInset={false} className="route">
       <ScrollView insetForHeader ariaLabel="Tasks" className="route-scroll">
         <div className="route-content">
-          <TextView as="p" textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="lede">
-            What new workers learn on the glasses. An expert records a task once, you review and publish it here, and each worker gets the tasks you give them.
+          <TextView as="p" textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="lede">
+            Experts record a task on the glasses. You review it, publish it and choose who learns it.
           </TextView>
 
           {processes === null && connection.state === 'connecting' && <Waiting what="Getting your tasks" />}
@@ -95,10 +97,12 @@ function TaskCard({ process, learners, showCompany }: { process: Process; learne
   const detail = [showCompany && process.company, stepsText(process.steps.length), originText(process), !draft && learnersText(learners)].filter(Boolean).join(' · ')
   const title = process.title || 'Untitled task'
   return (
-    <Card width="100%" bottomScrim={ScrimType.TALL} className="task-card" aria-label={`${title}, ${status}`} onClick={() => (window.location.hash = href('tasks', process.id))}>
+    <Card width="100%" bottomScrim={ScrimType.TALL} className="task-card" aria-label={`${title}, ${status}`} initialFocusEligible={false} onClick={() => (window.location.hash = href('tasks', process.id))}>
       {image ? <img className="card-photo" src={image} alt="" loading="lazy" /> : <img className="card-photo is-owl" src="/owl/full/resting.png" alt="" />}
       <CardAboveScrim className="card-label">
-        <StatusText tone={tone}>{status}</StatusText>
+        <span className={`card-status is-${tone}`}>
+          <Chip text={status} icon={draft ? ICON_DRAFT : ICON_LIVE} chipStyle={ChipStyle.DEEMPHASIZED} />
+        </span>
         <TextView as="h2" textStyle={TextStyle.BODY2_EMPHASIZED}>
           {title}
         </TextView>
