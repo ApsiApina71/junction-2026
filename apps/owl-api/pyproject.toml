@@ -3,14 +3,14 @@ name = "owl-api"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "anthropic>=2.8.0",
+    "anthropic>=2.13.0",
     "av>=19.0.2",
-    "fastapi>=0.162.7",
-    "numpy>=2.5.4",
-    "opencv-python-headless>=5.0.0.93",
+    "fastapi>=0.165.0",
+    "numpy>=2.5.5",
+    "opencv-python-headless>=5.1.0.95",
     "pillow>=13.0.0",
-    "pypdf>=7.1.0",
-    "python-multipart>=0.0.33",
+    "pypdf>=7.1.1",
+    "python-multipart>=0.0.34",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -18,14 +18,14 @@ dependencies = [
 jepa = [
     "torch>=2.15.0",
     "torchvision>=0.29.2",
-    "transformers>=5.23.0",
+    "transformers>=5.24.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.2.0",
-    "ruff>=0.17.5",
+    "ruff>=0.17.6",
 ]
 
 [tool.pytest.ini_options]
